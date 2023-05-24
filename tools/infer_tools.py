@@ -1,14 +1,11 @@
 import numpy as np
 import os
 import torch
-import torch.nn.functional as F
+import torch.nn.functional
 from tqdm import tqdm
-
-from diffusion.unit2mel import load_model_vocoder, DotDict
-from tools.slicer import Slicer
-from tools.tools import F0_Extractor, Volume_Extractor, Units_Encoder, SpeakerEncoder, upsample
-import librosa
-import yaml
+from diffusion.unit2mel import load_model_vocoder
+from tools.slicer import split
+from tools.tools import F0_Extractor, Volume_Extractor, Units_Encoder, SpeakerEncoder, cross_fade
 
 
 class DiffusionSVC:
@@ -143,9 +140,9 @@ class DiffusionSVC:
             mel = mel[:, start_frame:, :]
             f0 = f0[:, start_frame:, :]
             out_wav = self.vocoder.infer(mel, f0)
-            return F.pad(out_wav, (start_frame * self.vocoder.vocoder_hop_size, 0))
+            return torch.nn.functional.pad(out_wav, (start_frame * self.vocoder.vocoder_hop_size, 0))
 
-    @torch.no_grad()
+    @torch.no_grad()  # 最基本推理代码,将输入标准化为tensor,只与mel打交道
     def __call__(self, units, f0, volume, spk_id=1, spk_mix_dict=None, aug_shift=0,
                  gt_spec=None, infer_speedup=10, method='dpm-solver', k_step=None, use_tqdm=True,
                  spk_emb=None):
@@ -171,7 +168,7 @@ class DiffusionSVC:
                           gt_spec=gt_spec, infer=True, infer_speedup=infer_speedup, method=method, k_step=k_step,
                           use_tqdm=use_tqdm, spk_emb=spk_emb, spk_emb_dict=spk_emb_dict)
 
-    @torch.no_grad()
+    @torch.no_grad()  # 比__call__多了声码器代码，输出波形
     def infer(self, units, f0, volume, gt_spec=None, spk_id=1, spk_mix_dict=None, aug_shift=0,
               infer_speedup=10, method='dpm-solver', k_step=None, use_tqdm=True,
               spk_emb=None):
@@ -187,7 +184,7 @@ class DiffusionSVC:
                                 use_tqdm=use_tqdm, spk_emb=spk_emb)
         return self.mel2wav(out_mel, f0)
 
-    @torch.no_grad()
+    @torch.no_grad()  # 为实时优化的推理代码，可以切除pad省算力
     def infer_for_realtime(self, units, f0, volume, audio_t=None, spk_id=1, spk_mix_dict=None, aug_shift=0,
                            infer_speedup=10, method='dpm-solver', k_step=None, use_tqdm=True,
                            spk_emb=None, silence_front=0, diff_jump_silence_front=False):
@@ -218,7 +215,7 @@ class DiffusionSVC:
             out_wav = self.mel2wav(out_mel, f0, start_frame=start_frame)
         return out_wav
 
-    @torch.no_grad()
+    @torch.no_grad()  # 不切片从音频推理代码
     def infer_from_audio(self, audio, sr=44100, key=0, spk_id=1, spk_mix_dict=None, aug_shift=0,
                          infer_speedup=10, method='dpm-solver', k_step=None, use_tqdm=True,
                          spk_emb=None, threhold=-60):
@@ -238,7 +235,7 @@ class DiffusionSVC:
         output *= mask
         return output.squeeze().cpu().numpy(), self.args.data.sampling_rate
 
-    @torch.no_grad()
+    @torch.no_grad()  # 切片从音频推理代码
     def infer_from_long_audio(self, audio, sr=44100, key=0, spk_id=1, spk_mix_dict=None, aug_shift=0,
                               infer_speedup=10, method='dpm-solver', k_step=None, use_tqdm=True,
                               spk_emb=None,
@@ -288,32 +285,3 @@ class DiffusionSVC:
             current_length = current_length + silent_length + len(seg_output)
 
         return result, self.args.data.sampling_rate
-
-
-def split(audio, sample_rate, hop_size, db_thresh=-40, min_len=5000):
-    slicer = Slicer(
-        sr=sample_rate,
-        threshold=db_thresh,
-        min_length=min_len)
-    chunks = dict(slicer.slice(audio))
-    result = []
-    for k, v in chunks.items():
-        tag = v["split_time"].split(",")
-        if tag[0] != tag[1]:
-            start_frame = int(int(tag[0]) // hop_size)
-            end_frame = int(int(tag[1]) // hop_size)
-            if end_frame > start_frame:
-                result.append((
-                    start_frame,
-                    audio[int(start_frame * hop_size): int(end_frame * hop_size)]))
-    return result
-
-
-def cross_fade(a: np.ndarray, b: np.ndarray, idx: int):
-    result = np.zeros(idx + b.shape[0])
-    fade_len = a.shape[0] - idx
-    np.copyto(dst=result[:idx], src=a[:idx])
-    k = np.linspace(0, 1.0, num=fade_len, endpoint=True)
-    result[idx: a.shape[0]] = (1 - k) * a[idx:] + k * b[: fade_len]
-    np.copyto(dst=result[a.shape[0]:], src=b[fade_len:])
-    return result

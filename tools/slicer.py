@@ -144,3 +144,22 @@ def chunks2audio(audio_path, chunks):
         if tag[0] != tag[1]:
             result.append((v["slice"], audio[int(tag[0]):int(tag[1])]))
     return result, sr
+
+
+def split(audio, sample_rate, hop_size, db_thresh=-40, min_len=5000):
+    slicer = Slicer(
+        sr=sample_rate,
+        threshold=db_thresh,
+        min_length=min_len)
+    chunks = dict(slicer.slice(audio))
+    result = []
+    for k, v in chunks.items():
+        tag = v["split_time"].split(",")
+        if tag[0] != tag[1]:
+            start_frame = int(int(tag[0]) // hop_size)
+            end_frame = int(int(tag[1]) // hop_size)
+            if end_frame > start_frame:
+                result.append((
+                    start_frame,
+                    audio[int(start_frame * hop_size): int(end_frame * hop_size)]))
+    return result
