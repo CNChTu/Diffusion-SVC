@@ -101,13 +101,17 @@ python train.py -c configs/config.yaml
 ### 2. 预训练模型：
 **我们强烈建议使用预训练模型进行微调，这将比直接训练容易和节省的多，并能达到比小数据集更高的上限。**
 
-注意，在底模上微调需要使用和底模一样的编码器，如同为ContentVec，对别的编码器(如声纹)也是同理。
+**注意，在底模上微调需要使用和底模一样的编码器，如同为ContentVec，对别的编码器(如声纹)也是同理。**
 
-底模会在上传完成后在这里发布。
+| 所用编码器                                 | 数据集               | 下载                                                                                                                |
+|---------------------------------------|-------------------|-------------------------------------------------------------------------------------------------------------------|
+| contentvec768l12                      | VCTK<br/>m4singer | [HuggingFace](https://huggingface.co/ChiTu/Diffusion-SVC/resolve/main/v0.1/contentvec768l12.7z)                   |
+| contentvec768l12<br/>+use_spk_encoder | VCTK<br/>m4singer | [HuggingFace](https://huggingface.co/ChiTu/Diffusion-SVC/resolve/main/v0.1/contentvec768l12%2Buse_spk_encoder.7z) |
+| hubertsoft                            | VCTK<br/>m4singer | [HuggingFace](https://huggingface.co/ChiTu/Diffusion-SVC/resolve/main/v0.1/hubertsoft.7z)                         |
 
 ### 3. 使用预训练数据（底模）进行训练：
 1. 欢迎PR训练的多人底模 (请使用授权同意开源的数据集进行训练)。
-2. 预训练模型见上文。
+2. 预训练模型见上文,需要特别注意使用的是相同编码器的模型。
 3. 将名为`model_0.pt`的预训练模型, 放到`config.yaml`里面 "expdir: exp/*****" 参数指定的模型导出文件夹内, 没有就新建一个, 程序会自动加载该文件夹下的预训练模型。
 4. 同不使用预训练数据进行训练一样，启动训练。
 
