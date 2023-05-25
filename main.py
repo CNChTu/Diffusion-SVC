@@ -193,7 +193,7 @@ if __name__ == '__main__':
         key=float(cmd.key),
         spk_id=int(cmd.spk_id),
         spk_mix_dict=spk_mix_dict,
-        aug_shift=float(cmd.formant_shift_key),
+        aug_shift=int(cmd.formant_shift_key),
         infer_speedup=int(cmd.speedup),
         method=cmd.method,
         k_step=cmd.k_step,
