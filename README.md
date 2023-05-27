@@ -101,7 +101,7 @@ python train.py -c configs/config.yaml
 ### 2. 预训练模型：
 **我们强烈建议使用预训练模型进行微调，这将比直接训练容易和节省的多，并能达到比小数据集更高的上限。**
 
-**注意，在底模上微调需要使用和底模一样的编码器，如同为ContentVec，对别的编码器(如声纹)也是同理。**
+**注意，在底模上微调需要使用和底模一样的编码器，如同为ContentVec，对别的编码器(如声纹)也是同理，还要注意模型的网络大小等参数相同。**
 
 | 所用编码器                                                                                                                                                                                       | 网络大小   | 数据集               | 下载                                                                                                                |
 |---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|--------|-------------------|-------------------------------------------------------------------------------------------------------------------|
@@ -123,17 +123,17 @@ python train.py -c configs/config.yaml
 # 使用tensorboard检查训练状态
 tensorboard --logdir=exp
 ```
-第一次验证 (validation) 后，在 TensorBoard 中可以看到合成后的测试音频。
+第一次验证后，在 TensorBoard 中可以看到合成后的测试音频。
 
 ## 6. 非实时推理
 ```bash
 python main.py -i <input.wav> -model <model_ckpt.pt> -o <output.wav> -k <keychange> -id <speaker_id> -speedup <speedup> -method <method> -kstep <kstep>
 ```
--model 是模型的路径，-k是变调， -speedup 为加速倍速，-method 为 pndm 或者 dpm-solver, -kstep为浅扩散步数，-id 为扩散模型的说话人id。
+`-model`是模型的路径，`-k`是变调， `-speedup`为加速倍速，`-method`为`pndm`或者`dpm-solver`, `-kstep`为浅扩散步数，`-id`为扩散模型的说话人id。
 
-如果 -kstep 不为空，则以输入源的 mel 进行浅扩散，若 -kstep 为空，则进行完整深度的高斯扩散。
+如果`-kstep`不为空，则以输入源的 mel 进行浅扩散，若`-kstep`为空，则进行完整深度的高斯扩散。
 
-如果使用了声纹编码，那么可以通过-spkemb指定一个外部声纹，或者通过-spkembdict覆盖模型模型的声纹词典。
+如果使用了声纹编码，那么可以通过`-spkemb`指定一个外部声纹，或者通过`-spkembdict`覆盖模型模型的声纹词典。
 
 ## 感谢
 * [DDSP-SVC](https://github.com/yxlllc/DDSP-SVC)
