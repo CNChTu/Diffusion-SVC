@@ -10,12 +10,12 @@ Diffusion-SVC 是[DDSP-SVC](https://github.com/yxlllc/DDSP-SVC)仓库的扩散�
 
 如果训练数据和输入源的质量都非常高，Diffusion-SVC可能拥有最好的转换效果。
 
-除此之外，本项目可以很容易的级联在别的声学模型之后进行浅扩散，以改善最终的输出效果或降低性能占用。例如在[DDSP-SVC](https://github.com/yxlllc/DDSP-SVC)后级联Diffusion，可进一步减少需要的扩散步数并得到高质量的输出。
+除此之外，本项目可以很容易的级联在别的声学模型之后进行浅扩散，以改善最终的输出效果或降低性能占用。例如在[DDSP-SVC](https://github.com/yxlllc/DDSP-SVC)后级联Diffusion-SVC，可进一步减少需要的扩散步数并得到高质量的输出。
 
 免责声明：请确保仅使用**合法获得的授权数据**训练 Diffusion-SVC 模型，不要将这些模型及其合成的任何音频用于非法目的。 本库作者不对因使用这些模型检查点和音频而造成的任何侵权，诈骗等违法行为负责。
 
 ## 1. 安装依赖
-1. 安装PyTorch：我们推荐从 [**PyTorch 官方网站 **](https://pytorch.org/) 下载 PyTorch.
+1. 安装PyTorch：我们推荐从 **[PyTorch 官方网站 ](https://pytorch.org/)** 下载 PyTorch.
 
 2. 安装依赖
 ```bash
