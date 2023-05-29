@@ -50,6 +50,10 @@ def traverse_dir(
 
 
 def get_data_loaders(args, whole_audio=False):
+    if args.data.volume_noise == 0:
+        volume_noise = None
+    else:
+        volume_noise = args.data.volume_noise
     data_train = AudioDataset(
         args.data.train_path,
         waveform_sec=args.data.duration,
@@ -63,7 +67,9 @@ def get_data_loaders(args, whole_audio=False):
         fp16=args.train.cache_fp16,
         use_aug=True,
         use_spk_encoder=args.model.use_speaker_encoder,
-        spk_encoder_mode=args.data.speaker_encoder_mode)
+        spk_encoder_mode=args.data.speaker_encoder_mode,
+        volume_noise=volume_noise
+    )
     loader_train = torch.utils.data.DataLoader(
         data_train,
         batch_size=args.train.batch_size if not whole_audio else 1,
@@ -82,7 +88,9 @@ def get_data_loaders(args, whole_audio=False):
         extensions=args.data.extensions,
         n_spk=args.model.n_spk,
         use_spk_encoder=args.model.use_speaker_encoder,
-        spk_encoder_mode=args.data.speaker_encoder_mode)
+        spk_encoder_mode=args.data.speaker_encoder_mode,
+        volume_noise=volume_noise
+    )
     loader_valid = torch.utils.data.DataLoader(
         data_valid,
         batch_size=1,
@@ -108,7 +116,8 @@ class AudioDataset(Dataset):
             fp16=False,
             use_aug=False,
             use_spk_encoder=False,
-            spk_encoder_mode='each_spk'
+            spk_encoder_mode='each_spk',
+            volume_noise=None
     ):
         super().__init__()
 
@@ -145,10 +154,16 @@ class AudioDataset(Dataset):
             path_volume = os.path.join(self.path_root, 'volume', name_ext) + '.npy'
             volume = np.load(path_volume)
             volume = torch.from_numpy(volume).float().unsqueeze(-1).to(device)
+            if volume_noise is not None:
+                _noise = volume_noise * torch.rand(volume.shape,).to(device)
+                volume = volume + _noise * torch.sign(volume)
 
             path_augvol = os.path.join(self.path_root, 'aug_vol', name_ext) + '.npy'
             aug_vol = np.load(path_augvol)
             aug_vol = torch.from_numpy(aug_vol).float().unsqueeze(-1).to(device)
+            if volume_noise is not None:
+                _noise = volume_noise * torch.rand(aug_vol.shape,).to(device)
+                aug_vol = aug_vol + _noise * torch.sign(aug_vol)
 
             if n_spk is not None and n_spk > 1:
                 dirname_split = re.split(r"_|\-", os.path.dirname(name_ext), 2)[0]
