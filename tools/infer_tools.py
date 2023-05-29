@@ -2,6 +2,7 @@ import numpy as np
 import os
 import torch
 import torch.nn.functional
+from torchaudio.transforms import Resample
 from tqdm import tqdm
 from diffusion.unit2mel import load_model_vocoder
 from tools.slicer import split
@@ -27,6 +28,7 @@ class DiffusionSVC:
         self.volume_extractor = None
         self.speaker_encoder = None
         self.spk_emb_dict = None
+        self.resample_dict_16000 = {}
 
     def load_model(self, model_path, f0_model=None, f0_min=None, f0_max=None):
 
@@ -77,6 +79,8 @@ class DiffusionSVC:
             self.load_model(model_path, f0_model=f0_model, f0_min=f0_min, f0_max=f0_max)
 
     def set_spk_emb_dict(self, spk_emb_dict_or_path):  # 从路径加载或直接设置
+        if spk_emb_dict_or_path is None:
+            return None
         if spk_emb_dict_or_path is dict:
             self.spk_emb_dict = spk_emb_dict_or_path
             print(f"Load spk_emb_dict from {spk_emb_dict_or_path}")
@@ -119,6 +123,8 @@ class DiffusionSVC:
 
     @torch.no_grad()
     def encode_spk_from_path(self, path):  # 从path读取预先提取的声纹(必须是.npy文件), 或从声音文件提取声纹(此时可以是文件或目录)
+        if path is None:
+            return None
         assert self.speaker_encoder is not None
         if (('122333444455555' + path)[-4:] == '.npy') and os.path.isfile(path):
             spk_emb = np.load(path)
@@ -184,7 +190,7 @@ class DiffusionSVC:
                                 use_tqdm=use_tqdm, spk_emb=spk_emb)
         return self.mel2wav(out_mel, f0)
 
-    @torch.no_grad()  # 为实时优化的推理代码，可以切除pad省算力
+    @torch.no_grad()  # 为实时浅扩散优化的推理代码，可以切除pad省算力
     def infer_for_realtime(self, units, f0, volume, audio_t=None, spk_id=1, spk_mix_dict=None, aug_shift=0,
                            infer_speedup=10, method='dpm-solver', k_step=None, use_tqdm=True,
                            spk_emb=None, silence_front=0, diff_jump_silence_front=False):
@@ -202,6 +208,7 @@ class DiffusionSVC:
             assert audio_t is not None
             k_step = int(k_step)
             gt_spec = self.vocoder.extract(audio_t, self.args.data.sampling_rate)
+            # 如果缺帧再开这行gt_spec = torch.cat((gt_spec, gt_spec[:, -1:, :]), 1)
         else:
             gt_spec = None
 
@@ -227,6 +234,7 @@ class DiffusionSVC:
             k_step = int(k_step)
             audio_t = torch.from_numpy(audio).float().unsqueeze(0).to(self.device)
             gt_spec = self.vocoder.extract(audio_t, self.args.data.sampling_rate)
+            gt_spec = torch.cat((gt_spec, gt_spec[:, -1:, :]), 1)
         else:
             gt_spec = None
         output = self.infer(units, f0, volume, gt_spec=gt_spec, spk_id=spk_id, spk_mix_dict=spk_mix_dict,
@@ -252,7 +260,7 @@ class DiffusionSVC:
             k_step = int(k_step)
             audio_t = torch.from_numpy(audio).float().unsqueeze(0).to(self.device)
             gt_spec = self.vocoder.extract(audio_t, self.args.data.sampling_rate)
-            # gt_spec = torch.cat((gt_spec, gt_spec[:, -1:, :]), 1)
+            gt_spec = torch.cat((gt_spec, gt_spec[:, -1:, :]), 1)
         else:
             gt_spec = None
 
@@ -285,3 +293,46 @@ class DiffusionSVC:
             current_length = current_length + silent_length + len(seg_output)
 
         return result, self.args.data.sampling_rate
+
+    @torch.no_grad()  # 为实时优化的推理代码，可以切除pad省算力
+    def infer_from_audio_for_realtime(self, audio, sr, key, spk_id=1, spk_mix_dict=None, aug_shift=0,
+                                      infer_speedup=10, method='dpm-solver', k_step=None, use_tqdm=True,
+                                      spk_emb=None, silence_front=0, diff_jump_silence_front=False, threhold=-60):
+
+        start_frame = int(silence_front * self.vocoder.vocoder_sample_rate / self.vocoder.vocoder_hop_size)
+        audio_t = torch.from_numpy(audio).float().unsqueeze(0).to(self.device)
+
+        key_str = str(sr)
+        if key_str not in self.resample_dict_16000:
+            self.resample_dict_16000[key_str] = Resample(sr, 16000, lowpass_filter_width=128).to(self.device)
+        if int(sr) != 16000:
+            audio_t_16k = self.resample_dict_16000[key_str](audio_t)
+        else:
+            audio_t_16k = audio_t
+
+        units = self.encode_units(audio_t_16k, sr=16000)
+        f0 = self.extract_f0(audio, key=key, sr=sr, silence_front=silence_front)
+        volume, mask = self.extract_volume_and_mask(audio, sr, threhold=float(threhold))
+
+        if diff_jump_silence_front:
+            audio_t = audio_t[:, start_frame * self.vocoder.vocoder_hop_size:]
+            f0 = f0[:, start_frame:, :]
+            units = units[:, start_frame:, :]
+            volume = volume[:, start_frame:, :]
+
+        if k_step is not None:
+            k_step = int(k_step)
+            gt_spec = self.vocoder.extract(audio_t, self.args.data.sampling_rate)
+        else:
+            gt_spec = None
+
+        out_mel = self.__call__(units, f0, volume, spk_id=spk_id, spk_mix_dict=spk_mix_dict, aug_shift=aug_shift,
+                                gt_spec=gt_spec, infer_speedup=infer_speedup, method=method, k_step=k_step,
+                                use_tqdm=use_tqdm, spk_emb=spk_emb)
+
+        if diff_jump_silence_front:
+            out_wav = self.mel2wav(out_mel, f0)
+        else:
+            out_wav = self.mel2wav(out_mel, f0, start_frame=start_frame)
+            out_wav *= mask
+        return out_wav.squeeze().cpu().numpy(), self.args.data.sampling_rate
