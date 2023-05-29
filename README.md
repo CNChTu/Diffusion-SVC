@@ -39,9 +39,9 @@ pip install -r requirements.txt
 
 将所有的验证集数据 (.wav 格式音频切片) 放到 `data/val/audio`,也可以是配置文件中指定的文件夹如`aaaa/bbbb/audio`。
 
-#### 1.2 程序随机选择：
+#### ~~1.2 程序随机选择(未实装)：~~
 
-运行`python draw.py`,程序将帮助你挑选验证集数据（可以调整 `draw.py` 中的参数修改抽取文件的数量等参数）。
+~~运行`python draw.py`,程序将帮助你挑选验证集数据（可以调整 `draw.py` 中的参数修改抽取文件的数量等参数）~~。
 
 #### 1.3文件夹结构目录展示：
 **注意：说话人id必须从1开始，不能从0开始；如果只有一个说话人则该说话人id必须为1**
@@ -134,6 +134,17 @@ python main.py -i <input.wav> -model <model_ckpt.pt> -o <output.wav> -k <keychan
 如果`-kstep`不为空，则以输入源的 mel 进行浅扩散，若`-kstep`为空，则进行完整深度的高斯扩散。
 
 如果使用了声纹编码，那么可以通过`-spkemb`指定一个外部声纹，或者通过`-spkembdict`覆盖模型模型的声纹词典。
+
+## 7. 非实时推理
+
+本项目可配合[rtvc](https://github.com/fishaudio/realtime-vc-gui)实现实时推理。
+
+**注意：目前为实验性功能，rtvc也未完善，不推荐使用。**
+
+```bash
+# 需要配合rtvc使用
+python flask_api.py
+```
 
 ## 感谢
 * [DDSP-SVC](https://github.com/yxlllc/DDSP-SVC)
