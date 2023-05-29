@@ -135,7 +135,7 @@ python main.py -i <input.wav> -model <model_ckpt.pt> -o <output.wav> -k <keychan
 
 如果使用了声纹编码，那么可以通过`-spkemb`指定一个外部声纹，或者通过`-spkembdict`覆盖模型模型的声纹词典。
 
-## 7. 非实时推理
+## 7. 实时推理
 
 本项目可配合[rtvc](https://github.com/fishaudio/realtime-vc-gui)实现实时推理。
 
