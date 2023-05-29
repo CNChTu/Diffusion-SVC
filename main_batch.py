@@ -35,13 +35,11 @@ if __name__ == '__main__':
     diffusion_svc = DiffusionSVC(device=device)  # 加载模型
     diffusion_svc.load_model(model_path=model_path, f0_model=f0_model, f0_max=f0_max, f0_min=f0_min)
 
-    spk_emb = None
     if diffusion_svc.args.model.use_speaker_encoder:  # 如果使用声纹，则处理声纹选项
-        if spk_emb_dict_path is not None:  # 覆盖模型的说话人声纹词典
-            diffusion_svc.set_spk_emb_dict(spk_emb_dict_path)
-
-        if spk_emb_path is not None:  # 覆盖声纹
-            spk_emb = diffusion_svc.encode_spk_from_path(spk_emb_path)
+        diffusion_svc.set_spk_emb_dict(spk_emb_dict_path)
+        spk_emb = diffusion_svc.encode_spk_from_path(spk_emb_path)
+    else:
+        spk_emb = None
 
     for file in tqdm(os.listdir(input_path)):
         in_path = os.path.join(input_path, file)

@@ -175,13 +175,13 @@ if __name__ == '__main__':
 
     spk_mix_dict = literal_eval(cmd.spk_mix_dict)
 
-    spk_emb = None
     if diffusion_svc.args.model.use_speaker_encoder:  # 如果使用声纹，则处理声纹选项
-        if cmd.spk_emb_dict is not None:  # 覆盖模型的说话人声纹词典
-            diffusion_svc.set_spk_emb_dict(cmd.spk_emb_dict)
-
-        if cmd.spk_emb is not None:  # 覆盖声纹
-            spk_emb = diffusion_svc.encode_spk_from_path(cmd.spk_emb)
+        # 覆盖模型的说话人声纹词典
+        diffusion_svc.set_spk_emb_dict(cmd.spk_emb_dict)
+        # 覆盖声纹
+        spk_emb = diffusion_svc.encode_spk_from_path(cmd.spk_emb)
+    else:
+        spk_emb = None
 
     # load wav
     in_wav, in_sr = librosa.load(cmd.input, sr=None)
