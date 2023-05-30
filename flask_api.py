@@ -32,12 +32,24 @@ def voice_change_model():
     else:
         silence_front = 0
 
+    # get sample_method
+    sample_method = str(request_form.get("sample_method", None))
+    if sample_method == 'None':
+        sample_method = 'pndm'
+    else:
+        sample_method = 'dpm-solver'
+    print(f'sample_method:{sample_method}')
+
+    # get speed_up
+    speed_up = int(float(request_form.get("sample_interval", 20)))
+    print(f'speed_up:{speed_up}')
+
     # 变调信息
     key = float(request_form.get("fPitchChange", 0))
 
     # 获取spk_id
     raw_speak_id = str(request_form.get("sSpeakId", 0))
-    print("说话人:" + raw_speak_id)
+    print("speak_id:" + raw_speak_id)
     if str.isdigit(raw_speak_id):
         spk_id = int(raw_speak_id)
         spk_mix_dict = None
@@ -58,8 +70,8 @@ def voice_change_model():
         spk_id=spk_id,
         spk_mix_dict=spk_mix_dict,
         aug_shift=0,
-        infer_speedup=T_SPEED_UP,
-        method='pndm',
+        infer_speedup=speed_up,
+        method=sample_method,
         k_step=None,
         use_tqdm=False,
         spk_emb=spk_emb,
@@ -91,8 +103,6 @@ if __name__ == "__main__":
     limit_f0_max = 1100
     # device
     device = 'cuda'
-    # 加速倍数，未来会在gui里提供
-    T_SPEED_UP = 20
     # 扩散部分完全不合成安全区，打开可以减少硬件压力并加速，但是会损失合成效果
     diff_jump_silence_front = False
     # 以下参数仅在使用speaker_encoder时生效
