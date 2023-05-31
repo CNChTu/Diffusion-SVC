@@ -16,7 +16,7 @@ data:
   speaker_encoder_out_channels: 256
   speaker_encoder_ckpt: 'pretrain/speaker_encoder/best_model.pth.tar' # only use with use_speaker_encoder
   speaker_encoder_config: 'pretrain/speaker_encoder/config.json' # only use with use_speaker_encoder
-  speaker_encoder_mode: 'each_wav' # 'each_wav' or 'each_spk', only use with use_speaker_encoder, 'each_wav' will retain the spk_emb of each wav, 'each_spk' will average the spk_emb from all wav of the same speaker into one spk_emb
+  speaker_encoder_mode: 'each_spk' # 'each_wav' or 'each_spk', only use with use_speaker_encoder, 'each_wav' will retain the spk_emb of each wav, 'each_spk' will average the spk_emb from all wav of the same speaker into one spk_emb
   volume_noise: 0 # if not 0 ,add noise for volume in train ;;;;EXPERIMENTAL FUNCTION, NOT RECOMMENDED FOR USE;;;;
   train_path: data/train # Create a folder named "audio" under this path and put the audio clip in it
   valid_path: data/val # Create a folder named "audio" under this path and put the audio clip in it
