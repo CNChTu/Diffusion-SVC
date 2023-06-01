@@ -10,7 +10,7 @@ This repository is a separate storage for the diffusion part of the [DDSP-SVC](h
 ## 0. Introduction
 Diffusion-SVC is a separate storage for the diffusion part of the [DDSP-SVC](https://github.com/yxlllc/DDSP-SVC) repository. It can be trained and inferred independently.
 
-Compared with the well-known [Diff-SVC](https://github.com/prophesier/diff-svc), this project consumes much less memory, has faster training and inference speed, and is specially optimized for shallow diffusion and real-time use. It can perform real-time inference on a powerful GPU.
+Compared with the well-known [Diff-SVC](https://github.com/prophesier/diff-svc), this project consumes much less graphic memory, has faster training and inference speed, and is specially optimized for shallow diffusion and real-time use. It can perform real-time inference on a powerful GPU.
 
 If the quality of the training data and the input source are both very high, Diffusion-SVC may have the best conversion effect.
 
