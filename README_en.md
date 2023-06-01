@@ -1,6 +1,9 @@
 Language: [简体中文](./README.md) **English**
+
 **This English readme will not update first time, please read [简体中文](./README.md) for latest info。**
+
 I am not good at English. If there are any errors, please point them out.
+
 # Diffusion-SVC
 This repository is a separate storage for the diffusion part of the [DDSP-SVC](https://github.com/yxlllc/DDSP-SVC) repository. It can be trained and inferred independently.
 
