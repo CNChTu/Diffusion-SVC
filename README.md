@@ -1,4 +1,4 @@
-Language: [](./README.md) **简体中文**
+Language: [English](./README_en.md) **简体中文**
 
 # Diffusion-SVC
 此仓库是[DDSP-SVC](https://github.com/yxlllc/DDSP-SVC)仓库的扩散部分的单独存放。可单独训练和推理。
