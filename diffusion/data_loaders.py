@@ -196,7 +196,7 @@ class AudioDataset(Dataset):
                 units_len = units.shape[0]
                 units = torch.from_numpy(units).to(device)
 
-                spk_emb = None
+                spk_emb = torch.rand(1, 1)
                 if use_spk_encoder and (spk_encoder_mode == 'each_spk'):
                     path_spk_emb_dict = os.path.join(self.path_root, 'spk_emb_dict.npy')
                     spk_emb = np.load(path_spk_emb_dict, allow_pickle=True).item()
