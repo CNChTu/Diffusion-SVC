@@ -159,6 +159,14 @@ def parse_args(args=None, namespace=None):
         default=None,
         help="path to the spk_emb_dict file for covering default spk_emb_dict, must be .npy",
     )
+    parser.add_argument(
+        "-ir",
+        "--index_ratio",
+        type=str,
+        required=False,
+        default=0,
+        help="index_ratio, if > 0 will use index | default: 0",
+    )
     return parser.parse_args(args=args, namespace=namespace)
 
 
@@ -201,6 +209,8 @@ if __name__ == '__main__':
         spk_emb=spk_emb,
         threhold=float(cmd.threhold),
         threhold_for_split=float(cmd.threhold_for_split),
-        min_len=int(cmd.min_len))
+        min_len=int(cmd.min_len),
+        index_ratio=float(cmd.index_ratio)
+    )
     # save
     sf.write(cmd.output, out_wav, out_sr)

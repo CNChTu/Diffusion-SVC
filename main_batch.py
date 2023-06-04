@@ -31,6 +31,7 @@ if __name__ == '__main__':
     k_step = None
     spk_emb_path = None
     spk_emb_dict_path = None
+    index_ratio = 0  # 大于0则使用检索，需要已经训练过检索
     # -------------------------------下面不用动----------------------------------
     diffusion_svc = DiffusionSVC(device=device)  # 加载模型
     diffusion_svc.load_model(model_path=model_path, f0_model=f0_model, f0_max=f0_max, f0_min=f0_min)
@@ -50,5 +51,6 @@ if __name__ == '__main__':
                                                          spk_mix_dict=spk_mix_dict,
                                                          aug_shift=aug_shift,
                                                          infer_speedup=infer_speedup, method=method, k_step=k_step,
-                                                         use_tqdm=False, spk_emb=spk_emb, threhold=threhold)
+                                                         use_tqdm=False, spk_emb=spk_emb, threhold=threhold,
+                                                         index_ratio=index_ratio)
         sf.write(out_path, out_wav, out_sr)
