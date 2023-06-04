@@ -221,20 +221,21 @@ if __name__ == '__main__':
                device=device, use_pitch_aug=False, extensions=extensions, speaker_encoder=speaker_encoder)
 
     # get spk_emb_dict
-    spk_emb_path = os.path.join(args.data.train_path, 'spk_emb')
-    speaker_id_list = os.listdir(spk_emb_path)
-    spk_emb_dict = {}
-    for speaker_id_str in speaker_id_list:
-        spk_emb_each_path = os.path.join(spk_emb_path, speaker_id_str)
-        _temp_emb = None
-        for spk_emb_bin in os.listdir(spk_emb_each_path):
-            spk_emb_bin_path = os.path.join(spk_emb_each_path, spk_emb_bin)
-            if _temp_emb is None:
-                _temp_emb = np.load(spk_emb_bin_path)
-            else:
-                __temp_emb = np.load(spk_emb_bin_path)
-                _temp_emb = np.concatenate([__temp_emb, _temp_emb], axis=0)
-        spk_emb_dict[speaker_id_str] = np.mean(_temp_emb, axis=0)
-        # np.save(os.path.join(args.data.train_path, speaker_id_str + '.npy'), spk_emb_dict[speaker_id_str])
-    np.save(os.path.join(args.data.train_path, 'spk_emb_dict.npy'), spk_emb_dict)
-    np.save(os.path.join(args.data.valid_path, 'spk_emb_dict.npy'), spk_emb_dict)
+    if args.model.use_speaker_encoder:
+        spk_emb_path = os.path.join(args.data.train_path, 'spk_emb')
+        speaker_id_list = os.listdir(spk_emb_path)
+        spk_emb_dict = {}
+        for speaker_id_str in speaker_id_list:
+            spk_emb_each_path = os.path.join(spk_emb_path, speaker_id_str)
+            _temp_emb = None
+            for spk_emb_bin in os.listdir(spk_emb_each_path):
+                spk_emb_bin_path = os.path.join(spk_emb_each_path, spk_emb_bin)
+                if _temp_emb is None:
+                    _temp_emb = np.load(spk_emb_bin_path)
+                else:
+                    __temp_emb = np.load(spk_emb_bin_path)
+                    _temp_emb = np.concatenate([__temp_emb, _temp_emb], axis=0)
+            spk_emb_dict[speaker_id_str] = np.mean(_temp_emb, axis=0)
+            # np.save(os.path.join(args.data.train_path, speaker_id_str + '.npy'), spk_emb_dict[speaker_id_str])
+        np.save(os.path.join(args.data.train_path, 'spk_emb_dict.npy'), spk_emb_dict)
+        np.save(os.path.join(args.data.valid_path, 'spk_emb_dict.npy'), spk_emb_dict)
