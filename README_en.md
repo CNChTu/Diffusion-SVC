@@ -105,12 +105,12 @@ python train.py -c configs/config.yaml
 
 **Please note, fine-tuning on a base model requires using the same encoder as the base model, such as ContentVec, the same applies to other encoders (like voiceprint), and the model's network size and other parameters should be the same.**
 
-| Encoder Used                                                                                                                                                                                       | Network Size   | Dataset               | Download                                                                                                                |
-|---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|--------|-------------------|-------------------------------------------------------------------------------------------------------------------|
-| [contentvec768l12(Recommended)](https://ibm.ent.box.com/s/z1wgl1stco8ffooyatzdwsqn2psd9lrr)                                                                                                          | 512*20 | VCTK<br/>m4singer | [HuggingFace](https://huggingface.co/ChiTu/Diffusion-SVC/resolve/main/v0.1/contentvec768l12.7z)                   |
-| [contentvec768l12](https://ibm.ent.box.com/s/z1wgl1stco8ffooyatzdwsqn2psd9lrr)<br/>+[use_spk_encoder](https://drive.google.com/drive/folders/15oeBYf6Qn1edONkVLXe82MzdIi3O_9m3?usp=sharing) | 512*20 | VCTK<br/>m4singer | [HuggingFace](https://huggingface.co/ChiTu/Diffusion-SVC/resolve/main/v0.1/contentvec768l12%2Buse_spk_encoder.7z) |
-| [hubertsoft](https://github.com/bshall/hubert/releases/download/v0.1/hubert-soft-0d54a1f4.pt)                                                                                               | 512*20 | VCTK<br/>m4singer | [HuggingFace](https://huggingface.co/ChiTu/Diffusion-SVC/resolve/main/v0.1/hubertsoft.7z)                         |
-| [wav2vec2ctc](https://huggingface.co/facebook/wav2vec2-xlsr-53-espeak-cv-ft)                                                                                                                | 512*20 | VCTK<br/>m4singer | [HuggingFace](https://huggingface.co/ChiTu/Diffusion-SVC/resolve/main/v0.1/wav2vec2ctc.7z)                        |
+| Encoder Used                                                                                                                                                                                | Network Size | Dataset           | Download                                                                                                          |
+|---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|--------------|-------------------|-------------------------------------------------------------------------------------------------------------------|
+| [contentvec768l12(Recommended)](https://ibm.ent.box.com/s/z1wgl1stco8ffooyatzdwsqn2psd9lrr)                                                                                                 | 512*20       | VCTK<br/>m4singer | [HuggingFace](https://huggingface.co/ChiTu/Diffusion-SVC/resolve/main/v0.1/contentvec768l12.7z)                   |
+| [contentvec768l12](https://ibm.ent.box.com/s/z1wgl1stco8ffooyatzdwsqn2psd9lrr)<br/>+[use_spk_encoder](https://drive.google.com/drive/folders/15oeBYf6Qn1edONkVLXe82MzdIi3O_9m3?usp=sharing) | 512*20       | VCTK<br/>m4singer | [HuggingFace](https://huggingface.co/ChiTu/Diffusion-SVC/resolve/main/v0.1/contentvec768l12%2Buse_spk_encoder.7z) |
+| [hubertsoft](https://github.com/bshall/hubert/releases/download/v0.1/hubert-soft-0d54a1f4.pt)                                                                                               | 512*20       | VCTK<br/>m4singer | [HuggingFace](https://huggingface.co/ChiTu/Diffusion-SVC/resolve/main/v0.1/hubertsoft.7z)                         |
+| [wav2vec2ctc](https://huggingface.co/facebook/wav2vec2-xlsr-53-espeak-cv-ft)                                                                                                                | 512*20       | VCTK<br/>m4singer | [HuggingFace](https://huggingface.co/ChiTu/Diffusion-SVC/resolve/main/v0.1/wav2vec2ctc.7z)                        |
 
 Here is an additional special pre-trained model using the contentvec768l12 encoder, the dataset is `m4singer`/`opencpop`/`vctk`. It is not recommended to use this and there's no guarantee it won't cause problems: [Download](https://huggingface.co/ChiTu/Diffusion-SVC/resolve/main/v0.1/contentvec768l12%2Bmakefunny.7z).
 
@@ -137,7 +137,17 @@ If `-kstep` is not empty, shallow diffusion will be performed on the input sourc
 
 If voiceprint encoding was used, an external voiceprint can be specified with `-spkemb`, or the model's voiceprint dictionary can be overwritten with `-spkembdict`.
 
-## 7. Real-Time Inference
+## 7. Units Index(Optional,Not Recommended)
+Like [RVC](https://github.com/RVC-Project/Retrieval-based-Voice-Conversion-WebUI) and [so-vits-svc](https://github.com/svc-develop-team/so-vits-svc).
+
+**Note that this is an optional feature and can be inferred normally without use.Indexing takes up a large amount of storage space and also consumes a lot of CPU during indexin.**
+```bash
+# training index，preprocessing needs to be completed first
+python train_units_index.py -c config.yaml
+```
+推理时，使用`-lr`参数使用。此参数为检索比率。
+
+## 8. Real-Time Inference
 
 This project can work with [rtvc](https://github.com/fishaudio/realtime-vc-gui) to achieve real-time inference.
 
@@ -147,6 +157,20 @@ This project can work with [rtvc](https://github.com/fishaudio/realtime-vc-gui) 
 # Needs to be used in conjunction with rtvc
 python flask_api.py
 ```
+
+## 9. Compatibility
+### 9.1. Units Encoder
+|                      | Diffusion-SVC | [DDSP-SVC](https://github.com/yxlllc/DDSP-SVC) | [so-vits-svc](https://github.com/svc-develop-team/so-vits-svc) |
+|----------------------|---------------|------------------------------------------------|----------------------------------------------------------------|
+| ContentVec           | √             | √                                              | √                                                              |
+| HubertSoft           | √             | √                                              | √                                                              |
+| Hubert(Base,Large)   | √             | √                                              | ×                                                              |
+| CNHubert(Base,Large) | √             | √                                              | √*                                                             |
+| CNHubertSoft         | √             | √                                              | ×                                                              |
+| Wav2Vec2CTC          | √*            | ×                                              | ×                                                              |
+| DPHubert             | ×             | ×                                              | √                                                              |
+| Whisper-PPG          | ×             | ×                                              | √*                                                             |
+
 
 ## Acknowledgement
 * [DDSP-SVC](https://github.com/yxlllc/DDSP-SVC)

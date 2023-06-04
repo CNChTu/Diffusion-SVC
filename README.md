@@ -135,7 +135,17 @@ python main.py -i <input.wav> -model <model_ckpt.pt> -o <output.wav> -k <keychan
 
 如果使用了声纹编码，那么可以通过`-spkemb`指定一个外部声纹，或者通过`-spkembdict`覆盖模型模型的声纹词典。
 
-## 7. 实时推理
+## 7. Units索引(可选,不推荐)
+与[RVC](https://github.com/RVC-Project/Retrieval-based-Voice-Conversion-WebUI)和[so-vits-svc](https://github.com/svc-develop-team/so-vits-svc)类似的特征索引。
+
+**注意，此为可选功能，无索引也可正常使用，索引会占用大量存储空间，索引时还会大量占用CPU，此功能不推荐使用。**
+```bash
+# 训练特征索引，需要先完成预处理
+python train_units_index.py -c config.yaml
+```
+推理时，使用`-lr`参数使用。此参数为检索比率。
+
+## 8. 实时推理
 
 本项目可配合[rtvc](https://github.com/fishaudio/realtime-vc-gui)实现实时推理。
 
@@ -145,6 +155,19 @@ python main.py -i <input.wav> -model <model_ckpt.pt> -o <output.wav> -k <keychan
 # 需要配合rtvc使用
 python flask_api.py
 ```
+
+## 9. 兼容性
+### 9.1. Units编码器
+|                      | Diffusion-SVC | [DDSP-SVC](https://github.com/yxlllc/DDSP-SVC) | [so-vits-svc](https://github.com/svc-develop-team/so-vits-svc) |
+|----------------------|---------------|------------------------------------------------|----------------------------------------------------------------|
+| ContentVec           | √             | √                                              | √                                                              |
+| HubertSoft           | √             | √                                              | √                                                              |
+| Hubert(Base,Large)   | √             | √                                              | ×                                                              |
+| CNHubert(Base,Large) | √             | √                                              | √*                                                             |
+| CNHubertSoft         | √             | √                                              | ×                                                              |
+| Wav2Vec2CTC          | √*            | ×                                              | ×                                                              |
+| DPHubert             | ×             | ×                                              | √                                                              |
+| Whisper-PPG          | ×             | ×                                              | √*                                                             |
 
 ## 感谢
 * [DDSP-SVC](https://github.com/yxlllc/DDSP-SVC)
