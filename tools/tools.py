@@ -7,6 +7,7 @@ import parselmouth
 import torchcrepe
 import librosa
 import fsspec
+from tqdm import tqdm
 from transformers import HubertModel, Wav2Vec2FeatureExtractor, Wav2Vec2ForCTC
 from fairseq import checkpoint_utils
 from encoder.hubert.model import HubertSoft
@@ -56,7 +57,8 @@ class SpeakerEncoder:
     def mean_spk_emb_from_wav_list(self, audio_list, sr_list):
         assert len(audio_list) == len(sr_list)
         batch_spk_emb = None
-        for index in range(len(audio_list)):
+        print("Get mean spk_emb from audio_list")
+        for index in tqdm(range(len(audio_list))):
             audio = audio_list[index]
             sample_rate = sr_list[index]
             f_len = int(50 * len(audio) / sample_rate)  # 50f/s is for sr=16000，hop_size=320
@@ -70,7 +72,8 @@ class SpeakerEncoder:
 
     def mean_spk_emb_from_path_list(self, path_list):
         batch_spk_emb = None
-        for path in path_list:
+        print("Get mean spk_emb from path_list")
+        for path in tqdm(path_list):
             audio, sample_rate = librosa.load(path, sr=None)
             f_len = int(50 * len(audio) / sample_rate)  # 50f/s is for sr=16000，hop_size=320
             spk_emb = self.__call__(audio=audio, sample_rate=sample_rate)

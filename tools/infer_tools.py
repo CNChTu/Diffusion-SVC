@@ -6,6 +6,7 @@ from torchaudio.transforms import Resample
 from tqdm import tqdm
 from diffusion.unit2mel import load_model_vocoder
 from tools.slicer import split
+from tools.units_index import UnitsIndexer
 from tools.tools import F0_Extractor, Volume_Extractor, Units_Encoder, SpeakerEncoder, cross_fade
 
 
@@ -29,6 +30,7 @@ class DiffusionSVC:
         self.speaker_encoder = None
         self.spk_emb_dict = None
         self.resample_dict_16000 = {}
+        self.units_indexer = None
 
     def load_model(self, model_path, f0_model=None, f0_min=None, f0_max=None):
 
@@ -70,6 +72,8 @@ class DiffusionSVC:
                 device=self.device)
             path_spk_emb_dict = os.path.join(os.path.split(model_path)[0], 'spk_emb_dict.npy')
             self.set_spk_emb_dict(path_spk_emb_dict)
+
+        self.units_indexer = UnitsIndexer(os.path.split(model_path)[0])
 
     def flush(self, model_path, f0_model=None, f0_min=None, f0_max=None):
         assert model_path is not None
@@ -225,8 +229,10 @@ class DiffusionSVC:
     @torch.no_grad()  # 不切片从音频推理代码
     def infer_from_audio(self, audio, sr=44100, key=0, spk_id=1, spk_mix_dict=None, aug_shift=0,
                          infer_speedup=10, method='dpm-solver', k_step=None, use_tqdm=True,
-                         spk_emb=None, threhold=-60):
+                         spk_emb=None, threhold=-60, index_ratio=0):
         units = self.encode_units(audio, sr)
+        if index_ratio > 0:
+            units = self.units_indexer(units_t=units, spk_id=spk_id, ratio=index_ratio)
         f0 = self.extract_f0(audio, key=key, sr=sr)
         volume, mask = self.extract_volume_and_mask(audio, sr, threhold=float(threhold))
         if k_step is not None:
@@ -247,7 +253,7 @@ class DiffusionSVC:
     def infer_from_long_audio(self, audio, sr=44100, key=0, spk_id=1, spk_mix_dict=None, aug_shift=0,
                               infer_speedup=10, method='dpm-solver', k_step=None, use_tqdm=True,
                               spk_emb=None,
-                              threhold=-60, threhold_for_split=-40, min_len=5000):
+                              threhold=-60, threhold_for_split=-40, min_len=5000, index_ratio=0):
 
         hop_size = self.args.data.block_size * sr / self.args.data.sampling_rate
         segments = split(audio, sr, hop_size, db_thresh=threhold_for_split, min_len=min_len)
@@ -270,6 +276,8 @@ class DiffusionSVC:
             start_frame = segment[0]
             seg_input = torch.from_numpy(segment[1]).float().unsqueeze(0).to(self.device)
             seg_units = self.units_encoder.encode(seg_input, sr, hop_size)
+            if index_ratio > 0:
+                seg_units = self.units_indexer(units_t=seg_units, spk_id=spk_id, ratio=index_ratio)
             seg_f0 = f0[:, start_frame: start_frame + seg_units.size(1), :]
             seg_volume = volume[:, start_frame: start_frame + seg_units.size(1), :]
             if gt_spec is not None:
@@ -297,7 +305,8 @@ class DiffusionSVC:
     @torch.no_grad()  # 为实时优化的推理代码，可以切除pad省算力
     def infer_from_audio_for_realtime(self, audio, sr, key, spk_id=1, spk_mix_dict=None, aug_shift=0,
                                       infer_speedup=10, method='dpm-solver', k_step=None, use_tqdm=True,
-                                      spk_emb=None, silence_front=0, diff_jump_silence_front=False, threhold=-60):
+                                      spk_emb=None, silence_front=0, diff_jump_silence_front=False, threhold=-60,
+                                      index_ratio=0):
 
         start_frame = int(silence_front * self.vocoder.vocoder_sample_rate / self.vocoder.vocoder_hop_size)
         audio_t = torch.from_numpy(audio).float().unsqueeze(0).to(self.device)
@@ -311,6 +320,8 @@ class DiffusionSVC:
             audio_t_16k = audio_t
 
         units = self.encode_units(audio_t_16k, sr=16000)
+        if index_ratio > 0:
+            units = self.units_indexer(units_t=units, spk_id=spk_id, ratio=index_ratio)
         f0 = self.extract_f0(audio, key=key, sr=sr, silence_front=silence_front)
         volume, mask = self.extract_volume_and_mask(audio, sr, threhold=float(threhold))
 
