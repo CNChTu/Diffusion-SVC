@@ -201,7 +201,9 @@ if __name__ == '__main__':
         args.data.encoder_sample_rate,
         args.data.encoder_hop_size,
         cnhubertsoft_gate=cnhubertsoft_gate,
-        device=device)
+        device=device,
+        units_forced_mode=args.data.units_forced_mode
+    )
 
     # initialize speaker encoder
     speaker_encoder = None
