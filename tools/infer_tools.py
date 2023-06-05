@@ -43,12 +43,15 @@ class DiffusionSVC:
             self.args.data.encoder_sample_rate,
             self.args.data.encoder_hop_size,
             cnhubertsoft_gate=self.args.data.cnhubertsoft_gate,
-            device=self.device)
+            device=self.device,
+            units_forced_mode=self.args.data.units_forced_mode
+        )
 
         self.volume_extractor = Volume_Extractor(
             hop_size=512,
             block_size=self.args.data.block_size,
-            model_sampling_rate=self.args.data.sampling_rate)
+            model_sampling_rate=self.args.data.sampling_rate
+        )
 
         self.f0_model = f0_model if (f0_model is not None) else self.args.data.f0_extractor
         self.f0_min = f0_min if (f0_min is not None) else self.args.data.f0_min
@@ -69,7 +72,8 @@ class DiffusionSVC:
                 self.args.data.speaker_encoder_config,
                 self.args.data.speaker_encoder_ckpt,
                 self.args.data.speaker_encoder_sample_rate,
-                device=self.device)
+                device=self.device
+            )
             path_spk_emb_dict = os.path.join(os.path.split(model_path)[0], 'spk_emb_dict.npy')
             self.set_spk_emb_dict(path_spk_emb_dict)
 

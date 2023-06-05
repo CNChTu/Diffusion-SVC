@@ -327,13 +327,17 @@ class Volume_Extractor:
 
 class Units_Encoder:
     def __init__(self, encoder, encoder_ckpt, encoder_sample_rate=16000, encoder_hop_size=320, device=None,
-                 cnhubertsoft_gate=10):
+                 cnhubertsoft_gate=10, units_forced_mode='nearest'):
         if device is None:
             device = 'cuda' if torch.cuda.is_available() else 'cpu'
         self.device = device
 
         if cnhubertsoft_gate is None:
             cnhubertsoft_gate = 10
+        if units_forced_mode is None:
+            units_forced_mode = 'left'
+        self.units_forced_mode = units_forced_mode
+        print(f"Units Forced Mode:{self.units_forced_mode}")
 
         is_loaded_encoder = False
         if encoder == 'hubertsoft':
@@ -394,10 +398,20 @@ class Units_Encoder:
         units = self.model(audio_res)
 
         # alignment
-        n_frames = audio.size(-1) // hop_size + 1
-        ratio = (hop_size / sample_rate) / (self.encoder_hop_size / self.encoder_sample_rate)
-        index = torch.clamp(torch.round(ratio * torch.arange(n_frames).to(self.device)).long(), max=units.size(1) - 1)
-        units_aligned = torch.gather(units, 1, index.unsqueeze(0).unsqueeze(-1).repeat([1, 1, units.size(-1)]))
+        if self.units_forced_mode == 'left':
+            n_frames = audio.size(-1) // hop_size + 1
+            ratio = (hop_size / sample_rate) / (self.encoder_hop_size / self.encoder_sample_rate)
+            index = torch.clamp(torch.round(ratio * torch.arange(n_frames).to(self.device)).long(), max=units.size(1) - 1)
+            units_aligned = torch.gather(units, 1, index.unsqueeze(0).unsqueeze(-1).repeat([1, 1, units.size(-1)]))
+
+        elif self.units_forced_mode == 'nearest':
+            n_frames = int(audio.size(-1) // hop_size + 1)
+            units = units.transpose(1, 2)
+            units_aligned = torch.nn.functional.interpolate(units, size=int(n_frames), mode='nearest')
+            units_aligned = units_aligned.transpose(1, 2)
+
+        else:
+            raise ValueError(f'Unknow units_forced_mode:{self.units_forced_mode}')
         return units_aligned
 
 
