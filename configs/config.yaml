@@ -11,9 +11,10 @@ data:
   encoder_hop_size: 320
   encoder_out_channels: 768 # 256 if using 'hubertsoft'
   encoder_ckpt: pretrain/contentvec/checkpoint_best_legacy_500.pt
+  units_forced_mode: 'nearest' # Recommended 'nearest',experiment 'rfa512to441' and 'rfa441to512' ; 'left'  only use for compatible with history code
   speaker_encoder: 'ge2e' # only use use_speaker_encoder
-  speaker_encoder_sample_rate: 16000
-  speaker_encoder_out_channels: 256
+  speaker_encoder_sample_rate: 16000 # only use with use_speaker_encoder
+  speaker_encoder_out_channels: 256 # only use with use_speaker_encoder
   speaker_encoder_ckpt: 'pretrain/speaker_encoder/best_model.pth.tar' # only use with use_speaker_encoder
   speaker_encoder_config: 'pretrain/speaker_encoder/config.json' # only use with use_speaker_encoder
   speaker_encoder_mode: 'each_spk' # 'each_wav' or 'each_spk', only use with use_speaker_encoder
