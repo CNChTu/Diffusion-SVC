@@ -11,7 +11,6 @@ data:
   encoder_hop_size: 320
   encoder_out_channels: 768 # 256 if using 'hubertsoft'
   encoder_ckpt: pretrain/contentvec/checkpoint_best_legacy_500.pt
-  units_forced_mode: 'nearest' # Recommended 'nearest'; 'left' and others only use for compatible with history code
   speaker_encoder: 'ge2e' # only use use_speaker_encoder
   speaker_encoder_sample_rate: 16000
   speaker_encoder_out_channels: 256
