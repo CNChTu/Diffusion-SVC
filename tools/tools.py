@@ -337,7 +337,6 @@ class Units_Encoder:
         if units_forced_mode is None:
             units_forced_mode = 'left'
         self.units_forced_mode = units_forced_mode
-        print(f"Units Forced Mode:{self.units_forced_mode}")
 
         is_loaded_encoder = False
         if encoder == 'hubertsoft':
@@ -372,6 +371,12 @@ class Units_Encoder:
             is_loaded_encoder = True
         if not is_loaded_encoder:
             raise ValueError(f" [x] Unknown units encoder: {encoder}")
+        print(f"Units Forced Mode:{self.units_forced_mode}")
+
+        if self.units_forced_mode == 'rfa512to441':
+            encoder_sample_rate = encoder_sample_rate * 441 / 512
+        if self.units_forced_mode == 'rfa441to512':
+            encoder_sample_rate = encoder_sample_rate * 512 / 441
 
         self.resample_kernel = {}
         self.encoder_sample_rate = encoder_sample_rate
@@ -383,14 +388,22 @@ class Units_Encoder:
                hop_size):
 
         # resample
-        if sample_rate == self.encoder_sample_rate:
-            audio_res = audio
+        if self.units_forced_mode not in ('rfa441to512', 'rfa512to441'):
+            if sample_rate == self.encoder_sample_rate:
+                audio_res = audio
+            else:
+                key_str = str(sample_rate)
+                if key_str not in self.resample_kernel:
+                    self.resample_kernel[key_str] = Resample(sample_rate, self.encoder_sample_rate,
+                                                             lowpass_filter_width=128).to(self.device)
+                audio_res = self.resample_kernel[key_str](audio)
         else:
-            key_str = str(sample_rate)
-            if key_str not in self.resample_kernel:
-                self.resample_kernel[key_str] = Resample(sample_rate, self.encoder_sample_rate,
-                                                         lowpass_filter_width=128).to(self.device)
-            audio_res = self.resample_kernel[key_str](audio)
+            if isinstance(audio, np.ndarray):
+                _audio = audio
+            else:
+                _audio = audio.cpu().numpy()
+            audio_res = librosa.resample(_audio, orig_sr=sample_rate, target_sr=self.encoder_sample_rate)
+            audio_res = torch.from_numpy(audio_res).to(self.device)
 
         # encode
         if audio_res.size(-1) < 400:
@@ -405,6 +418,12 @@ class Units_Encoder:
             units_aligned = torch.gather(units, 1, index.unsqueeze(0).unsqueeze(-1).repeat([1, 1, units.size(-1)]))
 
         elif self.units_forced_mode == 'nearest':
+            n_frames = int(audio.size(-1) // hop_size + 1)
+            units = units.transpose(1, 2)
+            units_aligned = torch.nn.functional.interpolate(units, size=int(n_frames), mode='nearest')
+            units_aligned = units_aligned.transpose(1, 2)
+
+        elif self.units_forced_mode in ('rfa441to512', 'rfa512to441'):
             n_frames = int(audio.size(-1) // hop_size + 1)
             units = units.transpose(1, 2)
             units_aligned = torch.nn.functional.interpolate(units, size=int(n_frames), mode='nearest')
