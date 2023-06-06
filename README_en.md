@@ -110,7 +110,7 @@ python train.py -c configs/config.yaml
 | [contentvec768l12(Recommended)](https://ibm.ent.box.com/s/z1wgl1stco8ffooyatzdwsqn2psd9lrr)                                                                                                 | 512*20       | VCTK<br/>m4singer | [HuggingFace](https://huggingface.co/ChiTu/Diffusion-SVC/resolve/main/v0.1/contentvec768l12.7z)                   |
 | [contentvec768l12](https://ibm.ent.box.com/s/z1wgl1stco8ffooyatzdwsqn2psd9lrr)<br/>+[use_spk_encoder](https://drive.google.com/drive/folders/15oeBYf6Qn1edONkVLXe82MzdIi3O_9m3?usp=sharing) | 512*20       | VCTK<br/>m4singer | [HuggingFace](https://huggingface.co/ChiTu/Diffusion-SVC/resolve/main/v0.1/contentvec768l12%2Buse_spk_encoder.7z) |
 | [hubertsoft](https://github.com/bshall/hubert/releases/download/v0.1/hubert-soft-0d54a1f4.pt)                                                                                               | 512*20       | VCTK<br/>m4singer | [HuggingFace](https://huggingface.co/ChiTu/Diffusion-SVC/resolve/main/v0.1/hubertsoft.7z)                         |
-| [wav2vec2ctc](https://huggingface.co/facebook/wav2vec2-xlsr-53-espeak-cv-ft)                                                                                                                | 512*20       | VCTK<br/>m4singer | [HuggingFace](https://huggingface.co/ChiTu/Diffusion-SVC/resolve/main/v0.1/wav2vec2ctc.7z)                        |
+| [wav2vec2-xlsr-53-espeak-cv-ft](https://huggingface.co/facebook/wav2vec2-xlsr-53-espeak-cv-ft)                                                                                              | 512*20       | VCTK<br/>m4singer | [HuggingFace](https://huggingface.co/ChiTu/Diffusion-SVC/resolve/main/v0.1/wav2vec2ctc.7z)                        |
 
 Here is an additional special pre-trained model using the contentvec768l12 encoder, the dataset is `m4singer`/`opencpop`/`vctk`. It is not recommended to use this and there's no guarantee it won't cause problems: [Download](https://huggingface.co/ChiTu/Diffusion-SVC/resolve/main/v0.1/contentvec768l12%2Bmakefunny.7z).
 
@@ -160,16 +160,16 @@ python flask_api.py
 
 ## 9. Compatibility
 ### 9.1. Units Encoder
-|                      | Diffusion-SVC | [DDSP-SVC](https://github.com/yxlllc/DDSP-SVC) | [so-vits-svc](https://github.com/svc-develop-team/so-vits-svc) |
-|----------------------|---------------|------------------------------------------------|----------------------------------------------------------------|
-| ContentVec           | √             | √                                              | √                                                              |
-| HubertSoft           | √             | √                                              | √                                                              |
-| Hubert(Base,Large)   | √             | √                                              | ×                                                              |
-| CNHubert(Base,Large) | √             | √                                              | √*                                                             |
-| CNHubertSoft         | √             | √                                              | ×                                                              |
-| Wav2Vec2CTC          | √*            | ×                                              | ×                                                              |
-| DPHubert             | ×             | ×                                              | √                                                              |
-| Whisper-PPG          | ×             | ×                                              | √*                                                             |
+|                               | Diffusion-SVC | [DDSP-SVC](https://github.com/yxlllc/DDSP-SVC) | [so-vits-svc](https://github.com/svc-develop-team/so-vits-svc) |
+|-------------------------------|---------------|------------------------------------------------|----------------------------------------------------------------|
+| ContentVec                    | √             | √                                              | √                                                              |
+| HubertSoft                    | √             | √                                              | √                                                              |
+| Hubert(Base,Large)            | √             | √                                              | ×                                                              |
+| CNHubert(Base,Large)          | √             | √                                              | √*                                                             |
+| CNHubertSoft                  | √             | √                                              | ×                                                              |
+| Wav2Vec2-xlsr-53-espeak-cv-ft | √*            | ×                                              | ×                                                              |
+| DPHubert                      | ×             | ×                                              | √                                                              |
+| Whisper-PPG                   | ×             | ×                                              | √*                                                             |
 
 
 ## Acknowledgement
