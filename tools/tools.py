@@ -366,7 +366,7 @@ class Units_Encoder:
         if encoder == 'cnhubertsoftfish':
             self.model = CNHubertSoftFish(encoder_ckpt, device=device, gate_size=cnhubertsoft_gate)
             is_loaded_encoder = True
-        if encoder == 'wav2vec2' or 'wav2vec2-xlsr-53-espeak-cv-ft':
+        if encoder in ('wav2vec2', 'wav2vec2-xlsr-53-espeak-cv-ft'):
             self.model = Wav2Vec2(encoder_ckpt, device=device)
             is_loaded_encoder = True
         if not is_loaded_encoder:
