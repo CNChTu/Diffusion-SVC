@@ -72,7 +72,7 @@ class Unit2Mel(nn.Module):
         self.n_spk = n_spk
         self.use_speaker_encoder = use_speaker_encoder
         if use_speaker_encoder:
-            self.spk_embed = nn.Linear(speaker_encoder_out_channels, n_hidden)
+            self.spk_embed = nn.Linear(speaker_encoder_out_channels, n_hidden, bias=False)
         else:
             if n_spk is not None and n_spk > 1:
                 self.spk_embed = nn.Embedding(n_spk, n_hidden)
