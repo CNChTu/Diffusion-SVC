@@ -29,7 +29,7 @@ pip install -r requirements.txt
   - Note: You can also use other feature extractors, but ContentVec is still highly recommended. All supported feature extractors can be found in the `Units_Encoder` class in `tools/tools.py`.
 - **(Required)** Download the pretrained vocoder from the [DiffSinger community vocoder project](https://openvpi.github.io/vocoders) and unzip it to the `pretrain/` folder.
   -  Note: You should download the compressed file with `nsf_hifigan` in its name, not `nsf_hifigan_finetune`.
-- If you need to use the voiceprint model, you need to set `use_speaker_encoder` in the configuration file to `true`, and download the pretrained voiceprint model from [here](https://drive.google.com/drive/folders/15oeBYf6Qn1edONkVLXe82MzdIi3O_9m3?usp=sharing). This model comes from [mozilla/TTS](https://github.com/mozilla/TTS/wiki/Released-Models).
+- ~~If you need to use the voiceprint model, you need to set `use_speaker_encoder` in the configuration file to `true`, and download the pretrained voiceprint model from [here](https://drive.google.com/drive/folders/15oeBYf6Qn1edONkVLXe82MzdIi3O_9m3?usp=sharing). This model comes from [mozilla/TTS](https://github.com/mozilla/TTS/wiki/Released-Models).~~
 
 ## 3. Preprocessing
 
@@ -108,9 +108,7 @@ python train.py -c configs/config.yaml
 | Encoder Used                                                                                                                                                                                | Network Size | Dataset           | Download                                                                                                          |
 |---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|--------------|-------------------|-------------------------------------------------------------------------------------------------------------------|
 | [contentvec768l12(Recommended)](https://ibm.ent.box.com/s/z1wgl1stco8ffooyatzdwsqn2psd9lrr)                                                                                                 | 512*20       | VCTK<br/>m4singer | [HuggingFace](https://huggingface.co/ChiTu/Diffusion-SVC/resolve/main/v0.1/contentvec768l12.7z)                   |
-| [contentvec768l12](https://ibm.ent.box.com/s/z1wgl1stco8ffooyatzdwsqn2psd9lrr)<br/>+[use_spk_encoder](https://drive.google.com/drive/folders/15oeBYf6Qn1edONkVLXe82MzdIi3O_9m3?usp=sharing) | 512*20       | VCTK<br/>m4singer | [HuggingFace](https://huggingface.co/ChiTu/Diffusion-SVC/resolve/main/v0.1/contentvec768l12%2Buse_spk_encoder.7z) |
 | [hubertsoft](https://github.com/bshall/hubert/releases/download/v0.1/hubert-soft-0d54a1f4.pt)                                                                                               | 512*20       | VCTK<br/>m4singer | [HuggingFace](https://huggingface.co/ChiTu/Diffusion-SVC/resolve/main/v0.1/hubertsoft.7z)                         |
-| [wav2vec2-xlsr-53-espeak-cv-ft](https://huggingface.co/facebook/wav2vec2-xlsr-53-espeak-cv-ft)                                                                                              | 512*20       | VCTK<br/>m4singer | [HuggingFace](https://huggingface.co/ChiTu/Diffusion-SVC/resolve/main/v0.1/wav2vec2ctc.7z)                        |
 
 Here is an additional special pre-trained model using the contentvec768l12 encoder, the dataset is `m4singer`/`opencpop`/`vctk`. It is not recommended to use this and there's no guarantee it won't cause problems: [Download](https://huggingface.co/ChiTu/Diffusion-SVC/resolve/main/v0.1/contentvec768l12%2Bmakefunny.7z).
 
@@ -135,7 +133,7 @@ python main.py -i <input.wav> -model <model_ckpt.pt> -o <output.wav> -k <keychan
 
 If `-kstep` is not empty, shallow diffusion will be performed on the input source mel, if `-kstep` is empty, full depth Gaussian diffusion will be performed.
 
-If voiceprint encoding was used, an external voiceprint can be specified with `-spkemb`, or the model's voiceprint dictionary can be overwritten with `-spkembdict`.
+~~If voiceprint encoding was used, an external voiceprint can be specified with `-spkemb`, or the model's voiceprint dictionary can be overwritten with `-spkembdict`.~~
 
 ## 7. Units Index(Optional,Not Recommended)
 Like [RVC](https://github.com/RVC-Project/Retrieval-based-Voice-Conversion-WebUI) and [so-vits-svc](https://github.com/svc-develop-team/so-vits-svc).

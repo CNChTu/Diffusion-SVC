@@ -27,7 +27,7 @@ pip install -r requirements.txt
   - 注意：也可以使用别的特征提取，但仍然优先推荐ContentVec。支持的所有特征提取见`tools/tools.py`中的`Units_Encoder`类。
 - **(必要操作)** 从 [DiffSinger 社区声码器项目](https://openvpi.github.io/vocoders) 下载预训练声码器，并解压至 `pretrain/` 文件夹。
   -  注意：你应当下载名称中带有`nsf_hifigan`的压缩文件，而非`nsf_hifigan_finetune`。
-- 如果需要使用声纹模型，则需要将配置文件的`use_speaker_encoder`设置为`true`, 并从[这里](https://drive.google.com/drive/folders/15oeBYf6Qn1edONkVLXe82MzdIi3O_9m3?usp=sharing)下载预训练声纹模型,该模型来自[mozilla/TTS](https://github.com/mozilla/TTS/wiki/Released-Models)。
+- ~~如果需要使用声纹模型，则需要将配置文件的`use_speaker_encoder`设置为`true`, 并从[这里](https://drive.google.com/drive/folders/15oeBYf6Qn1edONkVLXe82MzdIi3O_9m3?usp=sharing)下载预训练声纹模型,该模型来自[mozilla/TTS](https://github.com/mozilla/TTS/wiki/Released-Models)。~~
 
 ## 3. 预处理
 
@@ -106,9 +106,7 @@ python train.py -c configs/config.yaml
 | 所用编码器                                                                                                                                                                                       | 网络大小   | 数据集               | 下载                                                                                                                |
 |---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|--------|-------------------|-------------------------------------------------------------------------------------------------------------------|
 | [contentvec768l12(推荐)](https://ibm.ent.box.com/s/z1wgl1stco8ffooyatzdwsqn2psd9lrr)                                                                                                          | 512*20 | VCTK<br/>m4singer | [HuggingFace](https://huggingface.co/ChiTu/Diffusion-SVC/resolve/main/v0.1/contentvec768l12.7z)                   |
-| [contentvec768l12](https://ibm.ent.box.com/s/z1wgl1stco8ffooyatzdwsqn2psd9lrr)<br/>+[use_spk_encoder](https://drive.google.com/drive/folders/15oeBYf6Qn1edONkVLXe82MzdIi3O_9m3?usp=sharing) | 512*20 | VCTK<br/>m4singer | [HuggingFace](https://huggingface.co/ChiTu/Diffusion-SVC/resolve/main/v0.1/contentvec768l12%2Buse_spk_encoder.7z) |
 | [hubertsoft](https://github.com/bshall/hubert/releases/download/v0.1/hubert-soft-0d54a1f4.pt)                                                                                               | 512*20 | VCTK<br/>m4singer | [HuggingFace](https://huggingface.co/ChiTu/Diffusion-SVC/resolve/main/v0.1/hubertsoft.7z)                         |
-| [wav2vec2-xlsr-53-espeak-cv-ft](https://huggingface.co/facebook/wav2vec2-xlsr-53-espeak-cv-ft)                                                                                              | 512*20 | VCTK<br/>m4singer | [HuggingFace](https://huggingface.co/ChiTu/Diffusion-SVC/resolve/main/v0.1/wav2vec2ctc.7z)                        |
 
 补充一个用contentvec768l12编码的整活底模，数据集为`m4singer`/`opencpop`/`vctk`，不推荐使用，不保证没问题：[下载](https://huggingface.co/ChiTu/Diffusion-SVC/resolve/main/v0.1/contentvec768l12%2Bmakefunny.7z)。
 
@@ -133,7 +131,7 @@ python main.py -i <input.wav> -model <model_ckpt.pt> -o <output.wav> -k <keychan
 
 如果`-kstep`不为空，则以输入源的 mel 进行浅扩散，若`-kstep`为空，则进行完整深度的高斯扩散。
 
-如果使用了声纹编码，那么可以通过`-spkemb`指定一个外部声纹，或者通过`-spkembdict`覆盖模型模型的声纹词典。
+~~如果使用了声纹编码，那么可以通过`-spkemb`指定一个外部声纹，或者通过`-spkembdict`覆盖模型模型的声纹词典。~~
 
 ## 7. Units索引(可选,不推荐)
 与[RVC](https://github.com/RVC-Project/Retrieval-based-Voice-Conversion-WebUI)和[so-vits-svc](https://github.com/svc-develop-team/so-vits-svc)类似的特征索引。
