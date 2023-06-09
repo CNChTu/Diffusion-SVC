@@ -169,7 +169,7 @@ python flask_api.py
 | Wav2Vec2-xlsr-53-espeak-cv-ft | √*            | ×                                              | ×                                                              |
 | DPHubert                      | ×             | ×                                              | √                                                              |
 | Whisper-PPG                   | ×             | ×                                              | √*                                                             |
-
+| WavLM(Base,Large)             | ×             | ×                                              | √*                                                             |
 
 ## Acknowledgement
 * [DDSP-SVC](https://github.com/yxlllc/DDSP-SVC)
