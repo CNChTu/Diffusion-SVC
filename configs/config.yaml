@@ -1,5 +1,5 @@
 data:
-  f0_extractor: 'parselmouth' # 'parselmouth', 'dio', 'harvest', or 'crepe'
+  f0_extractor: 'crepe' # 'parselmouth', 'dio', 'harvest', or 'crepe'
   f0_min: 65 # about C2
   f0_max: 800 # about G5
   sampling_rate: 44100
@@ -11,7 +11,7 @@ data:
   encoder_hop_size: 320
   encoder_out_channels: 768 # 256 if using 'hubertsoft'
   encoder_ckpt: pretrain/contentvec/checkpoint_best_legacy_500.pt
-  units_forced_mode: 'left' # Recommended 'nearest',experiment 'rfa512to441' and 'rfa441to512' ; 'left'  only use for compatible with history code
+  units_forced_mode: 'nearest' # Recommended 'nearest',experiment 'rfa512to441' and 'rfa441to512' ; 'left'  only use for compatible with history code
   volume_noise: 0 # if not 0 ,add noise for volume in train ;;;;EXPERIMENTAL FUNCTION, NOT RECOMMENDED FOR USE;;;;
   train_path: data/train # Create a folder named "audio" under this path and put the audio clip in it
   valid_path: data/val # Create a folder named "audio" under this path and put the audio clip in it
