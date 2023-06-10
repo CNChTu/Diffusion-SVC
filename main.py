@@ -144,20 +144,12 @@ def parse_args(args=None, namespace=None):
         help="shallow diffusion steps | default: None",
     )
     parser.add_argument(
-        "-spkemb",
-        "--spk_emb",
+        "-nmodel",
+        "--naive_model",
         type=str,
         required=False,
         default=None,
-        help="path to the spk_emb file or extracted wav(or dir) for diff, must be wav(wav/dir) or npy",
-    )
-    parser.add_argument(
-        "-spkembdict",
-        "--spk_emb_dict",
-        type=str,
-        required=False,
-        default=None,
-        help="path to the spk_emb_dict file for covering default spk_emb_dict, must be .npy",
+        help="path to the naive model, shallow diffusion if not None and k_step not None",
     )
     parser.add_argument(
         "-ir",
@@ -183,13 +175,15 @@ if __name__ == '__main__':
 
     spk_mix_dict = literal_eval(cmd.spk_mix_dict)
 
-    if diffusion_svc.args.model.use_speaker_encoder:  # 如果使用声纹，则处理声纹选项
-        # 覆盖模型的说话人声纹词典
-        diffusion_svc.set_spk_emb_dict(cmd.spk_emb_dict)
-        # 覆盖声纹
-        spk_emb = diffusion_svc.encode_spk_from_path(cmd.spk_emb)
-    else:
-        spk_emb = None
+    naive_model_path = cmd.naive_model
+    if naive_model_path is not None:
+        if cmd.k_step is None:
+            naive_model_path = None
+            print(" [WARN] Could not shallow diffusion without k_step value when Only set naive_model path")
+        else:
+            diffusion_svc.load_naive_model(naive_model_path=naive_model_path)
+
+    spk_emb = None
 
     # load wav
     in_wav, in_sr = librosa.load(cmd.input, sr=None)
