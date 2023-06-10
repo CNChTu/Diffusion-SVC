@@ -31,6 +31,9 @@ class DiffusionSVC:
         self.spk_emb_dict = None
         self.resample_dict_16000 = {}
         self.units_indexer = None
+        self.naive_model_path = None
+        self.naive_model = None
+        self.naive_model_args = None
 
     def load_model(self, model_path, f0_model=None, f0_min=None, f0_max=None):
 
@@ -79,22 +82,62 @@ class DiffusionSVC:
 
         self.units_indexer = UnitsIndexer(os.path.split(model_path)[0])
 
-    def flush(self, model_path, f0_model=None, f0_min=None, f0_max=None):
-        assert model_path is not None
+    def flush(self, model_path=None, f0_model=None, f0_min=None, f0_max=None, naive_model_path=None):
+        assert (model_path is not None) or (naive_model_path is not None)
         # flush model if changed
         if ((self.model_path != model_path) or (self.f0_model != f0_model)
                 or (self.f0_min != f0_min) or (self.f0_max != f0_max)):
             self.load_model(model_path, f0_model=f0_model, f0_min=f0_min, f0_max=f0_max)
+        if self.naive_model_path != naive_model_path:
+            self.load_naive_model(naive_model_path)
+        # check args if use naive
+        if self.naive_model is not None:
+            if self.naive_model_args.data.encoder == self.args.data.encoder:
+                raise ValueError("encoder of Naive Model and Diffusion Model are different")
+            if self.naive_model_args.model.n_spk == self.args.model.n_spk:
+                raise ValueError("n_spk of Naive Model and Diffusion Model are different")
+            if (self.naive_model_args.model.use_speaker_encoder and self.args.model.use_speaker_encoder) and (
+                    self.naive_model_args.model.use_speaker_encoder or self.args.model.use_speaker_encoder):
+                raise ValueError("use_speaker_encoder of Naive Model and Diffusion Model are different")
+            if self.naive_model_args.vocoder.type == self.args.vocoder.type:
+                raise ValueError("vocoder of Naive Model and Diffusion Model are different")
+            if self.naive_model_args.data.block_size == self.args.data.block_size:
+                raise ValueError("block_size of Naive Model and Diffusion Model are different")
+            if self.naive_model_args.data.sampling_rate == self.args.data.sampling_rate:
+                raise ValueError("sampling_rate of Naive Model and Diffusion Model are different")
+
+    def load_naive_model(self, naive_model_path):
+        self.naive_model_path = naive_model_path
+        model, _, args = load_model_vocoder(naive_model_path, device=self.device, loaded_vocoder=self.vocoder)
+        self.naive_model = model
+        self.naive_model_args = args
+        print(f" [INFO] Load naive model from {naive_model_path}")
+
+    @torch.no_grad()
+    def naive_model_call(self, units, f0, volume, spk_id=1, spk_mix_dict=None,
+                         aug_shift=0, spk_emb=None):
+        # spk_id
+        spk_emb_dict = None
+        if self.args.model.use_speaker_encoder:  # with speaker encoder
+            spk_mix_dict, spk_emb = self.pre_spk_emb(spk_id, spk_mix_dict, len(units), spk_emb)
+        # without speaker encoder
+        else:
+            spk_id = torch.LongTensor(np.array([[int(spk_id)]])).to(self.device)
+        aug_shift = torch.from_numpy(np.array([[float(aug_shift)]])).float().to(self.device)
+        out_spec = self.naive_model(units, f0, volume, spk_id=spk_id, spk_mix_dict=spk_mix_dict,
+                                    aug_shift=aug_shift, infer=True,
+                                    spk_emb=spk_emb, spk_emb_dict=spk_emb_dict)
+        return out_spec
 
     def set_spk_emb_dict(self, spk_emb_dict_or_path):  # 从路径加载或直接设置
         if spk_emb_dict_or_path is None:
             return None
         if spk_emb_dict_or_path is dict:
             self.spk_emb_dict = spk_emb_dict_or_path
-            print(f"Load spk_emb_dict from {spk_emb_dict_or_path}")
+            print(f" [INFO] Load spk_emb_dict from {spk_emb_dict_or_path}")
         else:
             self.spk_emb_dict = np.load(spk_emb_dict_or_path, allow_pickle=True).item()
-            print(f"Load spk_emb_dict from {spk_emb_dict_or_path}")
+            print(f" [INFO] Load spk_emb_dict from {spk_emb_dict_or_path}")
 
     @torch.no_grad()
     def encode_units(self, audio, sr=44100):
@@ -146,6 +189,17 @@ class DiffusionSVC:
             spk_emb = self.speaker_encoder.mean_spk_emb_from_path_list(path_list)
         return spk_emb
 
+    def pre_spk_emb(self, spk_id, spk_mix_dict, units_len, spk_emb):
+        spk_emb_dict = self.spk_emb_dict
+        if (spk_mix_dict is not None) or (spk_emb is None):
+            assert spk_emb_dict is not None
+        if spk_emb is None:
+            spk_emb = spk_emb_dict[str(spk_id)]
+        # pad and to device
+        spk_emb = np.tile(spk_emb, (units_len, 1))
+        spk_emb = torch.from_numpy(spk_emb).float().to(self.device)
+        return spk_mix_dict, spk_emb
+
     @torch.no_grad()
     def mel2wav(self, mel, f0, start_frame=0):
         if start_frame == 0:
@@ -166,14 +220,7 @@ class DiffusionSVC:
         # spk_id
         spk_emb_dict = None
         if self.args.model.use_speaker_encoder:  # with speaker encoder
-            spk_emb_dict = self.spk_emb_dict
-            if (spk_mix_dict is not None) or (spk_emb is None):
-                assert spk_emb_dict is not None
-            if spk_emb is None:
-                spk_emb = spk_emb_dict[str(spk_id)]
-            # pad and to device
-            spk_emb = np.tile(spk_emb, (len(units), 1))
-            spk_emb = torch.from_numpy(spk_emb).float().to(self.device)
+            spk_mix_dict, spk_emb = self.pre_spk_emb(spk_id, spk_mix_dict, len(units), spk_emb)
         # without speaker encoder
         else:
             spk_id = torch.LongTensor(np.array([[int(spk_id)]])).to(self.device)
@@ -187,6 +234,9 @@ class DiffusionSVC:
               infer_speedup=10, method='dpm-solver', k_step=None, use_tqdm=True,
               spk_emb=None):
         if k_step is not None:
+            if self.naive_model is not None:
+                gt_spec = self.naive_model_call(units, f0, volume, spk_id=spk_id, spk_mix_dict=spk_mix_dict,
+                                                aug_shift=aug_shift, spk_emb=spk_emb)
             assert gt_spec is not None
             k_step = int(k_step)
             gt_spec = gt_spec
