@@ -128,11 +128,13 @@ After the first validation, you can see the synthesized test audio in TensorBoar
 
 ## 6. Offline Inference
 ```bash
-python main.py -i <input.wav> -model <model_ckpt.pt> -o <output.wav> -k <keychange> -id <speaker_id> -speedup <speedup> -method <method> -kstep <kstep>
+python main.py -i <input.wav> -model <model_ckpt.pt> -o <output.wav> -k <keychange> -id <speaker_id> -speedup <speedup> -method <method> -kstep <kstep> -nmodel <nmodel>
 ```
 `-model` is the model path, `-k` is the pitch shift, `-speedup` is the speedup multiplier, `-method` is either `pndm` or `dpm-solver`, `-kstep` is the shallow diffusion step, `-id` is the speaker ID of the diffusion model.
 
 If `-kstep` is not empty, shallow diffusion will be performed on the input source mel, if `-kstep` is empty, full depth Gaussian diffusion will be performed.
+
+ `-nmodel`(Optional, requires separate training) is the path of the Naive model, used for shallow diffusion of k depth based on the initial output, and its parameters need to be matched with the main model.
 
 ~~If voiceprint encoding was used, an external voiceprint can be specified with `-spkemb`, or the model's voiceprint dictionary can be overwritten with `-spkembdict`.~~
 
@@ -144,7 +146,7 @@ Like [RVC](https://github.com/RVC-Project/Retrieval-based-Voice-Conversion-WebUI
 # training index，preprocessing needs to be completed first
 python train_units_index.py -c config.yaml
 ```
-推理时，使用`-lr`参数使用。此参数为检索比率。
+When reasoning, use the '- lr' parameter. This parameter is the retrieval ratio.
 
 ## 8. Real-Time Inference
 
