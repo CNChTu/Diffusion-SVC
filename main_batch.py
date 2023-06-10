@@ -31,6 +31,7 @@ if __name__ == '__main__':
     k_step = None
     spk_emb_path = None
     spk_emb_dict_path = None
+    naive_model_path = None
     index_ratio = 0  # 大于0则使用检索，需要已经训练过检索
     # -------------------------------下面不用动----------------------------------
     diffusion_svc = DiffusionSVC(device=device)  # 加载模型
@@ -41,6 +42,13 @@ if __name__ == '__main__':
         spk_emb = diffusion_svc.encode_spk_from_path(spk_emb_path)
     else:
         spk_emb = None
+
+    if naive_model_path is not None:
+        if k_step is None:
+            naive_model_path = None
+            print(" [WARN] Could not shallow diffusion without k_step value when Only set naive_model path")
+        else:
+            diffusion_svc.load_naive_model(naive_model_path=naive_model_path)
 
     for file in tqdm(os.listdir(input_path)):
         in_path = os.path.join(input_path, file)
