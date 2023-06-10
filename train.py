@@ -5,7 +5,7 @@ from torch.optim import lr_scheduler
 from logger import utils
 from diffusion.data_loaders import get_data_loaders
 from diffusion.solver import train
-from diffusion.unit2mel import Unit2Mel
+from diffusion.unit2mel import Unit2Mel, Unit2MelNaive
 from diffusion.vocoder import Vocoder
 
 
@@ -34,16 +34,31 @@ if __name__ == '__main__':
     vocoder = Vocoder(args.vocoder.type, args.vocoder.ckpt, device=args.device)
     
     # load model
-    model = Unit2Mel(
+    if args.model.type == 'Diffusion':
+        model = Unit2Mel(
+                    args.data.encoder_out_channels, 
+                    args.model.n_spk,
+                    args.model.use_pitch_aug,
+                    vocoder.dimension,
+                    args.model.n_layers,
+                    args.model.n_chans,
+                    args.model.n_hidden,
+                    use_speaker_encoder=args.model.use_speaker_encoder,
+                    speaker_encoder_out_channels=args.data.speaker_encoder_out_channels)
+    
+    elif args.model.type == 'Naive':
+        model = Unit2MelNaive(
                 args.data.encoder_out_channels, 
                 args.model.n_spk,
                 args.model.use_pitch_aug,
                 vocoder.dimension,
                 args.model.n_layers,
                 args.model.n_chans,
-                args.model.n_hidden,
                 use_speaker_encoder=args.model.use_speaker_encoder,
                 speaker_encoder_out_channels=args.data.speaker_encoder_out_channels)
+    
+    else:
+        raise ValueError(f" [x] Unknown Model: {args.model.type}")
     
     # load parameters
     optimizer = torch.optim.AdamW(model.parameters())
