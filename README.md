@@ -154,6 +154,8 @@ python train_units_index.py -c config.yaml
 
 ```bash
 # 需要配合rtvc使用
+pip install rtvc
+python rtvc
 python flask_api.py
 ```
 

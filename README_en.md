@@ -156,6 +156,8 @@ This project can work with [rtvc](https://github.com/fishaudio/realtime-vc-gui) 
 
 ```bash
 # Needs to be used in conjunction with rtvc
+pip install rtvc
+python rtvc
 python flask_api.py
 ```
 
