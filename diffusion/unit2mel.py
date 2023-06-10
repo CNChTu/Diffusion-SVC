@@ -135,6 +135,7 @@ class Unit2Mel(nn.Module):
 
         return x
 
+
 class Unit2MelNaive(nn.Module):
     def __init__(
             self,
@@ -144,6 +145,7 @@ class Unit2MelNaive(nn.Module):
             out_dims=128,
             n_layers=3, 
             n_chans=256,
+            n_hidden=None,  # 废弃
             use_speaker_encoder=False,
             speaker_encoder_out_channels=256):
         super().__init__()
@@ -156,10 +158,10 @@ class Unit2MelNaive(nn.Module):
         self.n_spk = n_spk
         self.use_speaker_encoder = use_speaker_encoder
         if use_speaker_encoder:
-            self.spk_embed = nn.Linear(speaker_encoder_out_channels, n_hidden, bias=False)
+            self.spk_embed = nn.Linear(speaker_encoder_out_channels, n_chans, bias=False)
         else:
             if n_spk is not None and n_spk > 1:
-                self.spk_embed = nn.Embedding(n_spk, n_hidden)
+                self.spk_embed = nn.Embedding(n_spk, n_chans)
                        
         # conv in stack
         self.stack = nn.Sequential(
