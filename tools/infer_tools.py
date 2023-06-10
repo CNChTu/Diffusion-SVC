@@ -387,7 +387,13 @@ class DiffusionSVC:
 
         if k_step is not None:
             k_step = int(k_step)
-            gt_spec = self.vocoder.extract(audio_t, self.args.data.sampling_rate)
+            if self.naive_model is not None:
+                gt_spec = self.naive_model_call(units, f0, volume, spk_id=spk_id, spk_mix_dict=spk_mix_dict,
+                                                aug_shift=aug_shift, spk_emb=spk_emb)
+            else:
+                gt_spec = self.vocoder.extract(audio_t, self.args.data.sampling_rate)
+                gt_spec = torch.cat((gt_spec, gt_spec[:, -1:, :]), 1)
+
         else:
             gt_spec = None
 
