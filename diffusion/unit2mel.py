@@ -22,14 +22,18 @@ class DotDict(dict):
 
 def load_model_vocoder(
         model_path,
-        device='cpu'):
+        device='cpu',
+        loaded_vocoder=None):
     config_file = os.path.join(os.path.split(model_path)[0], 'config.yaml')
     with open(config_file, "r") as config:
         args = yaml.safe_load(config)
     args = DotDict(args)
 
     # load vocoder
-    vocoder = Vocoder(args.vocoder.type, args.vocoder.ckpt, device=device)
+    if loaded_vocoder is None:
+        vocoder = Vocoder(args.vocoder.type, args.vocoder.ckpt, device=device)
+    else:
+        vocoder = loaded_vocoder
 
     # load model
     if args.model.type == 'Diffusion':
