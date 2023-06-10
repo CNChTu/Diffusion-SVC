@@ -44,6 +44,13 @@ def voice_change_model():
     speed_up = int(float(request_form.get("sample_interval", 20)))
     print(f'speed_up:{speed_up}')
 
+    # get skip_steps
+    skip_steps = int(float(request_form.get("skip_steps", 0)))
+    print(f'skip_steps:{skip_steps}')
+    kstep = 1000 - skip_steps
+    if kstep < speed_up:
+        kstep = 300
+
     # 变调信息
     key = float(request_form.get("fPitchChange", 0))
 
@@ -72,7 +79,7 @@ def voice_change_model():
         aug_shift=0,
         infer_speedup=speed_up,
         method=sample_method,
-        k_step=None,
+        k_step=kstep,
         use_tqdm=False,
         spk_emb=spk_emb,
         silence_front=silence_front,
@@ -95,7 +102,7 @@ def voice_change_model():
 if __name__ == "__main__":
     # 与冷月佬的GUI搭配使用，仓库地址:https://github.com/fishaudio/realtime-vc-gui
     # config和模型得同一目录。
-    checkpoint_path = "exp/test/model_800000.pt"
+    checkpoint_path = "exp/vec51220/model_600000.pt"
     # f0提取器，有parselmouth, dio, harvest, crepe
     select_pitch_extractor = 'crepe'
     # f0范围限制(Hz)
@@ -105,12 +112,16 @@ if __name__ == "__main__":
     device = 'cuda'
     # 扩散部分完全不合成安全区，打开可以减少硬件压力并加速，但是会损失合成效果
     diff_jump_silence_front = False
+    # 如果需要使用naive模型进行浅扩散，在这里设置naive model的路径
+    naive_model_path = 'exp/naivetest/model_300000.pt'
     # 以下参数仅在使用speaker_encoder时生效
     spk_emb_path = None  # 非None导入声纹，会覆盖spk_id
     spk_emb_dict_path = None  # 非None导入声纹字典，会覆盖模型自带的
     # 加载svc模型，以下内容无需修改
     svc_model = DiffusionSVC(device=device)
     svc_model.load_model(checkpoint_path, select_pitch_extractor, limit_f0_min, limit_f0_max)
+    if naive_model_path is not None:  # 加载naive模型
+        svc_model.load_naive_model(naive_model_path=naive_model_path)
     if svc_model.args.model.use_speaker_encoder:  # 如果使用声纹，则处理声纹选项
         svc_model.set_spk_emb_dict(spk_emb_dict_path)
         spk_emb = svc_model.encode_spk_from_path(spk_emb_path)
