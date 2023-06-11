@@ -213,7 +213,7 @@ class GaussianDiffusion(nn.Module):
                 infer=True,
                 infer_speedup=10, 
                 method='dpm-solver',
-                k_step=300,
+                k_step=None,
                 use_tqdm=True):
         """
             conditioning diffusion, use fastspeech2 encoder output as the condition
@@ -223,13 +223,17 @@ class GaussianDiffusion(nn.Module):
 
         if not infer:
             spec = self.norm_spec(gt_spec)
-            t = torch.randint(0, self.k_step, (b,), device=device).long()
+            if k_step is None:
+                t_max = self.k_step
+            else:
+                t_max = k_step
+            t = torch.randint(0, t_max, (b,), device=device).long()
             norm_spec = spec.transpose(1, 2)[:, None, :, :]  # [B, 1, M, T]
             return self.p_losses(norm_spec, t, cond=cond)
         else:
             shape = (cond.shape[0], 1, self.out_dims, cond.shape[2])
             
-            if gt_spec is None:
+            if gt_spec is None or k_step is None:
                 t = self.k_step
                 x = torch.randn(shape, device=device)
             else:
