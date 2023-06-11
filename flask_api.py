@@ -26,7 +26,7 @@ def voice_change_model():
 
     # get fSafePrefixPadLength
     f_safe_prefix_pad_length = float(request_form.get("fSafePrefixPadLength", 0))
-    print("f_safe_prefix_pad_length:" + str(f_safe_prefix_pad_length))
+    print(" [INFO] get f_safe_prefix_pad_length:" + str(f_safe_prefix_pad_length))
     if f_safe_prefix_pad_length > 0.025:
         silence_front = f_safe_prefix_pad_length
     else:
@@ -38,25 +38,30 @@ def voice_change_model():
         sample_method = 'pndm'
     else:
         sample_method = 'dpm-solver'
-    print(f'sample_method:{sample_method}')
+    print(f' [INFO] get sample_method:{sample_method}')
 
     # get speed_up
     speed_up = int(float(request_form.get("sample_interval", 20)))
-    print(f'speed_up:{speed_up}')
+    print(f' [INFO] get speed_up:{speed_up}')
 
     # get skip_steps
     skip_steps = int(float(request_form.get("skip_steps", 0)))
-    print(f'skip_steps:{skip_steps}')
+    print(f' [INFO] get skip_steps:{skip_steps}')
     kstep = 1000 - skip_steps
     if kstep < speed_up:
         kstep = 300
+    if svc_model.args.model.k_step_max is not None:
+        k_step_max = int(svc_model.args.model.k_step_max)
+        if kstep > k_step_max:
+            print(f" [WARN] k_step=(1000 - skip_step) must <= k_step_max={k_step_max}, not k_step set to{k_step_max}.")
+            kstep = k_step_max
 
     # 变调信息
     key = float(request_form.get("fPitchChange", 0))
 
     # 获取spk_id
     raw_speak_id = str(request_form.get("sSpeakId", 0))
-    print("speak_id:" + raw_speak_id)
+    print(" [INFO] get speak_id:" + raw_speak_id)
     if str.isdigit(raw_speak_id):
         spk_id = int(raw_speak_id)
         spk_mix_dict = None
