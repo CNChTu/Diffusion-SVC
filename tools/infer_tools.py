@@ -215,6 +215,15 @@ class DiffusionSVC:
                  gt_spec=None, infer_speedup=10, method='dpm-solver', k_step=None, use_tqdm=True,
                  spk_emb=None):
 
+        if self.args.model.k_step_max is not None:
+            if k_step is None:
+                raise ValueError("k_step must not None when Shallow Diffusion Model inferring")
+            if k_step > int(self.args.model.k_step_max):
+                raise ValueError(f"k_step must <= k_step_max of Shallow Diffusion Model")
+            if gt_spec is None:
+                raise ValueError("gt_spec must not None when Shallow Diffusion Model inferring, gt_spec can from "
+                                 "input mel or output of naive model")
+
         aug_shift = torch.from_numpy(np.array([[float(aug_shift)]])).float().to(self.device)
 
         # spk_id
