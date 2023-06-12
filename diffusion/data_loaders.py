@@ -314,6 +314,8 @@ class AudioDataset(Dataset):
                 spk_emb = torch.from_numpy(spk_emb).float()
             else:
                 spk_emb = spk_emb[start_frame: start_frame + units_frame_len]
+        else:
+            spk_emb = torch.rand(1, 1)
 
         # load f0
         f0 = data_buffer.get('f0')
