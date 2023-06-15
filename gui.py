@@ -146,8 +146,8 @@ class GUI:
                                     enable_events=True)]
                 ], title=i18n('切片设置')),
                 sg.Frame(layout=[
-                    [sg.Text(i18n("扩散深度")), sg.Input(key='k_step', default_text='200', size=18)],
-                    [sg.Text(i18n("扩散加速")), sg.Input(key='diff_acc', default_text='20', size=18)],
+                    [sg.Text(i18n("扩散深度")), sg.Input(key='k_step', default_text='100', size=18)],
+                    [sg.Text(i18n("扩散加速")), sg.Input(key='diff_acc', default_text='10', size=18)],
                     [sg.Text(i18n("扩散算法")),
                      sg.Combo(values=self.diff_method_list, key='diff_method', default_value=self.diff_method_list[1],
                               enable_events=True)],
