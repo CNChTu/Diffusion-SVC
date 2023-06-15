@@ -4,7 +4,7 @@ import torch
 import torch.nn.functional
 from torchaudio.transforms import Resample
 from tqdm import tqdm
-from diffusion.unit2mel import load_model_vocoder
+from diffusion.unit2mel import load_model_vocoder, load_model_vocoder_from_combo
 from tools.slicer import split
 from tools.units_index import UnitsIndexer
 from tools.tools import F0_Extractor, Volume_Extractor, Units_Encoder, SpeakerEncoder, cross_fade
@@ -37,8 +37,19 @@ class DiffusionSVC:
 
     def load_model(self, model_path, f0_model=None, f0_min=None, f0_max=None):
 
-        self.model_path = model_path
-        self.model, self.vocoder, self.args = load_model_vocoder(model_path, device=self.device)
+        if ('1234' + model_path)[-4:] == '.ptc':
+            self.model_path = model_path
+            self.naive_model_path = model_path
+            diff_model, diff_args, naive_model, naive_args, vocoder = load_model_vocoder_from_combo(model_path,
+                                                                                                    device=self.device)
+            self.model = diff_model
+            self.args = diff_args
+            self.naive_model = naive_model
+            self.naive_model_args = naive_args
+            self.vocoder = vocoder
+        else:
+            self.model_path = model_path
+            self.model, self.vocoder, self.args = load_model_vocoder(model_path, device=self.device)
 
         self.units_encoder = Units_Encoder(
             self.args.data.encoder,
@@ -92,18 +103,17 @@ class DiffusionSVC:
             self.load_naive_model(naive_model_path)
         # check args if use naive
         if self.naive_model is not None:
-            if self.naive_model_args.data.encoder == self.args.data.encoder:
+            if self.naive_model_args.data.encoder != self.args.data.encoder:
                 raise ValueError("encoder of Naive Model and Diffusion Model are different")
-            if self.naive_model_args.model.n_spk == self.args.model.n_spk:
+            if self.naive_model_args.model.n_spk != self.args.model.n_spk:
                 raise ValueError("n_spk of Naive Model and Diffusion Model are different")
-            if (self.naive_model_args.model.use_speaker_encoder and self.args.model.use_speaker_encoder) and (
-                    self.naive_model_args.model.use_speaker_encoder or self.args.model.use_speaker_encoder):
+            if bool(self.naive_model_args.model.use_speaker_encoder) != bool(self.args.model.use_speaker_encoder):
                 raise ValueError("use_speaker_encoder of Naive Model and Diffusion Model are different")
-            if self.naive_model_args.vocoder.type == self.args.vocoder.type:
+            if self.naive_model_args.vocoder.type != self.args.vocoder.type:
                 raise ValueError("vocoder of Naive Model and Diffusion Model are different")
-            if self.naive_model_args.data.block_size == self.args.data.block_size:
+            if self.naive_model_args.data.block_size != self.args.data.block_size:
                 raise ValueError("block_size of Naive Model and Diffusion Model are different")
-            if self.naive_model_args.data.sampling_rate == self.args.data.sampling_rate:
+            if self.naive_model_args.data.sampling_rate != self.args.data.sampling_rate:
                 raise ValueError("sampling_rate of Naive Model and Diffusion Model are different")
 
     def load_naive_model(self, naive_model_path):
