@@ -91,6 +91,7 @@ def voice_change_model():
         diff_jump_silence_front=diff_jump_silence_front,
         threhold=-60
     )
+    _audio = _audio.cpu().numpy()
     if raw_sample != _model_sr:
         tar_audio = librosa.resample(_audio, _model_sr, raw_sample)
     else:
@@ -106,7 +107,7 @@ def voice_change_model():
 
 if __name__ == "__main__":
     # 与冷月佬的GUI搭配使用，仓库地址:https://github.com/fishaudio/realtime-vc-gui
-    # config和模型得同一目录。
+    # config和模型得同一目录。如果是组合模型(.ptc)则不用配置文件。
     checkpoint_path = "exp/vec51220/model_600000.pt"
     # f0提取器，有parselmouth, dio, harvest, crepe
     select_pitch_extractor = 'crepe'
@@ -117,7 +118,7 @@ if __name__ == "__main__":
     device = 'cuda'
     # 扩散部分完全不合成安全区，打开可以减少硬件压力并加速，但是会损失合成效果
     diff_jump_silence_front = False
-    # 如果需要使用naive模型进行浅扩散，在这里设置naive model的路径
+    # 如果需要使用naive模型进行浅扩散，在这里设置naive model的路径, 如果是组合模型(.ptc)就不用了
     naive_model_path = 'exp/naivetest/model_300000.pt'
     # 以下参数仅在使用speaker_encoder时生效
     spk_emb_path = None  # 非None导入声纹，会覆盖spk_id
