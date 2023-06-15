@@ -42,7 +42,7 @@ train:
   cache_fp16: true
   epochs: 100000
   interval_log: 10
-  interval_val: 2000s
+  interval_val: 2000
   interval_force_save: 10000
   lr: 0.0005
   decay_step: 100000
