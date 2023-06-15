@@ -34,10 +34,12 @@ class DiffusionSVC:
         self.naive_model_path = None
         self.naive_model = None
         self.naive_model_args = None
+        self.use_combo_model = False
 
     def load_model(self, model_path, f0_model=None, f0_min=None, f0_max=None):
 
         if ('1234' + model_path)[-4:] == '.ptc':
+            self.use_combo_model = True
             self.model_path = model_path
             self.naive_model_path = model_path
             diff_model, diff_args, naive_model, naive_args, vocoder = load_model_vocoder_from_combo(model_path,
@@ -384,6 +386,12 @@ class DiffusionSVC:
         start_frame = int(silence_front * self.vocoder.vocoder_sample_rate / self.vocoder.vocoder_hop_size)
         audio_t = torch.from_numpy(audio).float().unsqueeze(0).to(self.device)
 
+        if self.naive_model is None:
+            print(" [INFO] No combo_model or naive_model, diffusion without shallow-model.")
+        else:
+            assert k_step is not None
+            print(" [INFO] Shallow Diffusion mode!")
+
         key_str = str(sr)
         if key_str not in self.resample_dict_16000:
             self.resample_dict_16000[key_str] = Resample(sr, 16000, lowpass_filter_width=128).to(self.device)
@@ -406,6 +414,17 @@ class DiffusionSVC:
 
         if k_step is not None:
             k_step = int(k_step)
+            if (k_step >= 1000) or (k_step <= 0):
+                k_step = 300
+                print(f" [WARN] k_step must < 1000 and > 0, now set to {k_step}")
+            if self.args.model.k_step_max is not None:
+                k_step_max = int(self.args.model.k_step_max)
+                if k_step > k_step_max:
+                    print(f" [WARN] k_step must <= k_step_max={k_step_max}, not k_step set to{k_step_max}.")
+                    k_step = k_step_max
+            if int(k_step/infer_speedup) < 3:
+                infer_speedup = int(k_step/4)
+                print(f" [WARN] diffusion step must > 4 (3 when qndm), not set to{infer_speedup}")
             if self.naive_model is not None:
                 gt_spec = self.naive_model_call(units, f0, volume, spk_id=spk_id, spk_mix_dict=spk_mix_dict,
                                                 aug_shift=aug_shift, spk_emb=spk_emb)
@@ -425,4 +444,4 @@ class DiffusionSVC:
         else:
             out_wav = self.mel2wav(out_mel, f0, start_frame=start_frame)
             out_wav *= mask
-        return out_wav.squeeze().cpu().numpy(), self.args.data.sampling_rate
+        return out_wav.squeeze(), self.args.data.sampling_rate
