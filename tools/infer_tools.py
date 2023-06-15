@@ -99,7 +99,7 @@ class DiffusionSVC:
         if ((self.model_path != model_path) or (self.f0_model != f0_model)
                 or (self.f0_min != f0_min) or (self.f0_max != f0_max)):
             self.load_model(model_path, f0_model=f0_model, f0_min=f0_min, f0_max=f0_max)
-        if self.naive_model_path != naive_model_path:
+        if (self.naive_model_path != naive_model_path) and (naive_model_path is not None):
             self.load_naive_model(naive_model_path)
         # check args if use naive
         if self.naive_model is not None:
