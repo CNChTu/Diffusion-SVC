@@ -408,5 +408,5 @@ class GUI:
 
 
 if __name__ == "__main__":
-    i18n = I18nAuto(model='gui.py',language='en_US')
+    i18n = I18nAuto(model='gui.py', language=None)
     gui = GUI()
