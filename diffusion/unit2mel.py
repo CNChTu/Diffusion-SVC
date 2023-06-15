@@ -70,6 +70,44 @@ def load_model_vocoder(
     return model, vocoder, args
 
 
+def load_model_vocoder_from_combo(combo_model_path, device='cpu'):
+    read_dict = torch.load(combo_model_path, map_location=torch.device(device))
+    # args
+    diff_args = DotDict(read_dict["diff_config_dict"])
+    naive_args = DotDict(read_dict["naive_config_dict"])
+    # vocoder
+    vocoder = Vocoder(diff_args.vocoder.type, diff_args.vocoder.ckpt, device=device)
+    # diff_model
+    print(' [Loading] ' + combo_model_path)
+    diff_model = Unit2Mel(
+        diff_args.data.encoder_out_channels,
+        diff_args.model.n_spk,
+        diff_args.model.use_pitch_aug,
+        vocoder.dimension,
+        diff_args.model.n_layers,
+        diff_args.model.n_chans,
+        diff_args.model.n_hidden,
+        use_speaker_encoder=diff_args.model.use_speaker_encoder,
+        speaker_encoder_out_channels=diff_args.data.speaker_encoder_out_channels)
+    diff_model.to(device)
+    diff_model.load_state_dict(read_dict["diff_model"]['model'])
+    diff_model.eval()
+    # naive_model
+    naive_model = Unit2MelNaive(
+        naive_args.data.encoder_out_channels,
+        naive_args.model.n_spk,
+        naive_args.model.use_pitch_aug,
+        vocoder.dimension,
+        naive_args.model.n_layers,
+        naive_args.model.n_chans,
+        use_speaker_encoder=naive_args.model.use_speaker_encoder,
+        speaker_encoder_out_channels=naive_args.data.speaker_encoder_out_channels)
+    naive_model.to(device)
+    naive_model.load_state_dict(read_dict["naive_model"]['model'])
+    naive_model.eval()
+    return diff_model, diff_args, naive_model, naive_args, vocoder
+
+
 class Unit2Mel(nn.Module):
     def __init__(
             self,
