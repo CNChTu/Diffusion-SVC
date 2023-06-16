@@ -385,7 +385,8 @@ class Units_Encoder:
     def encode(self,
                audio,  # B, T
                sample_rate,
-               hop_size):
+               hop_size,
+               padding_mask=None):
 
         # resample
         if self.units_forced_mode not in ('rfa441to512', 'rfa512to441'):
@@ -408,7 +409,7 @@ class Units_Encoder:
         # encode
         if audio_res.size(-1) < 400:
             audio_res = torch.nn.functional.pad(audio, (0, 400 - audio_res.size(-1)))
-        units = self.model(audio_res)
+        units = self.model(audio_res, padding_mask=padding_mask)
 
         # alignment
         if self.units_forced_mode == 'left':
@@ -445,8 +446,7 @@ class Audio2HubertSoft(torch.nn.Module):
         self.hubert.load_state_dict(checkpoint)
         self.hubert.eval()
 
-    def forward(self,
-                audio):  # B, T
+    def forward(self, audio, padding_mask=None):  # B, T
         with torch.inference_mode():
             units = self.hubert.units(audio.unsqueeze(1))
             return units
@@ -462,8 +462,7 @@ class Audio2ContentVec():
         self.hubert = self.hubert.to(self.device)
         self.hubert.eval()
 
-    def __call__(self,
-                 audio):  # B, T
+    def __call__(self, audio, padding_mask=None):  # B, T
         # wav_tensor = torch.from_numpy(audio).to(self.device)
         wav_tensor = audio
         feats = wav_tensor.view(1, -1)
@@ -490,8 +489,7 @@ class Audio2ContentVec768():
         self.hubert = self.hubert.to(self.device)
         self.hubert.eval()
 
-    def __call__(self,
-                 audio):  # B, T
+    def __call__(self, audio, padding_mask=None):  # B, T
         # wav_tensor = torch.from_numpy(audio).to(self.device)
         wav_tensor = audio
         feats = wav_tensor.view(1, -1)
@@ -518,8 +516,7 @@ class Audio2ContentVec768L12():
         self.hubert = self.hubert.to(self.device)
         self.hubert.eval()
 
-    def __call__(self,
-                 audio):  # B, T
+    def __call__(self, audio, padding_mask=None):  # B, T
         # wav_tensor = torch.from_numpy(audio).to(self.device)
         wav_tensor = audio
         feats = wav_tensor.view(1, -1)
@@ -554,7 +551,7 @@ class CNHubertSoftFish(torch.nn.Module):
         self.load_state_dict(state_dict)
 
     @torch.no_grad()
-    def forward(self, audio):
+    def forward(self, audio, padding_mask=None):  # B, T
         input_values = self.feature_extractor(
             audio, sampling_rate=16000, return_tensors="pt"
         ).input_values
@@ -586,8 +583,7 @@ class Audio2HubertBase():
         self.hubert = self.hubert.float()
         self.hubert.eval()
 
-    def __call__(self,
-                 audio):  # B, T
+    def __call__(self, audio, padding_mask=None):  # B, T
         with torch.no_grad():
             padding_mask = torch.BoolTensor(audio.shape).fill_(False)
             inputs = {
@@ -611,8 +607,7 @@ class Audio2HubertBase768():
         self.hubert = self.hubert.float()
         self.hubert.eval()
 
-    def __call__(self,
-                 audio):  # B, T
+    def __call__(self, audio, padding_mask=None):  # B, T
         with torch.no_grad():
             padding_mask = torch.BoolTensor(audio.shape).fill_(False)
             inputs = {
@@ -636,8 +631,7 @@ class Audio2HubertBase768L12():
         self.hubert = self.hubert.float()
         self.hubert.eval()
 
-    def __call__(self,
-                 audio):  # B, T
+    def __call__(self, audio, padding_mask=None):  # B, T
         with torch.no_grad():
             padding_mask = torch.BoolTensor(audio.shape).fill_(False)
             inputs = {
@@ -661,8 +655,7 @@ class Audio2HubertLarge1024L24():
         self.hubert = self.hubert.float()
         self.hubert.eval()
 
-    def __call__(self,
-                 audio):  # B, T
+    def __call__(self, audio, padding_mask=None):  # B, T
         with torch.no_grad():
             padding_mask = torch.BoolTensor(audio.shape).fill_(False)
             inputs = {
@@ -682,7 +675,7 @@ class Wav2Vec2:
         self.model.eval()
         self.model.to(device)
 
-    def __call__(self, audio):
+    def __call__(self, audio, padding_mask=None):  # B, T
         with torch.no_grad():
             logits = self.model(audio).logits
         return logits
