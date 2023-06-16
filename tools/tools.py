@@ -466,7 +466,13 @@ class Audio2ContentVec():
         # wav_tensor = torch.from_numpy(audio).to(self.device)
         wav_tensor = audio
         feats = wav_tensor.view(1, -1)
-        padding_mask = torch.BoolTensor(feats.shape).fill_(False)
+        if padding_mask is None:
+            padding_mask = torch.BoolTensor(feats.shape).fill_(False)
+        else:
+            padding_mask = padding_mask.unsqueeze(0)
+            padding_mask = torch.nn.functional.interpolate(padding_mask, size=int(feats.shape[1]), mode='nearest')
+            padding_mask = ~padding_mask.squeeze(0).bool()
+            padding_mask = ~padding_mask if torch.all(padding_mask) else padding_mask
         inputs = {
             "source": feats.to(wav_tensor.device),
             "padding_mask": padding_mask.to(wav_tensor.device),
@@ -493,7 +499,13 @@ class Audio2ContentVec768():
         # wav_tensor = torch.from_numpy(audio).to(self.device)
         wav_tensor = audio
         feats = wav_tensor.view(1, -1)
-        padding_mask = torch.BoolTensor(feats.shape).fill_(False)
+        if padding_mask is None:
+            padding_mask = torch.BoolTensor(feats.shape).fill_(False)
+        else:
+            padding_mask = padding_mask.unsqueeze(0)
+            padding_mask = torch.nn.functional.interpolate(padding_mask, size=int(feats.shape[1]), mode='nearest')
+            padding_mask = ~padding_mask.squeeze(0).bool()
+            padding_mask = ~padding_mask if torch.all(padding_mask) else padding_mask
         inputs = {
             "source": feats.to(wav_tensor.device),
             "padding_mask": padding_mask.to(wav_tensor.device),
@@ -520,7 +532,13 @@ class Audio2ContentVec768L12():
         # wav_tensor = torch.from_numpy(audio).to(self.device)
         wav_tensor = audio
         feats = wav_tensor.view(1, -1)
-        padding_mask = torch.BoolTensor(feats.shape).fill_(False)
+        if padding_mask is None:
+            padding_mask = torch.BoolTensor(feats.shape).fill_(False)
+        else:
+            padding_mask = padding_mask.unsqueeze(0)
+            padding_mask = torch.nn.functional.interpolate(padding_mask, size=int(feats.shape[1]), mode='nearest')
+            padding_mask = ~padding_mask.squeeze(0).bool()
+            padding_mask = ~padding_mask if torch.all(padding_mask) else padding_mask
         inputs = {
             "source": feats.to(wav_tensor.device),
             "padding_mask": padding_mask.to(wav_tensor.device),
@@ -585,7 +603,13 @@ class Audio2HubertBase():
 
     def __call__(self, audio, padding_mask=None):  # B, T
         with torch.no_grad():
-            padding_mask = torch.BoolTensor(audio.shape).fill_(False)
+            if padding_mask is None:
+                padding_mask = torch.BoolTensor(audio.shape).fill_(False)
+            else:
+                padding_mask = padding_mask.unsqueeze(0)
+                padding_mask = torch.nn.functional.interpolate(padding_mask, size=int(audio.shape[1]), mode='nearest')
+                padding_mask = ~padding_mask.squeeze(0).bool()
+                padding_mask = ~padding_mask if torch.all(padding_mask) else padding_mask
             inputs = {
                 "source": audio.to(self.device),
                 "padding_mask": padding_mask.to(self.device),
@@ -609,7 +633,13 @@ class Audio2HubertBase768():
 
     def __call__(self, audio, padding_mask=None):  # B, T
         with torch.no_grad():
-            padding_mask = torch.BoolTensor(audio.shape).fill_(False)
+            if padding_mask is None:
+                padding_mask = torch.BoolTensor(audio.shape).fill_(False)
+            else:
+                padding_mask = padding_mask.unsqueeze(0)
+                padding_mask = torch.nn.functional.interpolate(padding_mask, size=int(audio.shape[1]), mode='nearest')
+                padding_mask = ~padding_mask.squeeze(0).bool()
+                padding_mask = ~padding_mask if torch.all(padding_mask) else padding_mask
             inputs = {
                 "source": audio.to(self.device),
                 "padding_mask": padding_mask.to(self.device),
@@ -633,7 +663,13 @@ class Audio2HubertBase768L12():
 
     def __call__(self, audio, padding_mask=None):  # B, T
         with torch.no_grad():
-            padding_mask = torch.BoolTensor(audio.shape).fill_(False)
+            if padding_mask is None:
+                padding_mask = torch.BoolTensor(audio.shape).fill_(False)
+            else:
+                padding_mask = padding_mask.unsqueeze(0)
+                padding_mask = torch.nn.functional.interpolate(padding_mask, size=int(audio.shape[1]), mode='nearest')
+                padding_mask = ~padding_mask.squeeze(0).bool()
+                padding_mask = ~padding_mask if torch.all(padding_mask) else padding_mask
             inputs = {
                 "source": audio.to(self.device),
                 "padding_mask": padding_mask.to(self.device),
@@ -657,7 +693,13 @@ class Audio2HubertLarge1024L24():
 
     def __call__(self, audio, padding_mask=None):  # B, T
         with torch.no_grad():
-            padding_mask = torch.BoolTensor(audio.shape).fill_(False)
+            if padding_mask is None:
+                padding_mask = torch.BoolTensor(audio.shape).fill_(False)
+            else:
+                padding_mask = padding_mask.unsqueeze(0)
+                padding_mask = torch.nn.functional.interpolate(padding_mask, size=int(audio.shape[1]), mode='nearest')
+                padding_mask = ~padding_mask.squeeze(0).bool()
+                padding_mask = ~padding_mask if torch.all(padding_mask) else padding_mask
             inputs = {
                 "source": audio.to(self.device),
                 "padding_mask": padding_mask.to(self.device),

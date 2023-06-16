@@ -152,10 +152,10 @@ class DiffusionSVC:
             print(f" [INFO] Load spk_emb_dict from {spk_emb_dict_or_path}")
 
     @torch.no_grad()
-    def encode_units(self, audio, sr=44100):
+    def encode_units(self, audio, sr=44100, padding_mask=None):
         assert self.units_encoder is not None
         hop_size = self.args.data.block_size * sr / self.args.data.sampling_rate
-        return self.units_encoder.encode(audio, sr, hop_size)
+        return self.units_encoder.encode(audio, sr, hop_size, padding_mask=padding_mask)
 
     @torch.no_grad()
     def extract_f0(self, audio, key=0, sr=44100, silence_front=0):
@@ -400,11 +400,11 @@ class DiffusionSVC:
         else:
             audio_t_16k = audio_t
 
-        units = self.encode_units(audio_t_16k, sr=16000)
+        volume, mask = self.extract_volume_and_mask(audio, sr, threhold=float(threhold))
+        units = self.encode_units(audio_t_16k, sr=16000, padding_mask=mask.clone())
         if index_ratio > 0:
             units = self.units_indexer(units_t=units, spk_id=spk_id, ratio=index_ratio)
         f0 = self.extract_f0(audio, key=key, sr=sr, silence_front=silence_front)
-        volume, mask = self.extract_volume_and_mask(audio, sr, threhold=float(threhold))
 
         if diff_jump_silence_front:
             audio_t = audio_t[:, start_frame * self.vocoder.vocoder_hop_size:]
