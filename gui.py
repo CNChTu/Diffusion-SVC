@@ -83,7 +83,7 @@ class GUI:
         self.output_wav: np.ndarray = None  # 输出音频规范化后的保存地址
         self.sola_buffer: torch.Tensor = None  # 保存上一个output的crossfade
         self.f0_mode_list = ["parselmouth", "dio", "harvest", "crepe"]  # F0预测器
-        self.diff_method_list = ["ddim", "pndm", "dpm-solver"]  # 加速采样方法
+        self.diff_method_list = ["ddim", "pndm", "dpm-solver", "unipc"]  # 加速采样方法
         self.f_safe_prefix_pad_length: float = 0.0
         self.resample_kernel = {}
         self.launcher()  # start
