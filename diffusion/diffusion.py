@@ -294,6 +294,47 @@ class GaussianDiffusion(nn.Module):
                     )
                     if use_tqdm:
                         self.bar.close()
+                elif method == 'unipc':
+                    from .uni_pc import NoiseScheduleVP, model_wrapper, UniPC
+                    # 1. Define the noise schedule.
+                    noise_schedule = NoiseScheduleVP(schedule='discrete', betas=self.betas[:t])
+
+                    # 2. Convert your discrete-time `model` to the continuous-time
+                    # noise prediction model. Here is an example for a diffusion model
+                    # `model` with the noise prediction type ("noise") .
+                    def my_wrapper(fn):
+                        def wrapped(x, t, **kwargs):
+                            ret = fn(x, t, **kwargs)
+                            if use_tqdm:
+                                self.bar.update(1)
+                            return ret
+
+                        return wrapped
+
+                    model_fn = model_wrapper(
+                        my_wrapper(self.denoise_fn),
+                        noise_schedule,
+                        model_type="noise",  # or "x_start" or "v" or "score"
+                        model_kwargs={"cond": cond}
+                    )
+
+                    # 3. Define uni_pc and sample by multistep UniPC.
+                    # You can adjust the `steps` to balance the computation
+                    # costs and the sample quality.
+                    uni_pc = UniPC(model_fn, noise_schedule, algorithm_type="data_prediction", variant='bh2')
+
+                    steps = t // infer_speedup
+                    if use_tqdm:
+                        self.bar = tqdm(desc="sample time step", total=steps)
+                    x = uni_pc.sample(
+                        x,
+                        steps=steps,
+                        order=3,
+                        skip_type="time_uniform",
+                        method="multistep",
+                    )
+                    if use_tqdm:
+                        self.bar.close()
                 elif method == 'pndm':
                     self.noise_list = deque(maxlen=4)
                     if use_tqdm:

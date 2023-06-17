@@ -133,7 +133,7 @@ def parse_args(args=None, namespace=None):
         type=str,
         required=False,
         default='dpm-solver',
-        help="ddim, pndm or dpm-solver | default: dpm-solver",
+        help="ddim, pndm, dpm-solver or unipc | default: dpm-solver",
     )
     parser.add_argument(
         "-kstep",
