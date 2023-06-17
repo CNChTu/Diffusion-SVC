@@ -220,6 +220,7 @@ class GUI:
                     self.config.spk_mix_dict = eval("{" + spk_mix.replace('，', ',').replace('：', ':') + "}")
             elif event == 'f0_mode':
                 self.config.select_pitch_extractor = values['f0_mode']
+                self.flag_vc = False
             elif event == 'use_phase_vocoder':
                 self.config.use_phase_vocoder = values['use_phase_vocoder']
             elif event == 'load_config' and self.flag_vc == False:
@@ -285,7 +286,7 @@ class GUI:
         self.fade_in_window = torch.sin(
             np.pi * torch.arange(0, 1, 1 / self.crossfade_frame, device=self.device) / 2) ** 2
         self.fade_out_window = 1 - self.fade_in_window
-        self.svc_model.flush(model_path=self.config.checkpoint_path)
+        self.svc_model.flush(model_path=self.config.checkpoint_path, f0_model=self.config.select_pitch_extractor)
         thread_vc = threading.Thread(target=self.soundinput)
         thread_vc.start()
 
