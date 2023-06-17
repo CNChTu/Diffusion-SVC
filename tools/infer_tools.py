@@ -69,18 +69,7 @@ class DiffusionSVC:
             model_sampling_rate=self.args.data.sampling_rate
         )
 
-        self.f0_model = f0_model if (f0_model is not None) else self.args.data.f0_extractor
-        self.f0_min = f0_min if (f0_min is not None) else self.args.data.f0_min
-        self.f0_max = f0_max if (f0_max is not None) else self.args.data.f0_max
-        self.f0_extractor = F0_Extractor(
-            f0_extractor=self.f0_model,
-            sample_rate=44100,
-            hop_size=512,
-            f0_min=self.f0_min,
-            f0_max=self.f0_max,
-            block_size=self.args.data.block_size,
-            model_sampling_rate=self.args.data.sampling_rate
-        )
+        self.load_f0_extractor(f0_model=f0_model, f0_min=f0_min, f0_max=f0_max)
 
         if self.args.model.use_speaker_encoder:
             self.speaker_encoder = SpeakerEncoder(
@@ -117,6 +106,25 @@ class DiffusionSVC:
                 raise ValueError("block_size of Naive Model and Diffusion Model are different")
             if self.naive_model_args.data.sampling_rate != self.args.data.sampling_rate:
                 raise ValueError("sampling_rate of Naive Model and Diffusion Model are different")
+
+    def flush_f0_extractor(self, f0_model, f0_min=None, f0_max=None):
+        if (f0_model != self.f0_model) and (f0_model is not None):
+            self.load_f0_extractor(f0_model)
+
+    def load_f0_extractor(self, f0_model, f0_min=None, f0_max=None):
+        self.f0_model = f0_model if (f0_model is not None) else self.args.data.f0_extractor
+        self.f0_min = f0_min if (f0_min is not None) else self.args.data.f0_min
+        self.f0_max = f0_max if (f0_max is not None) else self.args.data.f0_max
+        self.f0_model = f0_model
+        self.f0_extractor = F0_Extractor(
+            f0_extractor=self.f0_model,
+            sample_rate=44100,
+            hop_size=512,
+            f0_min=self.f0_min,
+            f0_max=self.f0_max,
+            block_size=self.args.data.block_size,
+            model_sampling_rate=self.args.data.sampling_rate
+        )
 
     def load_naive_model(self, naive_model_path):
         self.naive_model_path = naive_model_path
