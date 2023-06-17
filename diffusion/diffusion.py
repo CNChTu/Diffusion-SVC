@@ -147,7 +147,16 @@ class GaussianDiffusion(nn.Module):
         # no noise when t == 0
         nonzero_mask = (1 - (t == 0).float()).reshape(b, *((1,) * (len(x.shape) - 1)))
         return model_mean + nonzero_mask * (0.5 * model_log_variance).exp() * noise
-
+    
+    @torch.no_grad()
+    def p_sample_ddim(self, x, t, interval, cond):
+        a_t = extract(self.alphas_cumprod, t, x.shape)
+        a_prev = extract(self.alphas_cumprod, torch.max(t - interval, torch.zeros_like(t)), x.shape)
+        
+        noise_pred = self.denoise_fn(x, t, cond=cond)
+        x_prev = a_prev.sqrt() * (x / a_t.sqrt() + (((1 - a_prev) / a_prev).sqrt()-((1 - a_t) / a_t).sqrt()) * noise_pred)
+        return x_prev
+        
     @torch.no_grad()
     def p_sample_plms(self, x, t, interval, cond, clip_denoised=True, repeat_noise=False):
         """
@@ -299,6 +308,22 @@ class GaussianDiffusion(nn.Module):
                     else:
                         for i in reversed(range(0, t, infer_speedup)):
                             x = self.p_sample_plms(
+                                x, torch.full((b,), i, device=device, dtype=torch.long),
+                                infer_speedup, cond=cond
+                            )
+                elif method == 'ddim':
+                    if use_tqdm:
+                        for i in tqdm(
+                                reversed(range(0, t, infer_speedup)), desc='sample time step',
+                                total=t // infer_speedup,
+                        ):
+                            x = self.p_sample_ddim(
+                                x, torch.full((b,), i, device=device, dtype=torch.long),
+                                infer_speedup, cond=cond
+                            )
+                    else:
+                        for i in reversed(range(0, t, infer_speedup)):
+                            x = self.p_sample_ddim(
                                 x, torch.full((b,), i, device=device, dtype=torch.long),
                                 infer_speedup, cond=cond
                             )

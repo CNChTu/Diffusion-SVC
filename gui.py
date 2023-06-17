@@ -83,7 +83,7 @@ class GUI:
         self.output_wav: np.ndarray = None  # 输出音频规范化后的保存地址
         self.sola_buffer: torch.Tensor = None  # 保存上一个output的crossfade
         self.f0_mode_list = ["parselmouth", "dio", "harvest", "crepe"]  # F0预测器
-        self.diff_method_list = ["pndm", "dpm-solver"]  # 加速采样方法
+        self.diff_method_list = ["ddim", "pndm", "dpm-solver"]  # 加速采样方法
         self.f_safe_prefix_pad_length: float = 0.0
         self.resample_kernel = {}
         self.launcher()  # start
@@ -149,7 +149,7 @@ class GUI:
                     [sg.Text(i18n("扩散深度")), sg.Input(key='k_step', default_text='100', size=18)],
                     [sg.Text(i18n("扩散加速")), sg.Input(key='diff_acc', default_text='10', size=18)],
                     [sg.Text(i18n("扩散算法")),
-                     sg.Combo(values=self.diff_method_list, key='diff_method', default_value=self.diff_method_list[1],
+                     sg.Combo(values=self.diff_method_list, key='diff_method', default_value=self.diff_method_list[2],
                               enable_events=True)],
                     [sg.Checkbox(text=i18n('不合成安全区(加速但损失效果)'), default=False, key='jump_silence',
                                  enable_events=True)],
