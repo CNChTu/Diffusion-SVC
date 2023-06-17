@@ -280,7 +280,7 @@ class GaussianDiffusion(nn.Module):
                     # (We recommend singlestep DPM-Solver for unconditional sampling)
                     # You can adjust the `steps` to balance the computation
                     # costs and the sample quality.
-                    dpm_solver = DPM_Solver(model_fn, noise_schedule)
+                    dpm_solver = DPM_Solver(model_fn, noise_schedule, algorithm_type="dpmsolver++")
 
                     steps = t // infer_speedup
                     if use_tqdm:
@@ -288,9 +288,9 @@ class GaussianDiffusion(nn.Module):
                     x = dpm_solver.sample(
                         x,
                         steps=steps,
-                        order=3,
+                        order=2,
                         skip_type="time_uniform",
-                        method="singlestep",
+                        method="multistep",
                     )
                     if use_tqdm:
                         self.bar.close()
@@ -321,7 +321,7 @@ class GaussianDiffusion(nn.Module):
                     # 3. Define uni_pc and sample by multistep UniPC.
                     # You can adjust the `steps` to balance the computation
                     # costs and the sample quality.
-                    uni_pc = UniPC(model_fn, noise_schedule, algorithm_type="data_prediction", variant='bh2')
+                    uni_pc = UniPC(model_fn, noise_schedule, variant='bh2')
 
                     steps = t // infer_speedup
                     if use_tqdm:
@@ -329,7 +329,7 @@ class GaussianDiffusion(nn.Module):
                     x = uni_pc.sample(
                         x,
                         steps=steps,
-                        order=3,
+                        order=2,
                         skip_type="time_uniform",
                         method="multistep",
                     )
