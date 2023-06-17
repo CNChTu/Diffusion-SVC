@@ -315,6 +315,24 @@ class Volume_Extractor:
         volume = np.array(
             [np.mean(audio2[int(n * self.hop_size): int((n + 1) * self.hop_size)]) for n in range(n_frames)])
         volume = np.sqrt(volume)
+        '''
+        if isinstance(audio, torch.Tensor):
+            n_frames = int(audio.size(-1) // self.hop_size) + 1
+            audio2 = audio ** 2
+            audio2 = torch.nn.functional.pad(audio2, (int(self.hop_size // 2), int((self.hop_size + 1) // 2)),
+                                             mode='reflect')
+            audio_frame = torch.nn.functional.unfold(audio2[:, None, None, :], (1, int(self.hop_size)),
+                                                     stride=int(self.hop_size))[:, :, :n_frames]
+            volume = audio_frame.mean(dim=1)[0]
+            volume = torch.sqrt(volume).squeeze().cpu().numpy()
+        else:
+            n_frames = int(len(audio) // self.hop_size) + 1
+            audio2 = audio ** 2
+            audio2 = np.pad(audio2, (int(self.hop_size // 2), int((self.hop_size + 1) // 2)), mode='reflect')
+            volume = np.array(
+                [np.mean(audio2[int(n * self.hop_size): int((n + 1) * self.hop_size)]) for n in range(n_frames)])
+            volume = np.sqrt(volume)
+        '''
         return volume
 
     def get_mask_from_volume(self, volume, threhold=-60.0,device='cpu'):
