@@ -220,7 +220,8 @@ class GUI:
                     self.config.spk_mix_dict = eval("{" + spk_mix.replace('，', ',').replace('：', ':') + "}")
             elif event == 'f0_mode':
                 self.config.select_pitch_extractor = values['f0_mode']
-                self.flag_vc = False
+                if self.flag_vc:
+                    self.svc_model.flush_f0_extractor(f0_model=values['f0_mode'])
             elif event == 'use_phase_vocoder':
                 self.config.use_phase_vocoder = values['use_phase_vocoder']
             elif event == 'load_config' and self.flag_vc == False:
