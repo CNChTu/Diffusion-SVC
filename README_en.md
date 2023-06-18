@@ -7,6 +7,7 @@ I am not good at English. If there are any errors, please point them out.
 # Diffusion-SVC
 This repository is a separate storage for the diffusion part of the [DDSP-SVC](https://github.com/yxlllc/DDSP-SVC) repository. It can be trained and inferred independently.
 
+![Diagram](doc/diagram.jpg)
 ## 0. Introduction
 Diffusion-SVC is a separate storage for the diffusion part of the [DDSP-SVC](https://github.com/yxlllc/DDSP-SVC) repository. It can be trained and inferred independently.
 
@@ -139,7 +140,8 @@ Use the above command to combine two models. Where `-model` is the path of the D
 The combined model can be directly loaded as a Diffusion model for shallow diffusion during reasoning, without the need to input `-nmodel` to load the naive model.
 
 ## 4.2. About k_step_max and Shallow diffusion
-![Diagram](doc/diagram.jpg)
+***(Schematic diagram at the beginning of readme)***
+
 In the shallow diffusion process, the Diffusion model only starts from a certain noise depth, and does not need to start from Gaussian noise. Therefore, the Diffusion model for shallow diffusion can only train a certain noise depth without starting from Gaussian noise.
 
 Specify in Configuration File `k_step_max` refers to the depth of diffusion, which is the training process. The value must be less than 1000 (which is the number of steps for complete diffusion). The model trained in this way cannot be inferred separately, and shallow diffusion must be carried out on the output results or input sources of the previous model; The maximum depth of diffusion cannot exceed `k_step_max`.
@@ -159,7 +161,7 @@ After the first validation, you can see the synthesized test audio in TensorBoar
 ```bash
 python main.py -i <input.wav> -model <model_ckpt.pt> -o <output.wav> -k <keychange> -id <speaker_id> -speedup <speedup> -method <method> -kstep <kstep> -nmodel <nmodel>
 ```
-`-model` is the model path, `-k` is the pitch shift, `-speedup` is the speedup multiplier, `-method` is either `pndm` or `dpm-solver`, `-kstep` is the shallow diffusion step, `-id` is the speaker ID of the diffusion model.
+`-model` is the model path, `-k` is the pitch shift, `-speedup` is the speedup multiplier, `-method` is `pndm`,`ddim`,`unipc` or `dpm-solver`, `-kstep` is the shallow diffusion step, `-id` is the speaker ID of the diffusion model.
 
 If `-kstep` is not empty, shallow diffusion will be performed on the input source mel, if `-kstep` is empty, full depth Gaussian diffusion will be performed.
 
@@ -177,14 +179,17 @@ python train_units_index.py -c config.yaml
 ```
 When reasoning, use the '- lr' parameter. This parameter is the retrieval ratio.
 
-## 8. Real-Time Inference
+## 8. Real time inference
+It is recommended to use the built-in GUI of this warehouse for real-time inference. If shallow diffusion is needed, please first combine the models.
+```bash
+python gui.py
+```
 
-This project can work with [rtvc](https://github.com/fishaudio/realtime-vc-gui) to achieve real-time inference.
+This project can also be coordinated with[rtvc](https://github.com/fishaudio/realtime-vc-gui)Implement real-time inference.
 
-**Note: This is an experimental feature at present, rtvc is also not fully developed, so it's not recommended for use.**
+**Note: Currently flask_api is an experimental feature and RTVC is not yet fully developed, so it is not recommended to use this method.**
 
 ```bash
-# Needs to be used in conjunction with rtvc
 pip install rtvc
 python rtvc
 python flask_api.py

@@ -3,8 +3,8 @@ Language: [English](./README_en.md) **简体中文**
 # Diffusion-SVC
 此仓库是[DDSP-SVC](https://github.com/yxlllc/DDSP-SVC)仓库的扩散部分的单独存放。可单独训练和推理。
 
+![Diagram](doc/diagram.jpg)
 ## 0.简介
-
 Diffusion-SVC 是[DDSP-SVC](https://github.com/yxlllc/DDSP-SVC)仓库的扩散部分的单独存放。可单独训练和推理。
 
 相比于比较著名的 [Diff-SVC](https://github.com/prophesier/diff-svc), 本项目的显存占用少得多，训练和推理速度更快，并针对浅扩散和实时用途有专门优化。可以在较强的GPU上实时推理。配合本项目的naive模型进行浅扩散，即使是较弱的GPU也可以实时生成质量优秀的音频。
@@ -138,7 +138,8 @@ python combo.py -model <model> -nmodel <nmodel> -exp <exp> -n <name>
 组合模型可直接在推理时作为扩散模型被正确加载用于浅扩散，而无需额外输入`-nmodel`来加载naive模型。
 
 ## 4.2. 关于k_step_max与浅扩散
-![Diagram](doc/diagram.jpg)
+***(示意图见readme开头)***
+
 浅扩散过程中，扩散模型只从一定加噪深度开始扩散，而无需从高斯噪声开始。因此，在浅扩散用途下扩散模型也可以只训练一定加噪深度而不用从高斯噪声开始。
 
 配置文件中指定`k_step_max`为扩散深度就是进行这样的训练，该值必须小于1000(这是完整扩散的步数)。这样训练的模型不能单独推理，必须在前级模型的输出结果上或输入源上进行浅扩散；扩散的最大深度不能超过`k_step_max`。
@@ -158,7 +159,7 @@ tensorboard --logdir=exp
 ```bash
 python main.py -i <input.wav> -model <model_ckpt.pt> -o <output.wav> -k <keychange> -id <speaker_id> -speedup <speedup> -method <method> -kstep <kstep> -nmodel <nmodel>
 ```
-`-model`是模型的路径，`-k`是变调， `-speedup`为加速倍速，`-method`为`pndm`或者`dpm-solver`, `-kstep`为浅扩散步数，`-id`为扩散模型的说话人id。
+`-model`是模型的路径，`-k`是变调， `-speedup`为加速倍速，`-method`为`pndm`,`ddim`,`unipc`或`dpm-solver`, `-kstep`为浅扩散步数，`-id`为扩散模型的说话人id。
 
 如果`-kstep`不为空，则以输入源的 mel 进行浅扩散，若`-kstep`为空，则进行完整深度的高斯扩散。
 
@@ -177,13 +178,16 @@ python train_units_index.py -c config.yaml
 推理时，使用`-lr`参数使用。此参数为检索比率。
 
 ## 8. 实时推理
+推荐使用本仓库自带的GUI进行实时推理，如果需要使用浅扩散请先组合模型。
+```bash
+python gui.py
+```
 
-本项目可配合[rtvc](https://github.com/fishaudio/realtime-vc-gui)实现实时推理。
+本项目也可配合[rtvc](https://github.com/fishaudio/realtime-vc-gui)实现实时推理。
 
-**注意：目前为实验性功能，rtvc也未完善，不推荐使用。**
+**注意：目前flask_api为实验性功能，rtvc也未完善，不推荐使用此方式。**
 
 ```bash
-# 需要配合rtvc使用
 pip install rtvc
 python rtvc
 python flask_api.py
