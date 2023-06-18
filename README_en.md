@@ -10,11 +10,13 @@ This repository is a separate storage for the diffusion part of the [DDSP-SVC](h
 ## 0. Introduction
 Diffusion-SVC is a separate storage for the diffusion part of the [DDSP-SVC](https://github.com/yxlllc/DDSP-SVC) repository. It can be trained and inferred independently.
 
-Compared with the well-known [Diff-SVC](https://github.com/prophesier/diff-svc), this project consumes much less graphic memory, has faster training and inference speed, and is specially optimized for shallow diffusion and real-time use. It can perform real-time inference on a powerful GPU.
+Compared with the well-known [Diff-SVC](https://github.com/prophesier/diff-svc), this project consumes much less graphic memory, has faster training and inference speed, and is specially optimized for shallow diffusion and real-time use. It can perform real-time inference on a powerful GPU.By combining with the Naive model of this project for shallow diffusion, even weaker GPUs can generate high-quality audio in real-time.
 
 If the quality of the training data and the input source are both very high, Diffusion-SVC may have the best conversion effect.
 
-In addition, this project can easily be cascaded after other acoustic models for shallow diffusion, to improve the final output effect or reduce performance consumption. For example, cascading Diffusion-SVC after [DDSP-SVC](https://github.com/yxlllc/DDSP-SVC) can further reduce the number of diffusion steps required and obtain high-quality output.
+This project can easily cascade shallow diffusion after other Acoustic model to improve the final output effect or reduce the performance occupancy. For example, cascading Diffusion SVC after the **Naive model** of this project or [DDSP SVC](https://github.com/yxlllc/DDSP-SVC) can further reduce the required diffusion steps and obtain high-quality output.
+
+In addition, this project can also train the number of noise reduction steps required for shallow diffusion without training the complete noise reduction process starting from Gaussian noise, which can improve the training speed and quality. See the following for more information.
 
 Disclaimer: Please ensure to only use **legally obtained authorized data** to train the Diffusion-SVC model, and do not use these models and any audio synthesized by them for illegal purposes. The author of this library is not responsible for any infringements, scams, and other illegal acts caused by the use of these model checkpoints and audio.
 
@@ -118,6 +120,32 @@ Here is an additional special pre-trained model using the contentvec768l12 encod
 2. The pretrained models are mentioned above. Please note that the model must use the same encoder.
 3. Place the pretrained model named `model_0.pt` in the model export folder specified by the "expdir: exp/*****" parameter in `config.yaml`. If the folder doesn't exist, create a new one. The program will automatically load the pretrained model from this folder.
 4. Start training just like training without pretrained model.
+
+## 4.1. Naive model and Combo model
+### Naive model
+The naive model is a lightweight svc model, which can be used as a precursor to shallow diffusion. The training method is consistent with the Diffusion model. The example configuration file is located in `configs/config_naive.yaml`。The pretreatment required is the same as the Diffusion model.
+```bash
+python train.py -c configs/config_naive.yaml
+```
+When reasoning, use`-nmodel`to point to the model file for use, and in this case, shallow diffusion depth `-kstep` must be used.
+
+### Combo model
+Use `combo.py` to combine a Diffusion model and a naive model into a combo model. Only this model can achieve shallow diffusion. These two models need to be trained with the same parameters (like the speaker ID), as they also use the same parameters for inference.
+```bash
+python combo.py -model <model> -nmodel <nmodel> -exp <exp> -n <name>
+```
+Use the above command to combine two models. Where `-model` is the path of the Diffusion model, and `-nmodel` is the path of the naive model；The config files in the same directory as the model will also be automatically read。`-exp`is the directory for outputting composite models，`-n` is the name of the saved composite model。The above command will output the combined model as `<name>.ptc` under`<exp>`.
+
+The combined model can be directly loaded as a Diffusion model for shallow diffusion during reasoning, without the need to input `-nmodel` to load the naive model.
+
+## 4.2. About k_step_max and Shallow diffusion
+In the shallow diffusion process, the Diffusion model only starts from a certain noise depth, and does not need to start from Gaussian noise. Therefore, the Diffusion model for shallow diffusion can only train a certain noise depth without starting from Gaussian noise.
+
+Specify in Configuration File `k_step_max` refers to the depth of diffusion, which is the training process. The value must be less than 1000 (which is the number of steps for complete diffusion). The model trained in this way cannot be inferred separately, and shallow diffusion must be carried out on the output results or input sources of the previous model; The maximum depth of diffusion cannot exceed `k_step_max`.
+
+Sample config can be found in`configs/config_shallow.yaml`。
+
+It is recommended to combine this shallow only Diffusion model with the naive model as a combo model.
 
 ## 5. Visualization
 ```bash
