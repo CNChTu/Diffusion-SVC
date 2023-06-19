@@ -47,7 +47,7 @@ class Config:
         self.sounddevices = ['', '']
         self.diff_acc = 10
         self.k_step = 100
-        self.diff_method = 'pndm'
+        self.diff_method = 'ddim'
         self.jump_silence = False
 
     def save(self, path):
@@ -149,7 +149,7 @@ class GUI:
                     [sg.Text(i18n("扩散深度")), sg.Input(key='k_step', default_text='100', size=18)],
                     [sg.Text(i18n("扩散加速")), sg.Input(key='diff_acc', default_text='10', size=18)],
                     [sg.Text(i18n("扩散算法")),
-                     sg.Combo(values=self.diff_method_list, key='diff_method', default_value=self.diff_method_list[2],
+                     sg.Combo(values=self.diff_method_list, key='diff_method', default_value=self.diff_method_list[0],
                               enable_events=True)],
                     [sg.Checkbox(text=i18n('不合成安全区(加速但损失效果)'), default=False, key='jump_silence',
                                  enable_events=True)],
