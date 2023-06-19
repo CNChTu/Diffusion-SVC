@@ -207,6 +207,9 @@ python flask_api.py
 | Whisper-PPG                   | ×             | ×                                              | √*                                                             |
 | WavLM(Base,Large)             | ×             | ×                                              | √*                                                             |
 
+## 10. Colab
+可以使用[TheMandateOfRock](https://github.com/OOPPEENN)写的笔记`Diffusion_SVC.ipynb`; 由于我没有条件测试，所以有关问题请向笔记作者反馈。~~(我摸了)~~
+
 ## 感谢
 * [DDSP-SVC](https://github.com/yxlllc/DDSP-SVC)
 * [soft-vc](https://github.com/bshall/soft-vc)
