@@ -120,6 +120,7 @@ python train.py -c configs/config.yaml
 |--------------------------------------------------------------------------------|--------|------------|-------------------|----------------------------------------------------------------------------------------------------------------------------------------|--------------------------------------------------------------------------------------------------------------------------------------|
 | [contentvec768l12](https://ibm.ent.box.com/s/z1wgl1stco8ffooyatzdwsqn2psd9lrr) | 512*30 | 100        | VCTK<br/>m4singer | [HuggingFace](https://huggingface.co/datasets/ms903/Diff-SVC-refactor-pre-trained-model/resolve/main/Diffusion-SVC/shallow/model_0.pt) | [HuggingFace](https://huggingface.co/datasets/ms903/Diff-SVC-refactor-pre-trained-model/resolve/main/Diffusion-SVC/naive/model_0.pt) |
 
+**注意：naive预训练模型也可用于完整扩散模型的前级naive模型。且微调naive模型时建议将配置文件中的`decay_step`改小(如10000)。**
 
 ### 3. 使用预训练数据（底模）进行训练：
 1. 欢迎PR训练的多人底模 (请使用授权同意开源的数据集进行训练)。

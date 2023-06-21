@@ -122,6 +122,8 @@ Here is an additional special pre-trained model using the contentvec768l12 encod
 |--------------------------------------------------------------------------------|--------------|------------|-------------------|----------------------------------------------------------------------------------------------------------------------------------------|--------------------------------------------------------------------------------------------------------------------------------------|
 | [contentvec768l12](https://ibm.ent.box.com/s/z1wgl1stco8ffooyatzdwsqn2psd9lrr) | 512*30       | 100        | VCTK<br/>m4singer | [HuggingFace](https://huggingface.co/datasets/ms903/Diff-SVC-refactor-pre-trained-model/resolve/main/Diffusion-SVC/shallow/model_0.pt) | [HuggingFace](https://huggingface.co/datasets/ms903/Diff-SVC-refactor-pre-trained-model/resolve/main/Diffusion-SVC/naive/model_0.pt) |
 
+**The pre training naive model can also be used for the previous naive model of the complete Diffusion model. And when fine-tuning the Naive model, it is recommended to include the`decay_step`  in the configuration (such as 10000).**
+
 ### 3. Training with Pretrained Models:
 1. We welcome pull requests for multi-speaker pretrained models (please use datasets that are authorized for open-source training).
 2. The pretrained models are mentioned above. Please note that the model must use the same encoder.
