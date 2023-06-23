@@ -2,11 +2,11 @@ import os
 import numpy as np
 from tqdm import tqdm
 import pickle
-import faiss
 import torch
 from pathlib import Path
 
 def train_index(path):
+    import faiss
     # from: RVC https://github.com/RVC-Project/Retrieval-based-Voice-Conversion-WebUI
     # 获取文件列表
     listdir_res = []
@@ -53,6 +53,7 @@ class UnitsIndexer:
             self.active = False
             print(f" [WARNING]  No such file as {index_pkl_path}, Disable Units Indexer.")
         else:
+            import faiss
             self.spk_id = spk_id
             self.active = True
             with open(index_pkl_path, "rb") as f:
