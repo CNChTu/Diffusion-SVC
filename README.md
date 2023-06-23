@@ -229,6 +229,6 @@ python flask_api.py
 * [DiffSinger (OpenVPI version)](https://github.com/openvpi/DiffSinger)
 
 ## 感谢所有贡献者作出的努力
-<a href="https://github.com/RVC-Project/Retrieval-based-Voice-Conversion-WebUI/graphs/contributors" target="_blank">
-  <img src="https://contrib.rocks/image?repo=RVC-Project/Retrieval-based-Voice-Conversion-WebUI" />
+<a href="https://github.com/CNChTu/Diffusion-SVC/graphs/contributors">
+  <img src="https://contrib.rocks/image?repo=CNChTu/Diffusion-SVC" />
 </a>
