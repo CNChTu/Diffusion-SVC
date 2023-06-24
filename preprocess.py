@@ -106,7 +106,7 @@ def preprocess(path, f0_extractor, volume_extractor, mel_extractor, units_encode
             spk_emb = np.tile(spk_emb_t, (units_len, 1))
 
         # extract f0
-        f0 = f0_extractor.extract(audio, uv_interp=False)
+        f0 = f0_extractor.extract(audio, uv_interp=False, sr=sample_rate)
 
         uv = f0 == 0
         if len(f0[~uv]) > 0:
@@ -170,11 +170,14 @@ if __name__ == '__main__':
 
     # initialize f0 extractor
     f0_extractor = F0_Extractor(
-        args.data.f0_extractor,
-        args.data.sampling_rate,
-        args.data.block_size,
-        args.data.f0_min,
-        args.data.f0_max)
+        f0_extractor=args.data.f0_extractor,
+        sample_rate=44100,
+        hop_size=512,
+        f0_min=args.data.f0_min,
+        f0_max=args.data.f0_max,
+        block_size=args.data.block_size,
+        model_sampling_rate=args.data.sampling_rate
+    )
 
     # initialize volume extractor
     volume_extractor = Volume_Extractor(args.data.block_size)
