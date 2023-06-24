@@ -7,7 +7,7 @@ Language: [English](./README_en.md) **简体中文**
 此仓库是[DDSP-SVC](https://github.com/yxlllc/DDSP-SVC)仓库的扩散部分的单独存放。可单独训练和推理。
 ***
 **最近更新：使用本仓库的naive模型和浅扩散模型搭配可以用极低训练成本达到比单纯扩散模型更好的效果，强力推荐。**
-<br>效果和介绍见[[介绍视频](暂未完成)]()
+<br>效果和介绍见[[介绍视频(暂未完成)]]()
 
 ![Diagram](doc/diagram.jpg)
 ## 0.简介
