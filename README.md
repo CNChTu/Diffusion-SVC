@@ -1,9 +1,6 @@
 Language: [English](./README_en.md) **简体中文**
 
 # Diffusion-SVC
-[![madewithlove](https://forthebadge.com/images/badges/built-with-love.svg)](https://github.com/CNChTu/Diffusion-SVC/)
-</br>[![Discord](https://img.shields.io/discord/1044927142900809739?color=%23738ADB&label=Discord&style=for-the-badge)](https://discord.gg/jvA5c2xzSE)
-
 此仓库是[DDSP-SVC](https://github.com/yxlllc/DDSP-SVC)仓库的扩散部分的单独存放。可单独训练和推理。
 
 ![Diagram](doc/diagram.jpg)
@@ -124,7 +121,7 @@ python train.py -c configs/config.yaml
 | [contentvec768l12](https://ibm.ent.box.com/s/z1wgl1stco8ffooyatzdwsqn2psd9lrr) | 512*30 | 100        | VCTK<br/>m4singer | [HuggingFace](https://huggingface.co/datasets/ms903/Diff-SVC-refactor-pre-trained-model/resolve/main/Diffusion-SVC/shallow_512_30/model_0.pt) | [HuggingFace](https://huggingface.co/datasets/ms903/Diff-SVC-refactor-pre-trained-model/resolve/main/Diffusion-SVC/naive/model_0.pt) |
 | [contentvec768l12](https://ibm.ent.box.com/s/z1wgl1stco8ffooyatzdwsqn2psd9lrr) | 512*20 | 200        | VCTK<br/>m4singer | [HuggingFace](https://huggingface.co/datasets/ms903/Diff-SVC-refactor-pre-trained-model/resolve/main/Diffusion-SVC/shallow_512_20/model_0.pt) | [HuggingFace](https://huggingface.co/datasets/ms903/Diff-SVC-refactor-pre-trained-model/resolve/main/Diffusion-SVC/naive/model_0.pt) |
 
-**注意：naive预训练模型也可用于完整扩散模型的前级naive模型。且微调naive模型时建议将配置文件中的`decay_step`改小(如10000)。**
+**注意：naive预训练模型也可用于完整扩散模型的前级naive模型。且微调shallow模型时建议将配置文件中的`decay_step`改小(如20000)。**
 
 ### 3. 使用预训练数据（底模）进行训练：
 1. 欢迎PR训练的多人底模 (请使用授权同意开源的数据集进行训练)。
@@ -227,8 +224,3 @@ python flask_api.py
 * [soft-vc](https://github.com/bshall/soft-vc)
 * [diff-SVC](https://github.com/prophesier/diff-SVC)
 * [DiffSinger (OpenVPI version)](https://github.com/openvpi/DiffSinger)
-
-## 感谢所有贡献者作出的努力
-<a href="https://github.com/CNChTu/Diffusion-SVC/graphs/contributors">
-  <img src="https://contrib.rocks/image?repo=CNChTu/Diffusion-SVC" />
-</a>

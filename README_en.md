@@ -123,7 +123,7 @@ Here is an additional special pre-trained model using the contentvec768l12 encod
 | [contentvec768l12](https://ibm.ent.box.com/s/z1wgl1stco8ffooyatzdwsqn2psd9lrr) | 512*30       | 100        | VCTK<br/>m4singer | [HuggingFace](https://huggingface.co/datasets/ms903/Diff-SVC-refactor-pre-trained-model/resolve/main/Diffusion-SVC/shallow_512_30/model_0.pt) | [HuggingFace](https://huggingface.co/datasets/ms903/Diff-SVC-refactor-pre-trained-model/resolve/main/Diffusion-SVC/naive/model_0.pt) |
 | [contentvec768l12](https://ibm.ent.box.com/s/z1wgl1stco8ffooyatzdwsqn2psd9lrr) | 512*20       | 200        | VCTK<br/>m4singer | [HuggingFace](https://huggingface.co/datasets/ms903/Diff-SVC-refactor-pre-trained-model/resolve/main/Diffusion-SVC/shallow_512_20/model_0.pt) | [HuggingFace](https://huggingface.co/datasets/ms903/Diff-SVC-refactor-pre-trained-model/resolve/main/Diffusion-SVC/naive/model_0.pt) |
 
-**The pre training naive model can also be used for the previous naive model of the complete Diffusion model. And when fine-tuning the Naive model, it is recommended to include the`decay_step`  in the configuration (such as 10000).**
+**The pre training naive model can also be used for the previous naive model of the complete Diffusion model. And when fine-tuning the Shallow model, it is recommended to include the`decay_step`  in the configuration (such as 20000).**
 
 ### 3. Training with Pretrained Models:
 1. We welcome pull requests for multi-speaker pretrained models (please use datasets that are authorized for open-source training).
