@@ -9,6 +9,9 @@ I am not good at English. If there are any errors, please point them out.
 [![Discord](https://img.shields.io/discord/1044927142900809739?color=%23738ADB&label=Discord&style=for-the-badge)](https://discord.gg/jvA5c2xzSE)
 
 This repository is a separate storage for the diffusion part of the [DDSP-SVC](https://github.com/yxlllc/DDSP-SVC) repository. It can be trained and inferred independently.
+***
+**Recent update: The use of the naive model and the shallow Diffusion model of the warehouse can achieve better results than the simple Diffusion model with extremely low training costs, which is strongly recommended.**
+<br>Samples and introductions can be found in [[Introduction Video(Not done yet)]]()
 
 ![Diagram](doc/diagram.jpg)
 ## 0. Introduction
@@ -110,6 +113,10 @@ python train.py -c configs/config.yaml
 **We strongly recommend fine-tuning with pre-trained models, which is easier and much more time-saving than training from scratch, and can achieve a higher limit than small datasets.**
 
 **Please note, fine-tuning on a base model requires using the same encoder as the base model, such as ContentVec, the same applies to other encoders (like voiceprint), and the model's network size and other parameters should be the same.**
+
+****
+**！！！！！！Recommend training Shallow Diffusion Model and Naive Model！！！！！！<br>The combination of shallow Diffusion model that only train k_step_max depth and Naive model may have higher quality and faster training speed than pure full diffusion model**
+****
 
 ### 2.1 训练完整过程的扩散预训练模型
 | Units Encoder                                                                                                                                               | Network size | Datasets                                   | Model                                                                                               |

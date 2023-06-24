@@ -5,6 +5,9 @@ Language: [English](./README_en.md) **简体中文**
 [![Discord](https://img.shields.io/discord/1044927142900809739?color=%23738ADB&label=Discord&style=for-the-badge)](https://discord.gg/jvA5c2xzSE)
 
 此仓库是[DDSP-SVC](https://github.com/yxlllc/DDSP-SVC)仓库的扩散部分的单独存放。可单独训练和推理。
+***
+**最近更新：使用本仓库的naive模型和浅扩散模型搭配可以用极低训练成本达到比单纯扩散模型更好的效果，强力推荐。**
+<br>效果和介绍见[[介绍视频](暂未完成)]()
 
 ![Diagram](doc/diagram.jpg)
 ## 0.简介
@@ -108,6 +111,10 @@ python train.py -c configs/config.yaml
 **我们强烈建议使用预训练模型进行微调，这将比直接训练容易和节省的多，并能达到比小数据集更高的上限。**
 
 **注意，在底模上微调需要使用和底模一样的编码器，如同为ContentVec，对别的编码器(如声纹)也是同理，还要注意模型的网络大小等参数相同。**
+
+****
+**！！！！！！！！！推荐训练浅扩散模型+naive模型！！！！！！！！！<br>只训练k_step_max深度的浅扩散模型与naive模型的组合比单纯完全扩散的质量可能还要更高，同时训练速度更快。**
+****
 
 ### 2.1 训练完整过程的扩散预训练模型
 | Units Encoder                                                                                                                                               | 网络大小   | 数据集                                        | 下载                                                                                                  |
