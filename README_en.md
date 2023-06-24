@@ -5,6 +5,9 @@ Language: [简体中文](./README.md) **English**
 I am not good at English. If there are any errors, please point them out.
 
 # Diffusion-SVC
+[![madewithlove](https://forthebadge.com/images/badges/built-with-love.svg)](https://github.com/CNChTu/Diffusion-SVC/)
+[![Discord](https://img.shields.io/discord/1044927142900809739?color=%23738ADB&label=Discord&style=for-the-badge)](https://discord.gg/jvA5c2xzSE)
+
 This repository is a separate storage for the diffusion part of the [DDSP-SVC](https://github.com/yxlllc/DDSP-SVC) repository. It can be trained and inferred independently.
 
 ![Diagram](doc/diagram.jpg)
@@ -226,3 +229,8 @@ You can use `Diffusion_SVC.ipynb` written by [TheMandateOfRock](https://github.c
 * [soft-vc](https://github.com/bshall/soft-vc)
 * [diff-SVC](https://github.com/prophesier/diff-SVC)
 * [DiffSinger (OpenVPI version)](https://github.com/openvpi/DiffSinger)
+
+## Thank you to all contributors for their efforts
+<a href="https://github.com/CNChTu/Diffusion-SVC/graphs/contributors">
+  <img src="https://contrib.rocks/image?repo=CNChTu/Diffusion-SVC" />
+</a>
