@@ -554,7 +554,7 @@ class Audio2ContentVec768L12():
             padding_mask = torch.BoolTensor(feats.shape).fill_(False)
         else:
             padding_mask = padding_mask.unsqueeze(0)
-            padding_mask = torch.nn.functional.interpolate(padding_mask, size=int(feats.shape[1]), mode='linear')
+            padding_mask = torch.nn.functional.interpolate(padding_mask, size=int(feats.shape[1]), mode='nearest')
             padding_mask = ~padding_mask.squeeze(0).bool()
             padding_mask = ~padding_mask if torch.all(padding_mask) else padding_mask
         inputs = {

@@ -409,7 +409,8 @@ class DiffusionSVC:
             audio_t_16k = audio_t
 
         volume, mask = self.extract_volume_and_mask(audio, sr, threhold=float(threhold))
-        units = self.encode_units(audio_t_16k, sr=16000, padding_mask=mask.clone())
+        _, mask16k = self.extract_volume_and_mask(audio_t_16k.squeeze().cpu().numpy(), 16000, threhold=float(threhold))
+        units = self.encode_units(audio_t_16k, sr=16000, padding_mask=mask16k)
         if index_ratio > 0:
             units = self.units_indexer(units_t=units, spk_id=spk_id, ratio=index_ratio)
         f0 = self.extract_f0(audio, key=key, sr=sr, silence_front=silence_front)
