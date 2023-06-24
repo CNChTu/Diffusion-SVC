@@ -75,7 +75,7 @@ def preprocess(path, f0_extractor, volume_extractor, mel_extractor, units_encode
         audio_t = audio_t.unsqueeze(0)
 
         # extract volume
-        volume = volume_extractor.extract(audio)
+        volume = volume_extractor.extract(audio, sr=sample_rate)
 
         # extract mel and volume augmentaion
         if mel_extractor is not None:
@@ -92,7 +92,7 @@ def preprocess(path, f0_extractor, volume_extractor, mel_extractor, units_encode
 
             aug_mel_t = mel_extractor.extract(audio_t * (10 ** log10_vol_shift), sample_rate, keyshift=keyshift)
             aug_mel = aug_mel_t.squeeze().to('cpu').numpy()
-            aug_vol = volume_extractor.extract(audio * (10 ** log10_vol_shift))
+            aug_vol = volume_extractor.extract(audio * (10 ** log10_vol_shift), sr=sample_rate)
 
         # units encode
         units_t = units_encoder.encode(audio_t, sample_rate, hop_size)
@@ -180,7 +180,11 @@ if __name__ == '__main__':
     )
 
     # initialize volume extractor
-    volume_extractor = Volume_Extractor(args.data.block_size)
+    volume_extractor = Volume_Extractor(
+            hop_size=512,
+            block_size=args.data.block_size,
+            model_sampling_rate=args.data.sampling_rate
+        )
 
     # initialize mel extractor
     mel_extractor = None
