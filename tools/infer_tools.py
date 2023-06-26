@@ -410,7 +410,9 @@ class DiffusionSVC:
 
         volume, mask = self.extract_volume_and_mask(audio, sr, threhold=float(threhold))
         if use_hubert_mask:
-            _, mask16k = self.extract_volume_and_mask(audio_t_16k.squeeze().cpu().numpy(), 16000, threhold=float(threhold))
+            mask16k = mask.clone().unsqueeze(0).unsqueeze(0)
+            mask16k = torch.nn.functional.interpolate(mask16k, size=tuple(audio_t_16k.shape), mode='nearest')
+            mask16k = ~(mask16k.squeeze(0).squeeze(0).bool())
         else:
             mask16k = None
         units = self.encode_units(audio_t_16k, sr=16000, padding_mask=mask16k)
