@@ -230,6 +230,16 @@ python flask_api.py
 ## 10. Colab
 可以使用[TheMandateOfRock](https://github.com/OOPPEENN)写的笔记`Diffusion_SVC_CN.ipynb`; 由于我没有条件测试，所以有关问题请向笔记作者反馈。~~(我摸了)~~
 
+## 11.Onnx导出
+在diffusion文件夹下创建文件夹checkpoints，之后在checkpoints文件夹下创建一个新的文件夹 “项目名称”，将模型和配置文件放置入其中，模型重命名为model.pt，配置为config.yaml
+
+执行以下命令
+```shell
+cd diffusion
+python .\onnx_export.py --project "ProjectName"
+```
+结束之后会自动创建MoeVS的配置文件
+
 ## 感谢
 * [DDSP-SVC](https://github.com/yxlllc/DDSP-SVC)
 * [soft-vc](https://github.com/bshall/soft-vc)
