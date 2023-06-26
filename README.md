@@ -233,7 +233,7 @@ python flask_api.py
 ## 11.Onnx导出
 在exp文件夹下创建一个新文件夹(该文件夹的名字就是等会命令中的ProjectName)，将模型和配置文件放置入其中，模型重命名为model.pt，配置为config.yaml
 
-然后执行以下命令
+然后执行以下命令进行导出。
 ```shell
 python diffusion/onnx_export.py --project <ProjectName>
 ```
