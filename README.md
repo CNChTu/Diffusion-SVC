@@ -237,7 +237,7 @@ python flask_api.py
 ```shell
 python diffusion/onnx_export.py --project <ProjectName>
 ```
-结束之后会自动创建MoeVS的配置文件
+导出完成之后会自动创建[MoeVS](https://github.com/NaruseMioShirakana/MoeVoiceStudio)的配置文件,感谢[NaruseMioShirakana](https://github.com/NaruseMioShirakana)(同时也是MoeVS的作者)提供的onnx导出支持。
 
 ## 感谢
 * [DDSP-SVC](https://github.com/yxlllc/DDSP-SVC)

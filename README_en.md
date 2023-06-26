@@ -232,6 +232,15 @@ python flask_api.py
 ## 10. Colab
 You can use `Diffusion_SVC_EN.ipynb` written by [TheMandateOfRock](https://github.com/OOPPEENN); As I do not have a conditional test, please provide feedback to the note author regarding any issues.~~(我摸了)~~
 
+## 11.Onnx export
+Create a new folder under the exp folder(the name of the folder is ProjectName in the following command), place the model and configuration files in it, rename the model file to model.pt, rename the config file to config.yaml
+
+然后执行以下命令
+```shell
+python diffusion/onnx_export.py --project <ProjectName>
+```
+After the export is completed, a configuration file for [MoeVS](https://github.com/NaruseMioShirakana/MoeVoiceStudio) will be automatically created. Thank you to [NaruseMioShirakana](https://github.com/NaruseMioShirakana)(also the author of MoeVS) for providing onnx export support.
+
 ## Acknowledgement
 * [DDSP-SVC](https://github.com/yxlllc/DDSP-SVC)
 * [soft-vc](https://github.com/bshall/soft-vc)
