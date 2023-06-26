@@ -168,7 +168,7 @@ class Unit2Mel(nn.Module):
             torch.onnx.export(
                 self,
                 (hubert, mel2ph, f0, volume, spk_mix),
-                f"checkpoints/{project_name}/{project_name}_encoder.onnx",
+                f"exp/{project_name}/{project_name}_encoder.onnx",
                 input_names=["hubert", "mel2ph", "f0", "volume", "spk_mix"],
                 output_names=["mel_pred"],
                 dynamic_axes={
@@ -203,7 +203,7 @@ class Unit2Mel(nn.Module):
         }
 
         MoeVSConfJson = json.dumps(MoeVSConf)
-        with open(f"checkpoints/{project_name}.json", 'w') as MoeVsConfFile:
+        with open(f"exp/{project_name}/{project_name}.json", 'w') as MoeVsConfFile:
             json.dump(MoeVSConf, MoeVsConfFile, indent = 4)
 
 
@@ -262,7 +262,7 @@ class Unit2Mel(nn.Module):
 if __name__ == "__main__":
     
     project_name = args_main.project
-    model_path = f'checkpoints/{project_name}'
+    model_path = f'exp/{project_name}'
 
     model, _ = load_model_vocoder(model_path)
 
