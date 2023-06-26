@@ -7,6 +7,12 @@ import numpy as np
 from wavenet import WaveNet
 import torch.nn.functional as F
 import diffusion
+import json
+import argparse
+
+parser = argparse.ArgumentParser(description='Onnx Export')
+parser.add_argument('--project', type=str, help='Project Name')
+args_main = parser.parse_args()
 
 class DotDict(dict):
     def __getattr__(*args):         
@@ -20,7 +26,8 @@ class DotDict(dict):
 def load_model_vocoder(
         model_path,
         device='cpu'):
-    config_file = os.path.join(os.path.split(model_path)[0], 'config.yaml')
+    config_file = model_path + '/config.yaml'
+    model_path = model_path + '/model.pt'
     with open(config_file, "r") as config:
         args = yaml.safe_load(config)
     args = DotDict(args)
@@ -33,7 +40,9 @@ def load_model_vocoder(
                 128,
                 args.model.n_layers,
                 args.model.n_chans,
-                args.model.n_hidden)
+                args.model.n_hidden,
+                args.data.encoder_hop_size,
+                args.data.sampling_rate)
     
     print(' [Loading] ' + model_path)
     ckpt = torch.load(model_path, map_location=torch.device(device))
@@ -53,9 +62,13 @@ class Unit2Mel(nn.Module):
             n_layers=20, 
             n_chans=384, 
             n_hidden=256,
+            hop_size=320,
+            sampling_rate=44100,
             use_speaker_encoder=False,
             speaker_encoder_out_channels=256):
         super().__init__()
+        self.sampling_rate = sampling_rate
+        self.hop_size = hop_size
         self.hubert_channel = input_channel
         self.unit_embed = nn.Linear(input_channel, n_hidden)
         self.f0_embed = nn.Linear(1, n_hidden)
@@ -155,7 +168,7 @@ class Unit2Mel(nn.Module):
             torch.onnx.export(
                 self,
                 (hubert, mel2ph, f0, volume, spk_mix),
-                f"{project_name}_encoder.onnx",
+                f"checkpoints/{project_name}/{project_name}_encoder.onnx",
                 input_names=["hubert", "mel2ph", "f0", "volume", "spk_mix"],
                 output_names=["mel_pred"],
                 dynamic_axes={
@@ -168,6 +181,31 @@ class Unit2Mel(nn.Module):
                 opset_version=16
             )
         self.decoder.OnnxExport(project_name, init_noise=init_noise, export_denoise=export_denoise, export_pred=export_pred, export_after=export_after)
+        
+        vec_lay = "layer-12" if self.hubert_channel == 768 else "layer-9"
+        spklist = []
+        for key in range(self.n_spk):
+            spklist.append(f"Speaker_{key}")
+
+        MoeVSConf = {
+            "Folder" : f"{project_name}",
+            "Name" : f"{project_name}",
+            "Type" : "DiffSvc",
+            "Rate" : self.sampling_rate,
+            "Hop" : self.hop_size,
+            "Hubert": f"vec-{self.hubert_channel}-{vec_lay}",
+            "HiddenSize": self.hubert_channel,
+            "Characters": spklist,
+            "Diffusion": True,
+            "CharaMix": True,
+            "Volume": True,
+            "V2" : True
+        }
+
+        MoeVSConfJson = json.dumps(MoeVSConf)
+        with open(f"checkpoints/{project_name}.json", 'w') as MoeVsConfFile:
+            json.dump(MoeVSConf, MoeVsConfFile, indent = 4)
+
 
     def ExportOnnx(self, project_name=None):
         n_frames = 100
@@ -222,8 +260,9 @@ class Unit2Mel(nn.Module):
 
 
 if __name__ == "__main__":
-    project_name = "DiffusionSvc"
-    model_path = f'{project_name}/model_600000.pt'
+    
+    project_name = args_main.project
+    model_path = f'checkpoints/{project_name}'
 
     model, _ = load_model_vocoder(model_path)
 
