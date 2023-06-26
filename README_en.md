@@ -230,7 +230,7 @@ python flask_api.py
 | WavLM(Base,Large)             | ×             | ×                                              | √*                                                             |
 
 ## 10. Colab
-You can use `Diffusion_SVC.ipynb` written by [TheMandateOfRock](https://github.com/OOPPEENN); As I do not have a conditional test, please provide feedback to the note author regarding any issues.~~(我摸了)~~
+You can use `Diffusion_SVC_EN.ipynb` written by [TheMandateOfRock](https://github.com/OOPPEENN); As I do not have a conditional test, please provide feedback to the note author regarding any issues.~~(我摸了)~~
 
 ## Acknowledgement
 * [DDSP-SVC](https://github.com/yxlllc/DDSP-SVC)
