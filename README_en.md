@@ -202,7 +202,7 @@ When reasoning, use the '- lr' parameter. This parameter is the retrieval ratio.
 ## 8. Real time inference
 It is recommended to use the built-in GUI of this warehouse for real-time inference. If shallow diffusion is needed, please first combine the models.
 ```bash
-python gui.py
+python gui_realtime.py
 ```
 
 This project can also be coordinated with[rtvc](https://github.com/fishaudio/realtime-vc-gui)Implement real-time inference.

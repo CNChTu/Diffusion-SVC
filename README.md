@@ -200,7 +200,7 @@ python train_units_index.py -c config.yaml
 ## 8. 实时推理
 推荐使用本仓库自带的GUI进行实时推理，如果需要使用浅扩散请先组合模型。
 ```bash
-python gui.py
+python gui_realtime.py
 ```
 
 本项目也可配合[rtvc](https://github.com/fishaudio/realtime-vc-gui)实现实时推理。
