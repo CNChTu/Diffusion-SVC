@@ -389,7 +389,7 @@ class DiffusionSVC:
     def infer_from_audio_for_realtime(self, audio, sr, key, spk_id=1, spk_mix_dict=None, aug_shift=0,
                                       infer_speedup=10, method='dpm-solver', k_step=None, use_tqdm=True,
                                       spk_emb=None, silence_front=0, diff_jump_silence_front=False, threhold=-60,
-                                      index_ratio=0):
+                                      index_ratio=0, use_hubert_mask=False):
 
         start_frame = int(silence_front * self.vocoder.vocoder_sample_rate / self.vocoder.vocoder_hop_size)
         audio_t = torch.from_numpy(audio).float().unsqueeze(0).to(self.device)
@@ -409,7 +409,10 @@ class DiffusionSVC:
             audio_t_16k = audio_t
 
         volume, mask = self.extract_volume_and_mask(audio, sr, threhold=float(threhold))
-        _, mask16k = self.extract_volume_and_mask(audio_t_16k.squeeze().cpu().numpy(), 16000, threhold=float(threhold))
+        if use_hubert_mask:
+            _, mask16k = self.extract_volume_and_mask(audio_t_16k.squeeze().cpu().numpy(), 16000, threhold=float(threhold))
+        else:
+            mask16k = None
         units = self.encode_units(audio_t_16k, sr=16000, padding_mask=mask16k)
         if index_ratio > 0:
             units = self.units_indexer(units_t=units, spk_id=spk_id, ratio=index_ratio)
