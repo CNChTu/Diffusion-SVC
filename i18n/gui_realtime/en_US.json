@@ -12,6 +12,7 @@
     "输出设备": "Output device",
     "音频设备": "Audio device",
     "说话人id": "Speaker id",
+    "使用hubert遮罩": "use hubert mask",
     "响应阈值": "Response threshold",
     "变调": "Pitch shift",
     "采样率": "Sampling rate",
