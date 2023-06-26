@@ -5,6 +5,7 @@ Language: [简体中文](./README.md) **English**
 I am not good at English. If there are any errors, please point them out.
 
 # Diffusion-SVC
+[![Colab_CN](https://img.shields.io/static/v1?label=Colab&message=Notebook&color=F9AB00&logo=googlecolab&style=flat-square)](https://drive.google.com/file/d/1cw8DtBYOvKCc8fwYujVpd8JQoeRRZvtt/view?usp=sharing)
 [![madewithlove](https://forthebadge.com/images/badges/built-with-love.svg)](https://github.com/CNChTu/Diffusion-SVC/)
 [![Discord](https://img.shields.io/discord/1044927142900809739?color=%23738ADB&label=Discord&style=for-the-badge)](https://discord.gg/jvA5c2xzSE)
 
