@@ -93,7 +93,7 @@ python preprocess.py -c configs/config.yaml
 You can modify the configuration file `configs/config.yaml` before preprocessing.
 
 #### 3. Notes:
-1. Please ensure that the sampling rate of all audio clips matches the sampling rate specified in the yaml configuration file! If they don't match, the program can still run, but resampling during training will be very slow. (Optional: You can use Adobe Audition™'s Match Loudness function to resample, modify channels, and match loudness all at once.)
+1. Please ensure that the sampling rate of all audio clips matches the sampling rate specified in the yaml configuration file! (If pre processing such as resampling is required, it is recommended to use [fap](https://github.com/fishaudio/audio-preprocess))
 
 2. Cutting long audio into smaller clips can speed up training, but the duration of all audio clips should not be less than 2 seconds. If there are too many audio clips, you will need more memory. Setting the `cache_all_data` option in the configuration file to false can solve this problem.
 
