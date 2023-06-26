@@ -516,7 +516,7 @@ class GaussianDiffusion(nn.Module):
             torch.onnx.export(
                 self.denoise_fn,
                 (x.cpu(), ot_1.cpu(), cond.cpu()),
-                f"checkpoints/{project_name}/{project_name}_denoise.onnx",
+                f"exp/{project_name}/{project_name}_denoise.onnx",
                 input_names=["noise", "time", "condition"],
                 output_names=["noise_pred"],
                 dynamic_axes={
@@ -536,7 +536,7 @@ class GaussianDiffusion(nn.Module):
                     torch.onnx.export(
                         self.xp,
                         (x.cpu(), noise_pred.cpu(), t_1.cpu(), t_prev.cpu()),
-                        f"checkpoints/{project_name}/{project_name}_pred.onnx",
+                        f"exp/{project_name}/{project_name}_pred.onnx",
                         input_names=["noise", "noise_pred", "time", "time_prev"],
                         output_names=["noise_pred_o"],
                         dynamic_axes={
@@ -549,7 +549,7 @@ class GaussianDiffusion(nn.Module):
                     torch.onnx.export(
                         self.DDIM_pred,
                         (x.cpu(), t_1.cpu(), spd_up_ddim.cpu(), cond.cpu()),
-                        f"checkpoints/{project_name}/{project_name}_ddim_pred.onnx",
+                        f"exp/{project_name}/{project_name}_ddim_pred.onnx",
                         input_names=["noise", "time", "speedup", "time_prev"],
                         output_names=["noise_pred_o"],
                         dynamic_axes={
@@ -586,7 +586,7 @@ class GaussianDiffusion(nn.Module):
             torch.onnx.export(
                 self.ad,
                 x.cpu(),
-                f"checkpoints/{project_name}/{project_name}_after.onnx",
+                f"exp/{project_name}/{project_name}_after.onnx",
                 input_names=["x"],
                 output_names=["mel_out"],
                 dynamic_axes={
