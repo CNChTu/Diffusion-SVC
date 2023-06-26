@@ -49,6 +49,7 @@ class Config:
         self.k_step = 100
         self.diff_method = 'ddim'
         self.jump_silence = False
+        self.use_hubert_mask = False
 
     def save(self, path):
         with open(path + '\\config.pkl', 'wb') as f:
@@ -117,7 +118,8 @@ class GUI:
             ], title=i18n('音频设备'))
             ],
             [sg.Frame(layout=[
-                [sg.Text(i18n("说话人id")), sg.Input(key='spk_id', default_text='1', size=8)],
+                [sg.Text(i18n("说话人id")), sg.Input(key='spk_id', default_text='1', size=8),
+                 sg.Checkbox(text=i18n('使用hubert遮罩'), default=False, key='use_hubert_mask', enable_events=True)],
                 [sg.Text(i18n("响应阈值")),
                  sg.Slider(range=(-60, 0), orientation='h', key='threhold', resolution=1, default_value=-45,
                            enable_events=True)],
@@ -204,6 +206,8 @@ class GUI:
                     self.config.diff_acc = int(values['diff_acc'])
             elif event == 'jump_silence':
                 self.config.jump_silence = values['jump_silence']
+            elif event == 'use_hubert_mask':
+                self.config.use_hubert_mask = values['use_hubert_mask']
             elif event == 'diff_method':
                 self.config.diff_method = values['diff_method']
             elif event == 'spk_id':
@@ -248,6 +252,7 @@ class GUI:
         self.config.use_phase_vocoder = values['use_phase_vocoder']
         self.config.use_spk_mix = values['spk_mix']
         self.config.jump_silence = values['jump_silence']
+        self.config.use_hubert_mask = values['use_hubert_mask']
         self.config.diff_method = values['diff_method']
         self.config.diff_acc = int(values['diff_acc'])
         self.config.k_step = int(values['k_step'])
@@ -274,6 +279,7 @@ class GUI:
         self.window['buffernum'].update(self.config.buffer_num)
         self.window['f0_mode'].update(self.config.select_pitch_extractor)
         self.window['jump_silence'].update(self.config.jump_silence)
+        self.window['use_hubert_mask'].update(self.config.use_hubert_mask)
         self.window['diff_method'].update(self.config.diff_method)
         self.window['diff_acc'].update(self.config.diff_acc)
         self.window['k_step'].update(self.config.k_step)
@@ -327,7 +333,8 @@ class GUI:
             silence_front=self.f_safe_prefix_pad_length,
             diff_jump_silence_front=self.config.jump_silence,
             threhold=self.config.threhold,
-            index_ratio=0)
+            index_ratio=0,
+            use_hubert_mask=self.config.use_hubert_mask)
 
         # debug sola
         '''
