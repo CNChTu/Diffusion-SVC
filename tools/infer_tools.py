@@ -322,7 +322,7 @@ class DiffusionSVC:
             assert 0 < int(k_step) <= 1000
             k_step = int(k_step)
             audio_t = torch.from_numpy(audio).float().unsqueeze(0).to(self.device)
-            gt_spec = self.vocoder.extract(audio_t, self.args.data.sampling_rate)
+            gt_spec = self.vocoder.extract(audio_t, sr)
             gt_spec = torch.cat((gt_spec, gt_spec[:, -1:, :]), 1)
         else:
             gt_spec = None
@@ -348,7 +348,7 @@ class DiffusionSVC:
             assert 0 < int(k_step) <= 1000
             k_step = int(k_step)
             audio_t = torch.from_numpy(audio).float().unsqueeze(0).to(self.device)
-            gt_spec = self.vocoder.extract(audio_t, self.args.data.sampling_rate)
+            gt_spec = self.vocoder.extract(audio_t, sr)
             gt_spec = torch.cat((gt_spec, gt_spec[:, -1:, :]), 1)
         else:
             gt_spec = None
