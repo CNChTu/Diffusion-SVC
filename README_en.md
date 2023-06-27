@@ -11,7 +11,7 @@ I am not good at English. If there are any errors, please point them out.
 
 This repository is a separate storage for the diffusion part of the [DDSP-SVC](https://github.com/yxlllc/DDSP-SVC) repository. It can be trained and inferred independently.
 ***
-**Recent update: The use of the naive model and the shallow Diffusion model of the warehouse can achieve better results than the simple Diffusion model with extremely low training costs, which is strongly recommended.**
+**Recent update: The use of the naive model and the shallow Diffusion model of the repository can achieve better results than the simple Diffusion model with extremely low training costs, which is strongly recommended.**
 <br>Samples and introductions can be found in [[Introduction Video(Not done yet)]]()
 
 ![Diagram](doc/diagram.jpg)
@@ -119,12 +119,12 @@ python train.py -c configs/config.yaml
 **！！！！！！Recommend training Shallow Diffusion Model and Naive Model！！！！！！<br>The combination of shallow Diffusion model that only train k_step_max depth and Naive model may have higher quality and faster training speed than pure full diffusion model**
 ****
 
-### 2.1 训练完整过程的扩散预训练模型
-| Units Encoder                                                                                                                                               | Network size | Datasets                                   | Model                                                                                               |
-|-------------------------------------------------------------------------------------------------------------------------------------------------------------|--------------|--------------------------------------------|-----------------------------------------------------------------------------------------------------|
-| [contentvec768l12(推荐)](https://ibm.ent.box.com/s/z1wgl1stco8ffooyatzdwsqn2psd9lrr)                                                                          | 512*20       | VCTK<br/>m4singer                          | [HuggingFace](https://huggingface.co/ChiTu/Diffusion-SVC/resolve/main/v0.1/contentvec768l12.7z)     |
-| [hubertsoft](https://github.com/bshall/hubert/releases/download/v0.1/hubert-soft-0d54a1f4.pt)                                                               | 512*20       | VCTK<br/>m4singer                          | [HuggingFace](https://huggingface.co/ChiTu/Diffusion-SVC/resolve/main/v0.1/hubertsoft.7z)           |
-| [whisper-ppg(仅支持sovits)](https://openaipublic.azureedge.net/main/whisper/models/345ae4da62f9b3d59415adc60127b97c714f32e89e936602e85993674d08dcb1/medium.pt) | 512*20       | VCTK<br/>m4singer<br/>opencpop<br/>kiritan | [HuggingFace](https://huggingface.co/Kakaru/sovits-whisper-pretrain/blob/main/diffusion/model_0.pt) |
+### 2.1 Pre training Diffusion model which training full depth
+| Units Encoder                                                                                                                                                              | Network size | Datasets                                   | Model                                                                                               |
+|----------------------------------------------------------------------------------------------------------------------------------------------------------------------------|--------------|--------------------------------------------|-----------------------------------------------------------------------------------------------------|
+| [contentvec768l12(Recommend)](https://ibm.ent.box.com/s/z1wgl1stco8ffooyatzdwsqn2psd9lrr)                                                                                  | 512*20       | VCTK<br/>m4singer                          | [HuggingFace](https://huggingface.co/ChiTu/Diffusion-SVC/resolve/main/v0.1/contentvec768l12.7z)     |
+| [hubertsoft](https://github.com/bshall/hubert/releases/download/v0.1/hubert-soft-0d54a1f4.pt)                                                                              | 512*20       | VCTK<br/>m4singer                          | [HuggingFace](https://huggingface.co/ChiTu/Diffusion-SVC/resolve/main/v0.1/hubertsoft.7z)           |
+| [whisper-ppg(only can use with sovits)](https://openaipublic.azureedge.net/main/whisper/models/345ae4da62f9b3d59415adc60127b97c714f32e89e936602e85993674d08dcb1/medium.pt) | 512*20       | VCTK<br/>m4singer<br/>opencpop<br/>kiritan | [HuggingFace](https://huggingface.co/Kakaru/sovits-whisper-pretrain/blob/main/diffusion/model_0.pt) |
 
 Here is an additional special pre-trained model using the contentvec768l12 encoder, the dataset is `m4singer`/`opencpop`/`vctk`. It is not recommended to use this and there's no guarantee it won't cause problems: [Download](https://huggingface.co/ChiTu/Diffusion-SVC/resolve/main/v0.1/contentvec768l12%2Bmakefunny.7z).
 
@@ -148,7 +148,7 @@ The naive model is a lightweight svc model, which can be used as a precursor to 
 ```bash
 python train.py -c configs/config_naive.yaml
 ```
-When reasoning, use`-nmodel`to point to the model file for use, and in this case, shallow diffusion depth `-kstep` must be used.
+When inferring, use`-nmodel`to point to the model file for use, and in this case, shallow diffusion depth `-kstep` must be used.
 
 ### Combo model
 Use `combo.py` to combine a Diffusion model and a naive model into a combo model. Only this model can achieve shallow diffusion. These two models need to be trained with the same parameters (like the speaker ID), as they also use the same parameters for inference.
@@ -185,7 +185,7 @@ python main.py -i <input.wav> -model <model_ckpt.pt> -o <output.wav> -k <keychan
 
 If `-kstep` is not empty, shallow diffusion will be performed on the input source mel, if `-kstep` is empty, full depth Gaussian diffusion will be performed.
 
- `-nmodel`(Optional, requires separate training) is the path of the Naive model, used for shallow diffusion of k depth based on the initial output, and its parameters need to be matched with the main model.
+`-nmodel`(optional, requiring separate training) is the path of the naive model, It is used to provide a rough mel for shallow diffusion of k depth to the Diffusion model, and its parameters need to match the main model.
 
 ~~If voiceprint encoding was used, an external voiceprint can be specified with `-spkemb`, or the model's voiceprint dictionary can be overwritten with `-spkembdict`.~~
 
