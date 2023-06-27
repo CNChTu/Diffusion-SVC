@@ -1,4 +1,5 @@
 import numpy as np
+import time
 import os
 import torch
 import torch.nn.functional
@@ -350,8 +351,13 @@ class DiffusionSVC:
         hop_size = self.args.data.block_size * sr / self.args.data.sampling_rate
         segments = split(audio, sr, hop_size, db_thresh=threhold_for_split, min_len=min_len)
 
+        print(f' [INFO] Extract f0 volume and mask: Use {self.f0_model}, start...')
+        _f0_start_time = time.time()
         f0 = self.extract_f0(audio, key=key, sr=sr)
         volume, mask = self.extract_volume_and_mask(audio, sr, threhold=float(threhold))
+        _f0_end_time = time.time()
+        _f0_used_time = _f0_end_time - _f0_start_time
+        print(f' [INFO] Extract f0 volume and mask: Done. Use time:{_f0_used_time}')
 
         if k_step is not None:
             assert 0 < int(k_step) <= 1000
