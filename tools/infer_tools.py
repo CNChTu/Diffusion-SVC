@@ -243,6 +243,7 @@ class DiffusionSVC:
             if gt_spec is None:
                 raise ValueError("gt_spec must not None when Shallow Diffusion Model inferring, gt_spec can from "
                                  "input mel or output of naive model")
+            print(f' [INFO] k_step_max is {self.args.model.k_step_max}.')
 
         aug_shift = torch.from_numpy(np.array([[float(aug_shift)]])).float().to(self.device)
 
@@ -254,6 +255,11 @@ class DiffusionSVC:
         else:
             spk_id = torch.LongTensor(np.array([[int(spk_id)]])).to(self.device)
 
+        if k_step is not None:
+            print(f' [INFO] get k_step, do shallow diffusion {k_step} steps')
+        else:
+            print(f' [INFO] Do full 1000 steps depth diffusion {k_step}')
+        print(f" [INFO] method:{method}; infer_speedup:{infer_speedup}")
         return self.model(units, f0, volume, spk_id=spk_id, spk_mix_dict=spk_mix_dict, aug_shift=aug_shift,
                           gt_spec=gt_spec, infer=True, infer_speedup=infer_speedup, method=method, k_step=k_step,
                           use_tqdm=use_tqdm, spk_emb=spk_emb, spk_emb_dict=spk_emb_dict)
@@ -266,7 +272,10 @@ class DiffusionSVC:
             if self.naive_model is not None:
                 gt_spec = self.naive_model_call(units, f0, volume, spk_id=spk_id, spk_mix_dict=spk_mix_dict,
                                                 aug_shift=aug_shift, spk_emb=spk_emb)
+                print(f" [INFO] get mel from naive model out.")
             assert gt_spec is not None
+            if self.naive_model is None:
+                print(f" [INFO] get mel from input wav.")
             k_step = int(k_step)
             gt_spec = gt_spec
         else:
