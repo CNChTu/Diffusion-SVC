@@ -4,14 +4,9 @@ from tqdm import tqdm
 import pickle
 import torch
 from pathlib import Path
-from sklearn.cluster import MiniBatchKMeans
-import traceback
-from multiprocessing import cpu_count
-
 
 def train_index(path):
     import faiss
-    n_cpu = cpu_count()
     # from: RVC https://github.com/RVC-Project/Retrieval-based-Voice-Conversion-WebUI
     # 获取文件列表
     listdir_res = []
@@ -28,25 +23,6 @@ def train_index(path):
     big_npy_idx = np.arange(big_npy.shape[0])
     np.random.shuffle(big_npy_idx)
     big_npy = big_npy[big_npy_idx]
-    if big_npy.shape[0] > 2e5:
-        # if(1):
-        info = "Trying doing kmeans %s shape to 10k centers." % big_npy.shape[0]
-        print(info)
-        try:
-            big_npy = (
-                MiniBatchKMeans(
-                    n_clusters=10000,
-                    verbose=True,
-                    batch_size=256 * n_cpu,
-                    compute_labels=False,
-                    init="random",
-                )
-                .fit(big_npy)
-                .cluster_centers_
-            )
-        except:
-            info = traceback.format_exc()
-            print(info)
     n_ivf = min(int(16 * np.sqrt(big_npy.shape[0])), big_npy.shape[0] // 39)
     index = faiss.index_factory(big_npy.shape[1], "IVF%s,Flat" % n_ivf)
     index_ivf = faiss.extract_index_ivf(index)  #
