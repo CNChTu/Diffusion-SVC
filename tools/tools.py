@@ -202,6 +202,7 @@ class F0_Extractor:
         self.hop_size = hop_size
         self.f0_min = f0_min
         self.f0_max = f0_max
+        self.transformer_f0 = None
         if f0_extractor == 'crepe':
             key_str = str(sample_rate)
             if key_str not in CREPE_RESAMPLE_KERNEL:
@@ -225,6 +226,7 @@ class F0_Extractor:
             self.sample_rate = sr
 
         # extractor start time
+        raw_audio = audio
         n_frames = int(len(audio) // self.hop_size) + 1
 
         start_frame = int(silence_front * self.sample_rate / self.hop_size)
@@ -282,6 +284,14 @@ class F0_Extractor:
                  range(n_frames - start_frame)])
             f0 = np.pad(f0, (start_frame, 0))
 
+        elif self.f0_extractor == "transformer_f0":
+            if self.transformer_f0 is None:
+                from transformer_f0.model import TransformerF0Infer
+                self.transformer_f0 = TransformerF0Infer(model_path='exp/f0_test/model_194000.pt')
+            f0 = self.transformer_f0(audio=raw_audio, sr=self.sample_rate)
+            f0 = f0.transpose(1, 2)
+            # f0 = torch.nn.functional.interpolate(f0, size=int(n_frames), mode='nearest')
+            f0 = f0.transpose(1, 2).squeeze().cpu().numpy()
         else:
             raise ValueError(f" [x] Unknown f0 extractor: {self.f0_extractor}")
 
