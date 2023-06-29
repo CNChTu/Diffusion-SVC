@@ -111,12 +111,13 @@ python train.py -c configs/config.yaml
 ```
 
 ### 2. Pre-trained Models:
-**We strongly recommend fine-tuning with pre-trained models, which is easier and much more time-saving than training from scratch, and can achieve a higher limit than small datasets.**
+- **We strongly recommend fine-tuning with pre-trained models, which is easier and much more time-saving than training from scratch, and can achieve a higher limit than small datasets.**
 
-**Please note, fine-tuning on a base model requires using the same encoder as the base model, such as ContentVec, the same applies to other encoders (like voiceprint), and the model's network size and other parameters should be the same.**
+- **Please note, fine-tuning on a base model requires using the same encoder as the base model, such as ContentVec, the same applies to other encoders (like voiceprint), and the model's network size and other parameters should be the same.**
 
 ****
-**！！！！！！Recommend training Shallow Diffusion Model and Naive Model！！！！！！<br>The combination of shallow Diffusion model that only train k_step_max depth and Naive model may have higher quality and faster training speed than pure full diffusion model**
+#### ！！！！！！Recommend training Shallow Diffusion Model and Naive Model！！！！！！
+The combination of shallow Diffusion model that only train k_step_max depth and Naive model may have higher quality and faster training speed than pure full diffusion model. But the Naive model may have f0 range issues.
 ****
 
 ### 2.1 Pre training Diffusion model which training full depth
@@ -134,14 +135,14 @@ Here is an additional special pre-trained model using the contentvec768l12 encod
 | [contentvec768l12](https://ibm.ent.box.com/s/z1wgl1stco8ffooyatzdwsqn2psd9lrr) | 512*30       | 100        | VCTK<br/>m4singer | [HuggingFace](https://huggingface.co/datasets/ms903/Diff-SVC-refactor-pre-trained-model/resolve/main/Diffusion-SVC/shallow_512_30/model_0.pt) |
 | [contentvec768l12](https://ibm.ent.box.com/s/z1wgl1stco8ffooyatzdwsqn2psd9lrr) | 512*20       | 200        | VCTK<br/>m4singer | [HuggingFace](https://huggingface.co/datasets/ms903/Diff-SVC-refactor-pre-trained-model/resolve/main/Diffusion-SVC/shallow_512_20/model_0.pt) |
 
-**The experiment found that the Naive model has f0 range issues on small data. Please prioritize fine-tuning the Naive model with fewer steps or directly using the infinite range ddsp model.**
+- **The experiment found that the Naive model has f0 range issues on small data. Please prioritize fine-tuning the Naive model with fewer steps or directly using the infinite range ddsp model.**
 
 ### 2.3 Naive pre training model and DDSP pre training model matched with 2.2
 | Units Encoder                                                                  | Network size | Datasets          | Type  | Naive Model                                                                                                                          |
 |--------------------------------------------------------------------------------|--------------|-------------------|-------|--------------------------------------------------------------------------------------------------------------------------------------|
 | [contentvec768l12](https://ibm.ent.box.com/s/z1wgl1stco8ffooyatzdwsqn2psd9lrr) | 3*256        | VCTK<br/>m4singer | Naive | [HuggingFace](https://huggingface.co/datasets/ms903/Diff-SVC-refactor-pre-trained-model/resolve/main/Diffusion-SVC/naive/model_0.pt) |
 
-**The pre training naive model can also be used for the previous naive model of the complete Diffusion model. And when fine-tuning the Shallow model, it is recommended to include the`decay_step`  in the configuration (such as 10000).**
+- **The pre training naive model can also be used for the previous naive model of the complete Diffusion model. And when fine-tuning the Shallow model, it is recommended to include the`decay_step`  in the configuration (such as 10000).**
 
 ### 3. Training with Pretrained Models:
 1. We welcome pull requests for multi-speaker pretrained models (please use datasets that are authorized for open-source training).

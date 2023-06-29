@@ -109,12 +109,13 @@ python train.py -c configs/config.yaml
 ```
 
 ### 2. 预训练模型：
-**我们强烈建议使用预训练模型进行微调，这将比直接训练容易和节省的多，并能达到比小数据集更高的上限。**
+- **我们强烈建议使用预训练模型进行微调，这将比直接训练容易和节省的多，并能达到比小数据集更高的上限。**
 
-**注意，在底模上微调需要使用和底模一样的编码器，如同为ContentVec，对别的编码器(如声纹)也是同理，还要注意模型的网络大小等参数相同。**
+- **注意，在底模上微调需要使用和底模一样的编码器，如同为ContentVec，对别的编码器(如声纹)也是同理，还要注意模型的网络大小等参数相同。**
 
 ****
-**！！！！！！！！！推荐训练浅扩散模型+naive模型！！！！！！！！！<br>只训练k_step_max深度的浅扩散模型与naive模型的组合比单纯完全扩散的质量可能还要更高，同时训练速度更快。**
+#### ！！！！！！！！！推荐训练浅扩散模型+naive模型！！！！！！！！！
+只训练k_step_max深度的浅扩散模型与naive模型的组合比单纯完全扩散的质量可能还要更高，同时训练速度更快。但是naive模型可能存在音域问题。
 ****
 
 ### 2.1 训练完整过程的扩散预训练模型
@@ -132,7 +133,7 @@ python train.py -c configs/config.yaml
 | [contentvec768l12](https://ibm.ent.box.com/s/z1wgl1stco8ffooyatzdwsqn2psd9lrr) | 512*30 | 100        | VCTK<br/>m4singer | [HuggingFace](https://huggingface.co/datasets/ms903/Diff-SVC-refactor-pre-trained-model/resolve/main/Diffusion-SVC/shallow_512_30/model_0.pt) |
 | [contentvec768l12](https://ibm.ent.box.com/s/z1wgl1stco8ffooyatzdwsqn2psd9lrr) | 512*20 | 200        | VCTK<br/>m4singer | [HuggingFace](https://huggingface.co/datasets/ms903/Diff-SVC-refactor-pre-trained-model/resolve/main/Diffusion-SVC/shallow_512_20/model_0.pt) |
 
-**实验发现naive模型在小数据上有音域问题，请优先考虑用较少的步数微调naive模型或直接使用无限音域的ddsp模型**
+- **实验发现naive模型在小数据上有音域问题，请优先考虑用较少的步数微调naive模型或直接使用无限音域的ddsp模型**
 
 ### 2.3 和2.2配套的Naive预训练模型和DDSP预训练模型
 | 所用编码器                                                                          | 网络大小  | 数据集               | 类型    | Naive模型下载                                                                                                                            |
@@ -140,7 +141,7 @@ python train.py -c configs/config.yaml
 | [contentvec768l12](https://ibm.ent.box.com/s/z1wgl1stco8ffooyatzdwsqn2psd9lrr) | 3*256 | VCTK<br/>m4singer | Naive | [HuggingFace](https://huggingface.co/datasets/ms903/Diff-SVC-refactor-pre-trained-model/resolve/main/Diffusion-SVC/naive/model_0.pt) |
 
 
-**注意：naive预训练模型也可用于完整扩散模型的前级naive模型。且微调shallow模型时建议将配置文件中的`decay_step`改小(如10000)。**
+- **注意：naive预训练模型也可用于完整扩散模型的前级naive模型。且微调shallow模型时建议将配置文件中的`decay_step`改小(如10000)。**
 
 ### 3. 使用预训练数据（底模）进行训练：
 1. 欢迎PR训练的多人底模 (请使用授权同意开源的数据集进行训练)。
