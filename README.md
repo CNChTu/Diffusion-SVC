@@ -7,7 +7,7 @@ Language: [English](./README_en.md) **简体中文**
 
 此仓库是[DDSP-SVC](https://github.com/yxlllc/DDSP-SVC)仓库的扩散部分的单独存放。可单独训练和推理。
 ***
-**最近更新：使用本仓库的naive模型和浅扩散模型搭配可以用极低训练成本达到比单纯扩散模型更好的效果，强力推荐。**
+**最近更新：使用本仓库的naive模型和浅扩散模型搭配可以用极低训练成本达到比单纯扩散模型更好的效果，强力推荐。但是小网络的naive模型泛化能力较弱，在小数据集上可能会有音域问题，这个时候naive模型微调不能训练太多步数(这会让底模退化)，前级也可以考虑更换为无限音域的ddsp模型。**
 <br>效果和介绍见[[介绍视频(暂未完成)]]()
 
 ![Diagram](doc/diagram.jpg)
@@ -126,13 +126,21 @@ python train.py -c configs/config.yaml
 
 补充一个用contentvec768l12编码的整活底模，数据集为`m4singer`/`opencpop`/`vctk`，不推荐使用，不保证没问题：[下载](https://huggingface.co/ChiTu/Diffusion-SVC/resolve/main/v0.1/contentvec768l12%2Bmakefunny.7z)。
 
-### 2.2 只训练k_step_max深度的扩散预训练模型; 和配套的Naive预训练模型
-| 所用编码器                                                                          | 网络大小   | k_step_max | 数据集               | 浅扩散模型下载                                                                                                                                       | Naive模型下载                                                                                                                            |
-|--------------------------------------------------------------------------------|--------|------------|-------------------|-----------------------------------------------------------------------------------------------------------------------------------------------|--------------------------------------------------------------------------------------------------------------------------------------|
-| [contentvec768l12](https://ibm.ent.box.com/s/z1wgl1stco8ffooyatzdwsqn2psd9lrr) | 512*30 | 100        | VCTK<br/>m4singer | [HuggingFace](https://huggingface.co/datasets/ms903/Diff-SVC-refactor-pre-trained-model/resolve/main/Diffusion-SVC/shallow_512_30/model_0.pt) | [HuggingFace](https://huggingface.co/datasets/ms903/Diff-SVC-refactor-pre-trained-model/resolve/main/Diffusion-SVC/naive/model_0.pt) |
-| [contentvec768l12](https://ibm.ent.box.com/s/z1wgl1stco8ffooyatzdwsqn2psd9lrr) | 512*20 | 200        | VCTK<br/>m4singer | [HuggingFace](https://huggingface.co/datasets/ms903/Diff-SVC-refactor-pre-trained-model/resolve/main/Diffusion-SVC/shallow_512_20/model_0.pt) | [HuggingFace](https://huggingface.co/datasets/ms903/Diff-SVC-refactor-pre-trained-model/resolve/main/Diffusion-SVC/naive/model_0.pt) |
+### 2.2 只训练k_step_max深度的扩散预训练模型
+| 所用编码器                                                                          | 网络大小   | k_step_max | 数据集               | 浅扩散模型下载                                                                                                                                       |
+|--------------------------------------------------------------------------------|--------|------------|-------------------|-----------------------------------------------------------------------------------------------------------------------------------------------|
+| [contentvec768l12](https://ibm.ent.box.com/s/z1wgl1stco8ffooyatzdwsqn2psd9lrr) | 512*30 | 100        | VCTK<br/>m4singer | [HuggingFace](https://huggingface.co/datasets/ms903/Diff-SVC-refactor-pre-trained-model/resolve/main/Diffusion-SVC/shallow_512_30/model_0.pt) |
+| [contentvec768l12](https://ibm.ent.box.com/s/z1wgl1stco8ffooyatzdwsqn2psd9lrr) | 512*20 | 200        | VCTK<br/>m4singer | [HuggingFace](https://huggingface.co/datasets/ms903/Diff-SVC-refactor-pre-trained-model/resolve/main/Diffusion-SVC/shallow_512_20/model_0.pt) |
 
-**注意：naive预训练模型也可用于完整扩散模型的前级naive模型。且微调shallow模型时建议将配置文件中的`decay_step`改小(如20000)。**
+**实验发现naive模型在小数据上有音域问题，请优先考虑用较少的步数微调naive模型或直接使用无限音域的ddsp模型**
+
+### 2.3 和2.2配套的Naive预训练模型和DDSP预训练模型
+| 所用编码器                                                                          | 网络大小  | 数据集               | 类型    | Naive模型下载                                                                                                                            |
+|--------------------------------------------------------------------------------|-------|-------------------|-------|--------------------------------------------------------------------------------------------------------------------------------------|
+| [contentvec768l12](https://ibm.ent.box.com/s/z1wgl1stco8ffooyatzdwsqn2psd9lrr) | 3*256 | VCTK<br/>m4singer | Naive | [HuggingFace](https://huggingface.co/datasets/ms903/Diff-SVC-refactor-pre-trained-model/resolve/main/Diffusion-SVC/naive/model_0.pt) |
+
+
+**注意：naive预训练模型也可用于完整扩散模型的前级naive模型。且微调shallow模型时建议将配置文件中的`decay_step`改小(如10000)。**
 
 ### 3. 使用预训练数据（底模）进行训练：
 1. 欢迎PR训练的多人底模 (请使用授权同意开源的数据集进行训练)。

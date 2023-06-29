@@ -11,7 +11,7 @@ I am not good at English. If there are any errors, please point them out.
 
 This repository is a separate storage for the diffusion part of the [DDSP-SVC](https://github.com/yxlllc/DDSP-SVC) repository. It can be trained and inferred independently.
 ***
-**Recent update: The use of the naive model and the shallow Diffusion model of the repository can achieve better results than the simple Diffusion model with extremely low training costs, which is strongly recommended.**
+**Recent update: The use of the naive model and the shallow Diffusion model of the repository can achieve better results than the simple Diffusion model with extremely low training costs, which is strongly recommended.However, the Naive model has weak generalization ability and may have too small f0 range on small datasets. At this point, the Naive model cannot train too many steps for fine-tuning (which will degrade the base model), and the front stage can also be considered to be replaced with an infinite range ddsp model.**
 <br>Samples and introductions can be found in [[Introduction Video(Not done yet)]]()
 
 ![Diagram](doc/diagram.jpg)
@@ -128,13 +128,20 @@ python train.py -c configs/config.yaml
 
 Here is an additional special pre-trained model using the contentvec768l12 encoder, the dataset is `m4singer`/`opencpop`/`vctk`. It is not recommended to use this and there's no guarantee it won't cause problems: [Download](https://huggingface.co/ChiTu/Diffusion-SVC/resolve/main/v0.1/contentvec768l12%2Bmakefunny.7z).
 
-### 2.2 Pre training Diffusion model that only trains k_step_max depth; and supporting Naive model 
-| Units Encoder                                                                  | Network size | k_step_max | Datasets          | Shallow Diffusion Model                                                                                                                       | Naive Model                                                                                                                          |
-|--------------------------------------------------------------------------------|--------------|------------|-------------------|-----------------------------------------------------------------------------------------------------------------------------------------------|--------------------------------------------------------------------------------------------------------------------------------------|
-| [contentvec768l12](https://ibm.ent.box.com/s/z1wgl1stco8ffooyatzdwsqn2psd9lrr) | 512*30       | 100        | VCTK<br/>m4singer | [HuggingFace](https://huggingface.co/datasets/ms903/Diff-SVC-refactor-pre-trained-model/resolve/main/Diffusion-SVC/shallow_512_30/model_0.pt) | [HuggingFace](https://huggingface.co/datasets/ms903/Diff-SVC-refactor-pre-trained-model/resolve/main/Diffusion-SVC/naive/model_0.pt) |
-| [contentvec768l12](https://ibm.ent.box.com/s/z1wgl1stco8ffooyatzdwsqn2psd9lrr) | 512*20       | 200        | VCTK<br/>m4singer | [HuggingFace](https://huggingface.co/datasets/ms903/Diff-SVC-refactor-pre-trained-model/resolve/main/Diffusion-SVC/shallow_512_20/model_0.pt) | [HuggingFace](https://huggingface.co/datasets/ms903/Diff-SVC-refactor-pre-trained-model/resolve/main/Diffusion-SVC/naive/model_0.pt) |
+### 2.2 Diffusion pre training model that only trains k_step_max depth
+| Units Encoder                                                                  | Network size | k_step_max | Datasets          | Diffusion Model                                                                                                                               |
+|--------------------------------------------------------------------------------|--------------|------------|-------------------|-----------------------------------------------------------------------------------------------------------------------------------------------|
+| [contentvec768l12](https://ibm.ent.box.com/s/z1wgl1stco8ffooyatzdwsqn2psd9lrr) | 512*30       | 100        | VCTK<br/>m4singer | [HuggingFace](https://huggingface.co/datasets/ms903/Diff-SVC-refactor-pre-trained-model/resolve/main/Diffusion-SVC/shallow_512_30/model_0.pt) |
+| [contentvec768l12](https://ibm.ent.box.com/s/z1wgl1stco8ffooyatzdwsqn2psd9lrr) | 512*20       | 200        | VCTK<br/>m4singer | [HuggingFace](https://huggingface.co/datasets/ms903/Diff-SVC-refactor-pre-trained-model/resolve/main/Diffusion-SVC/shallow_512_20/model_0.pt) |
 
-**The pre training naive model can also be used for the previous naive model of the complete Diffusion model. And when fine-tuning the Shallow model, it is recommended to include the`decay_step`  in the configuration (such as 20000).**
+**The experiment found that the Naive model has f0 range issues on small data. Please prioritize fine-tuning the Naive model with fewer steps or directly using the infinite range ddsp model.**
+
+### 2.3 Naive pre training model and DDSP pre training model matched with 2.2
+| Units Encoder                                                                  | Network size | Datasets          | Type  | Naive Model                                                                                                                          |
+|--------------------------------------------------------------------------------|--------------|-------------------|-------|--------------------------------------------------------------------------------------------------------------------------------------|
+| [contentvec768l12](https://ibm.ent.box.com/s/z1wgl1stco8ffooyatzdwsqn2psd9lrr) | 3*256        | VCTK<br/>m4singer | Naive | [HuggingFace](https://huggingface.co/datasets/ms903/Diff-SVC-refactor-pre-trained-model/resolve/main/Diffusion-SVC/naive/model_0.pt) |
+
+**The pre training naive model can also be used for the previous naive model of the complete Diffusion model. And when fine-tuning the Shallow model, it is recommended to include the`decay_step`  in the configuration (such as 10000).**
 
 ### 3. Training with Pretrained Models:
 1. We welcome pull requests for multi-speaker pretrained models (please use datasets that are authorized for open-source training).
