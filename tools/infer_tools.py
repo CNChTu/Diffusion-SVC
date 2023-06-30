@@ -277,6 +277,10 @@ class DiffusionSVC:
             assert gt_spec is not None
             if self.naive_model is None:
                 print(f" [INFO] get mel from input wav.")
+                if input(" [WARN] You are attempting shallow diffusion "
+                         "on the mel of the input source,"
+                         " Please enter 'gt_mel' to continue") != 'gt_mel':
+                    raise ValueError("Please understand what you're doing")
             k_step = int(k_step)
             gt_spec = gt_spec
         else:
