@@ -6,7 +6,7 @@ from torch.nn import functional as F
 from torchaudio.transforms import Resample
 from i18n.i18n import I18nAuto
 from tools.infer_tools import DiffusionSVC
-import torchaudio
+import argparse
 import time
 
 
@@ -293,7 +293,8 @@ class GUI:
         self.fade_in_window = torch.sin(
             np.pi * torch.arange(0, 1, 1 / self.crossfade_frame, device=self.device) / 2) ** 2
         self.fade_out_window = 1 - self.fade_in_window
-        self.svc_model.flush(model_path=self.config.checkpoint_path, f0_model=self.config.select_pitch_extractor)
+        pe_ = self.config.select_pitch_extractor if (CMD.pe is None) else CMD.pe
+        self.svc_model.flush(model_path=self.config.checkpoint_path, f0_model=pe_)
         thread_vc = threading.Thread(target=self.soundinput)
         thread_vc.start()
 
@@ -318,6 +319,7 @@ class GUI:
         self.input_wav[-self.block_frame:] = librosa.to_mono(indata.T)
 
         # infer
+        print("f0_medel: "+self.svc_model.f0_model)
         _audio, _model_sr = self.svc_model.infer_from_audio_for_realtime(
             audio=self.input_wav,
             sr=self.config.samplerate,
@@ -417,5 +419,17 @@ class GUI:
 
 
 if __name__ == "__main__":
+    def parse_args(args=None, namespace=None):
+        """Parse command-line arguments."""
+        parser = argparse.ArgumentParser()
+        parser.add_argument(
+            "-pe",
+            "--pe",
+            type=str,
+            required=False,
+            default=None,
+            help="test f0")
+        return parser.parse_args(args=args, namespace=namespace)
+    CMD = parse_args()
     i18n = I18nAuto(model='gui_realtime.py', language=None)
     gui = GUI()
