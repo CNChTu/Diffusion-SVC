@@ -36,31 +36,7 @@ def load_model_vocoder(
         vocoder = loaded_vocoder
 
     # load model
-    if args.model.type == 'Diffusion':
-        model = Unit2Mel(
-                    args.data.encoder_out_channels,
-                    args.model.n_spk,
-                    args.model.use_pitch_aug,
-                    vocoder.dimension,
-                    args.model.n_layers,
-                    args.model.n_chans,
-                    args.model.n_hidden,
-                    use_speaker_encoder=args.model.use_speaker_encoder,
-                    speaker_encoder_out_channels=args.data.speaker_encoder_out_channels)
-
-    elif args.model.type == 'Naive':
-        model = Unit2MelNaive(
-                args.data.encoder_out_channels,
-                args.model.n_spk,
-                args.model.use_pitch_aug,
-                vocoder.dimension,
-                args.model.n_layers,
-                args.model.n_chans,
-                use_speaker_encoder=args.model.use_speaker_encoder,
-                speaker_encoder_out_channels=args.data.speaker_encoder_out_channels)
-
-    else:
-        raise ValueError(f" [x] Unknown Model: {args.model.type}")
+    model = load_svc_model(args=args, vocoder_dimension=vocoder.dimension)
 
     print(' [Loading] ' + model_path)
     ckpt = torch.load(model_path, map_location=torch.device(device))
@@ -77,35 +53,61 @@ def load_model_vocoder_from_combo(combo_model_path, device='cpu'):
     naive_args = DotDict(read_dict["naive_config_dict"])
     # vocoder
     vocoder = Vocoder(diff_args.vocoder.type, diff_args.vocoder.ckpt, device=device)
+
     # diff_model
     print(' [Loading] ' + combo_model_path)
-    diff_model = Unit2Mel(
-        diff_args.data.encoder_out_channels,
-        diff_args.model.n_spk,
-        diff_args.model.use_pitch_aug,
-        vocoder.dimension,
-        diff_args.model.n_layers,
-        diff_args.model.n_chans,
-        diff_args.model.n_hidden,
-        use_speaker_encoder=diff_args.model.use_speaker_encoder,
-        speaker_encoder_out_channels=diff_args.data.speaker_encoder_out_channels)
+    diff_model = load_svc_model(args=diff_args, vocoder_dimension=vocoder.dimension)
     diff_model.to(device)
     diff_model.load_state_dict(read_dict["diff_model"]['model'])
     diff_model.eval()
+
     # naive_model
-    naive_model = Unit2MelNaive(
-        naive_args.data.encoder_out_channels,
-        naive_args.model.n_spk,
-        naive_args.model.use_pitch_aug,
-        vocoder.dimension,
-        naive_args.model.n_layers,
-        naive_args.model.n_chans,
-        use_speaker_encoder=naive_args.model.use_speaker_encoder,
-        speaker_encoder_out_channels=naive_args.data.speaker_encoder_out_channels)
+    naive_model = load_svc_model(args=naive_args, vocoder_dimension=vocoder.dimension)
     naive_model.to(device)
     naive_model.load_state_dict(read_dict["naive_model"]['model'])
     naive_model.eval()
     return diff_model, diff_args, naive_model, naive_args, vocoder
+
+
+def load_svc_model(args, vocoder_dimension):
+    if args.model.type == 'Diffusion':
+        model = Unit2Mel(
+                    args.data.encoder_out_channels,
+                    args.model.n_spk,
+                    args.model.use_pitch_aug,
+                    vocoder_dimension,
+                    args.model.n_layers,
+                    args.model.n_chans,
+                    args.model.n_hidden,
+                    use_speaker_encoder=args.model.use_speaker_encoder,
+                    speaker_encoder_out_channels=args.data.speaker_encoder_out_channels)
+
+    elif args.model.type == 'Naive':
+        model = Unit2MelNaive(
+                args.data.encoder_out_channels,
+                args.model.n_spk,
+                args.model.use_pitch_aug,
+                vocoder_dimension,
+                args.model.n_layers,
+                args.model.n_chans,
+                use_speaker_encoder=args.model.use_speaker_encoder,
+                speaker_encoder_out_channels=args.data.speaker_encoder_out_channels)
+
+    elif args.model.type == 'NaiveFS':
+        model = Unit2MelNaive(
+            args.data.encoder_out_channels,
+            args.model.n_spk,
+            args.model.use_pitch_aug,
+            vocoder_dimension,
+            args.model.n_layers,
+            args.model.n_chans,
+            use_speaker_encoder=args.model.use_speaker_encoder,
+            speaker_encoder_out_channels=args.data.speaker_encoder_out_channels,
+            use_full_siren=True,
+            l2reg_loss=args.model.l2_reg_loss)
+    else:
+        raise ("Unknow model")
+    return model
 
 
 class Unit2Mel(nn.Module):
