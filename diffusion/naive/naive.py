@@ -17,8 +17,12 @@ class Unit2MelNaive(nn.Module):
             n_chans=256,
             n_hidden=None,  # 废弃
             use_speaker_encoder=False,
-            speaker_encoder_out_channels=256):
+            speaker_encoder_out_channels=256,
+            use_full_siren=False,
+            l2reg_loss=0
+    ):
         super().__init__()
+        self.l2reg_loss = l2reg_loss if (l2reg_loss is not None) else 0
         self.f0_embed = nn.Linear(1, n_chans)
         self.volume_embed = nn.Linear(1, n_chans)
         if use_pitch_aug:
@@ -41,14 +45,25 @@ class Unit2MelNaive(nn.Module):
                 nn.Conv1d(n_chans, n_chans, 3, 1, 1))
 
         # transformer
-        self.decoder = PCmer(
-            num_layers=n_layers,
-            num_heads=8,
-            dim_model=n_chans,
-            dim_keys=n_chans,
-            dim_values=n_chans,
-            residual_dropout=0.1,
-            attention_dropout=0.1)
+        if use_full_siren:
+            from .pcmer_siren_full import PCmer as PCmerfs
+            self.decoder = PCmerfs(
+                num_layers=n_layers,
+                num_heads=8,
+                dim_model=n_chans,
+                dim_keys=n_chans,
+                dim_values=n_chans,
+                residual_dropout=0.1,
+                attention_dropout=0.1)
+        else:
+            self.decoder = PCmer(
+                num_layers=n_layers,
+                num_heads=8,
+                dim_model=n_chans,
+                dim_keys=n_chans,
+                dim_values=n_chans,
+                residual_dropout=0.1,
+                attention_dropout=0.1)
         self.norm = nn.LayerNorm(n_chans)
 
         # out
@@ -94,4 +109,14 @@ class Unit2MelNaive(nn.Module):
         x = self.dense_out(x)
         if not infer:
             x = F.mse_loss(x, gt_spec)
+            if self.l2reg_loss > 0:
+                x = x + l2_regularization(model=self, l2_alpha=self.l2reg_loss)
         return x
+
+
+def l2_regularization(model, l2_alpha):
+    l2_loss = []
+    for module in model.modules():
+        if type(module) is nn.Conv2d:
+            l2_loss.append((module.weight ** 2).sum() / 2.0)
+    return l2_alpha * sum(l2_loss)
