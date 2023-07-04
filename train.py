@@ -56,6 +56,19 @@ if __name__ == '__main__':
                 args.model.n_chans,
                 use_speaker_encoder=args.model.use_speaker_encoder,
                 speaker_encoder_out_channels=args.data.speaker_encoder_out_channels)
+
+    elif args.model.type == 'NaiveFS':
+        model = Unit2MelNaive(
+            args.data.encoder_out_channels,
+            args.model.n_spk,
+            args.model.use_pitch_aug,
+            vocoder.dimension,
+            args.model.n_layers,
+            args.model.n_chans,
+            use_speaker_encoder=args.model.use_speaker_encoder,
+            speaker_encoder_out_channels=args.data.speaker_encoder_out_channels,
+            use_full_siren=True,
+            l2reg_loss=args.model.l2_reg_loss)
     
     else:
         raise ValueError(f" [x] Unknown Model: {args.model.type}")
