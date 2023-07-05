@@ -188,10 +188,10 @@ class ConformerConvModule(nn.Module):
             Transpose((1, 2)),
             nn.Conv1d(dim, inner_dim * 2, 1),
             GLU(dim=1),
-            nn.ReflectionPad1d(padding),
-            nn.Conv1d(inner_dim, dim, kernel_size = kernel_size),
+            nn.Conv1d(inner_dim, dim, kernel_size = kernel_size, padding=padding[0]),
             #nn.BatchNorm1d(inner_dim) if not causal else nn.Identity(),
             Swish(),
+            nn.Conv1d(dim, dim, kernel_size = kernel_size, padding=padding[0]),
             Transpose((1, 2)),
             nn.Dropout(dropout)
         )
