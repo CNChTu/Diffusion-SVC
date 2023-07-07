@@ -26,6 +26,12 @@ def extract(a, t):
     return a[t].reshape((1, 1, 1, 1))
 
 
+def extract2(a, t, x_shape):
+    b, *_ = t.shape
+    out = a.gather(-1, t)
+    return out.reshape(b, *((1,) * (len(x_shape) - 1)))
+
+
 def noise_like(shape, device, repeat=False):
     repeat_noise = lambda: torch.randn((1, *shape[1:]), device=device).repeat(shape[0], *((1,) * (len(shape) - 1)))
     noise = lambda: torch.randn(shape, device=device)
@@ -212,6 +218,15 @@ class DDimNoisePredictor(nn.Module):
         noise_pred = self.denoise_fn(x, t, cond=cond)
         x_prev = a_prev.sqrt() * (x / a_t.sqrt() + (((1 - a_prev) / a_prev).sqrt()-((1 - a_t) / a_t).sqrt()) * noise_pred)
         return x_prev
+
+
+class AlphasCumprod(nn.Module):
+    def __init__(self, alphas_cumprod):
+        super().__init__()
+        self.alphas_cumprod = alphas_cumprod
+    
+    def forward(self, t):
+        return extract(self.alphas_cumprod, t)
 
 
 class GaussianDiffusion(nn.Module):
@@ -491,8 +506,9 @@ class GaussianDiffusion(nn.Module):
         return x_pred
 
     def OnnxExport(self, project_name=None, init_noise=None, hidden_channels=256, export_denoise=True, export_pred=True, export_after=True):
-        self.DDIM_pred = DDimNoisePredictor(self.alphas_cumprod, self.denoise_fn)
-        self.DDIM_pred = torch.jit.script(self.DDIM_pred)
+        # self.DDIM_pred = DDimNoisePredictor(self.alphas_cumprod, self.denoise_fn)
+        # self.DDIM_pred = torch.jit.script(self.DDIM_pred)
+        self.alpha = AlphasCumprod(self.alphas_cumprod)
         self.denoise_fn = torch.jit.script(self.denoise_fn)
         
         cond = torch.randn([1, self.n_hidden, 10]).cpu()
@@ -516,7 +532,7 @@ class GaussianDiffusion(nn.Module):
             torch.onnx.export(
                 self.denoise_fn,
                 (x.cpu(), ot_1.cpu(), cond.cpu()),
-                f"exp/{project_name}/{project_name}_denoise.onnx",
+                f"checkpoints/{project_name}/{project_name}_denoise.onnx",
                 input_names=["noise", "time", "condition"],
                 output_names=["noise_pred"],
                 dynamic_axes={
@@ -536,7 +552,7 @@ class GaussianDiffusion(nn.Module):
                     torch.onnx.export(
                         self.xp,
                         (x.cpu(), noise_pred.cpu(), t_1.cpu(), t_prev.cpu()),
-                        f"exp/{project_name}/{project_name}_pred.onnx",
+                        f"checkpoints/{project_name}/{project_name}_pred.onnx",
                         input_names=["noise", "noise_pred", "time", "time_prev"],
                         output_names=["noise_pred_o"],
                         dynamic_axes={
@@ -547,9 +563,19 @@ class GaussianDiffusion(nn.Module):
                     )
 
                     torch.onnx.export(
+                        self.alpha,
+                        (t_1.cpu()),
+                        f"checkpoints/{project_name}/{project_name}_alpha.onnx",
+                        input_names=["time"],
+                        output_names=["alphas_cumprod"],
+                        opset_version=16
+                    )
+
+                    '''
+                    torch.onnx.export(
                         self.DDIM_pred,
                         (x.cpu(), t_1.cpu(), spd_up_ddim.cpu(), cond.cpu()),
-                        f"exp/{project_name}/{project_name}_ddim_pred.onnx",
+                        f"checkpoints/{project_name}/{project_name}_ddim_pred.onnx",
                         input_names=["noise", "time", "speedup", "time_prev"],
                         output_names=["noise_pred_o"],
                         dynamic_axes={
@@ -558,6 +584,7 @@ class GaussianDiffusion(nn.Module):
                         },
                         opset_version=16
                     )
+                    '''
 
                 x_pred = self.get_x_pred(x, noise_pred, t_1, t_prev)
                 noise_pred_prev = self.denoise_fn(x_pred, t_prev, cond=cond)
@@ -586,7 +613,7 @@ class GaussianDiffusion(nn.Module):
             torch.onnx.export(
                 self.ad,
                 x.cpu(),
-                f"exp/{project_name}/{project_name}_after.onnx",
+                f"checkpoints/{project_name}/{project_name}_after.onnx",
                 input_names=["x"],
                 output_names=["mel_out"],
                 dynamic_axes={
