@@ -9,7 +9,7 @@ Language: [English](./README_en.md) **简体中文**
 ***
 **最近更新：使用本仓库的naive模型和浅扩散模型搭配可以用极低训练成本达到比单纯扩散模型更好的效果，强力推荐。但是小网络的naive模型泛化能力较弱，在小数据集上可能会有音域问题，这个时候naive模型微调不能训练太多步数(这会让底模退化)，前级也可以考虑更换为无限音域的ddsp模型。**
 <br>效果和介绍见[[介绍视频(暂未完成)]]()
-
+**欢迎加群交流讨论：882426004**
 ![Diagram](doc/diagram.jpg)
 ## 0.简介
 Diffusion-SVC 是[DDSP-SVC](https://github.com/yxlllc/DDSP-SVC)仓库的扩散部分的单独存放。可单独训练和推理。
