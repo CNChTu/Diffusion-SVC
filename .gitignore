@@ -1,0 +1,8 @@
+env/
+WEBUI,启动！.bat
+input.wav
+output.wav
+Diffusion-SVC.7z
+*.pyc
+exp/*
+pretrain/*

@@ -9,6 +9,7 @@ from .diffusion import GaussianDiffusion
 from .wavenet import WaveNet
 from .vocoder import Vocoder
 from .naive.naive import Unit2MelNaive
+from loguru import logger
 
 
 class DotDict(dict):
@@ -38,7 +39,7 @@ def load_model_vocoder(
     # load model
     model = load_svc_model(args=args, vocoder_dimension=vocoder.dimension)
 
-    print(' [Loading] ' + model_path)
+    logger.info('Loading ' + model_path)
     ckpt = torch.load(model_path, map_location=torch.device(device))
     model.to(device)
     model.load_state_dict(ckpt['model'])
@@ -142,7 +143,7 @@ class Unit2Mel(nn.Module):
         self.decoder = GaussianDiffusion(WaveNet(out_dims, n_layers, n_chans, n_hidden), out_dims=out_dims)
 
     def forward(self, units, f0, volume, spk_id=None, spk_mix_dict=None, aug_shift=None,
-                gt_spec=None, infer=True, infer_speedup=10, method='dpm-solver', k_step=None, use_tqdm=True,
+                gt_spec=None, infer=True, infer_speedup=10, method='dpm-solver', k_step=None, show_progress=True,
                 spk_emb=None, spk_emb_dict=None):
 
         '''
@@ -175,6 +176,6 @@ class Unit2Mel(nn.Module):
             x = x + self.aug_shift_embed(aug_shift / 5)
 
         x = self.decoder(x, gt_spec=gt_spec, infer=infer, infer_speedup=infer_speedup, method=method, k_step=k_step,
-                         use_tqdm=use_tqdm)
+                         show_progress=show_progress)
 
         return x

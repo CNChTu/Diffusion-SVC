@@ -1,9 +1,10 @@
 import os
 import numpy as np
-from tqdm import tqdm
+from rich.progress import track
 import pickle
 import torch
 from pathlib import Path
+from loguru import logger
 
 def train_index(path):
     import faiss
@@ -14,8 +15,8 @@ def train_index(path):
         listdir_res.append(os.path.join(path, file))
     npys = []
     # 读取文件
-    print(" [INFO] Loading the Units files...")
-    for name in tqdm(sorted(listdir_res)):
+    logger.info("Loading the Units files...")
+    for name in track(sorted(listdir_res)):
         phone = np.load(name)
         npys.append(phone)
     # 正式内容
@@ -29,14 +30,15 @@ def train_index(path):
     index_ivf.nprobe = 1
     index.train(big_npy)
     batch_size_add = 8192
-    print(" [INFO] Training the Units indexes...")
-    for i in tqdm(range(0, big_npy.shape[0], batch_size_add)):
+    logger.info("Training the Units indexes...")
+    for i in track(range(0, big_npy.shape[0], batch_size_add)):
         index.add(big_npy[i: i + batch_size_add])
     return index
 
 
 class UnitsIndexer:
     def __init__(self, exp_path):
+
         exp_path = Path(exp_path)
         self.model = None
         self.exp_path = exp_path
@@ -45,13 +47,14 @@ class UnitsIndexer:
         self.big_all_npy = None
 
     def load(self, spk_id=1, exp_path=None):
+
         if (exp_path is not None) and os.path.samefile(self.exp_path, Path(exp_path)):
             exp_path = Path(exp_path)
             self.exp_path = exp_path
         index_pkl_path = os.path.join(self.exp_path, 'units_index', f'spk{spk_id}.pkl')
         if not os.path.isfile(index_pkl_path):
             self.active = False
-            print(f" [WARNING]  No such file as {index_pkl_path}, Disable Units Indexer.")
+            logger.warning(f"No such file as {index_pkl_path}, Disable Units Indexer.")
         else:
             import faiss
             self.spk_id = spk_id
@@ -59,9 +62,10 @@ class UnitsIndexer:
             with open(index_pkl_path, "rb") as f:
                 self.model = pickle.load(f)[str(spk_id)]
             self.big_all_npy = self.model.reconstruct_n(0, self.model.ntotal)
-            print(f" [INFO]  Successfully load Units Indexer from {index_pkl_path}.")
+            logger.info(f"Successfully load Units Indexer from {index_pkl_path}.")
 
     def __call__(self, units_t, spk_id=1, ratio=1):
+        
         if self.spk_id != spk_id:
             self.load(spk_id=spk_id)
         if self.active:
@@ -76,5 +80,5 @@ class UnitsIndexer:
             # print(f" [INFO] End feature retrieval...Ratio is {ratio}.")
             return units_t
         else:
-            print(f" [WARNING] Units Indexer is not active, disable units index.")
+            logger.warning("Units Indexer is not active, disable units index.")
             return units_t

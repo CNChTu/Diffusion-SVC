@@ -7,7 +7,7 @@ import parselmouth
 import torchcrepe
 import librosa
 import fsspec
-from tqdm import tqdm
+from rich.progress import track
 from transformers import HubertModel, Wav2Vec2FeatureExtractor, Wav2Vec2ForCTC
 from fairseq import checkpoint_utils
 from encoder.hubert.model import HubertSoft
@@ -16,13 +16,17 @@ import scipy.signal
 from torch.nn.modules.utils import consume_prefix_in_state_dict_if_present
 from torchaudio.transforms import Resample
 
+from loguru import logger
+
 CREPE_RESAMPLE_KERNEL = {}
 
 
 class SpeakerEncoder:
-    def __init__(self, speaker_encoder, speaker_encoder_config, speaker_encoder_ckpt, encoder_sample_rate,
-                 device='cuda',
-                 use_torchaudio=False):
+    def __init__(
+        self, speaker_encoder, speaker_encoder_config, speaker_encoder_ckpt, encoder_sample_rate,
+        device='cuda',
+        use_torchaudio=False):
+        
         self.use_torchaudio = use_torchaudio
         self.encoder_sample_rate = encoder_sample_rate
         self.device = device
@@ -58,7 +62,7 @@ class SpeakerEncoder:
         assert len(audio_list) == len(sr_list)
         batch_spk_emb = None
         print("Get mean spk_emb from audio_list")
-        for index in tqdm(range(len(audio_list))):
+        for index in track(range(len(audio_list))):
             audio = audio_list[index]
             sample_rate = sr_list[index]
             f_len = int(50 * len(audio) / sample_rate)  # 50f/s is for sr=16000，hop_size=320
@@ -73,7 +77,7 @@ class SpeakerEncoder:
     def mean_spk_emb_from_path_list(self, path_list):
         batch_spk_emb = None
         print("Get mean spk_emb from path_list")
-        for path in tqdm(path_list):
+        for path in track(path_list):
             audio, sample_rate = librosa.load(path, sr=None)
             f_len = int(50 * len(audio) / sample_rate)  # 50f/s is for sr=16000，hop_size=320
             spk_emb = self.__call__(audio=audio, sample_rate=sample_rate)
@@ -402,7 +406,7 @@ class Units_Encoder:
             is_loaded_encoder = True
         if not is_loaded_encoder:
             raise ValueError(f" [x] Unknown units encoder: {encoder}")
-        print(f"Units Forced Mode:{self.units_forced_mode}")
+        logger.debug("Units Forced Mode: {}", self.units_forced_mode)
 
         if self.units_forced_mode == 'rfa512to441':
             encoder_sample_rate = encoder_sample_rate * 441 / 512
@@ -462,16 +466,16 @@ class Units_Encoder:
             units_aligned = units_aligned.transpose(1, 2)
 
         else:
-            raise ValueError(f'Unknow units_forced_mode:{self.units_forced_mode}')
+            raise ValueError(f'Unknow units_forced_mode: {self.units_forced_mode}')
         return units_aligned
 
 
 class Audio2HubertSoft(torch.nn.Module):
     def __init__(self, path, h_sample_rate=16000, h_hop_size=320):
         super().__init__()
-        print(' [Encoder Model] HuBERT Soft')
+        logger.info('[Encoder Model] HuBERT Soft')
         self.hubert = HubertSoft()
-        print(' [Loading] ' + path)
+        logger.info('Loading {}', path)
         checkpoint = torch.load(path)
         consume_prefix_in_state_dict_if_present(checkpoint, "module.")
         self.hubert.load_state_dict(checkpoint)
@@ -486,8 +490,8 @@ class Audio2HubertSoft(torch.nn.Module):
 class Audio2ContentVec():
     def __init__(self, path, h_sample_rate=16000, h_hop_size=320, device='cpu'):
         self.device = device
-        print(' [Encoder Model] Content Vec')
-        print(' [Loading] ' + path)
+        logger.info('[Encoder Model] Content Vec')
+        logger.info('Loading {}', path)
         self.models, self.saved_cfg, self.task = checkpoint_utils.load_model_ensemble_and_task([path], suffix="", )
         self.hubert = self.models[0]
         self.hubert = self.hubert.to(self.device)
@@ -517,8 +521,8 @@ class Audio2ContentVec():
 class Audio2ContentVec768():
     def __init__(self, path, h_sample_rate=16000, h_hop_size=320, device='cpu'):
         self.device = device
-        print(' [Encoder Model] Content Vec')
-        print(' [Loading] ' + path)
+        logger.info('[Encoder Model] Content Vec')
+        logger.info('Loading {}', path)
         self.models, self.saved_cfg, self.task = checkpoint_utils.load_model_ensemble_and_task([path], suffix="", )
         self.hubert = self.models[0]
         self.hubert = self.hubert.to(self.device)
@@ -548,8 +552,8 @@ class Audio2ContentVec768():
 class Audio2ContentVec768L12():
     def __init__(self, path, h_sample_rate=16000, h_hop_size=320, device='cpu'):
         self.device = device
-        print(' [Encoder Model] Content Vec')
-        print(' [Loading] ' + path)
+        logger.info('Encoder Model Content Vec')
+        logger.info('Loading {}', path)
         self.models, self.saved_cfg, self.task = checkpoint_utils.load_model_ensemble_and_task([path], suffix="", )
         self.hubert = self.models[0]
         self.hubert = self.hubert.to(self.device)
@@ -580,8 +584,8 @@ class CNHubertSoftFish(torch.nn.Module):
     def __init__(self, path, h_sample_rate=16000, h_hop_size=320, device='cpu', gate_size=10):
         super().__init__()
         self.device = device
-        print(' [Encoder Model] CN Hubert Soft fish')
-        print(' [Loading] ' + path)
+        logger.info('[Encoder Model] CN Hubert Soft fish')
+        logger.info('Loading {}', path)
         self.gate_size = gate_size
 
         self.feature_extractor = Wav2Vec2FeatureExtractor.from_pretrained(
@@ -618,8 +622,8 @@ class CNHubertSoftFish(torch.nn.Module):
 class Audio2HubertBase():
     def __init__(self, path, h_sample_rate=16000, h_hop_size=320, device='cpu'):
         self.device = device
-        print(' [Encoder Model] HuBERT Base')
-        print(' [Loading] ' + path)
+        logger.info('[Encoder Model] HuBERT Base')
+        logger.info('Loading {}', path)
         self.models, self.saved_cfg, self.task = checkpoint_utils.load_model_ensemble_and_task([path], suffix="", )
         self.hubert = self.models[0]
         self.hubert = self.hubert.to(self.device)
@@ -646,8 +650,8 @@ class Audio2HubertBase():
 class Audio2HubertBase768():
     def __init__(self, path, h_sample_rate=16000, h_hop_size=320, device='cpu'):
         self.device = device
-        print(' [Encoder Model] HuBERT Base')
-        print(' [Loading] ' + path)
+        logger.info('[Encoder Model] HuBERT Base')
+        logger.info('Loading {}', path)
         self.models, self.saved_cfg, self.task = checkpoint_utils.load_model_ensemble_and_task([path], suffix="", )
         self.hubert = self.models[0]
         self.hubert = self.hubert.to(self.device)
@@ -674,8 +678,8 @@ class Audio2HubertBase768():
 class Audio2HubertBase768L12():
     def __init__(self, path, h_sample_rate=16000, h_hop_size=320, device='cpu'):
         self.device = device
-        print(' [Encoder Model] HuBERT Base')
-        print(' [Loading] ' + path)
+        logger.info('[Encoder Model] HuBERT Base')
+        logger.info('Loading {}', path)
         self.models, self.saved_cfg, self.task = checkpoint_utils.load_model_ensemble_and_task([path], suffix="", )
         self.hubert = self.models[0]
         self.hubert = self.hubert.to(self.device)
@@ -702,8 +706,8 @@ class Audio2HubertBase768L12():
 class Audio2HubertLarge1024L24():
     def __init__(self, path, h_sample_rate=16000, h_hop_size=320, device='cpu'):
         self.device = device
-        print(' [Encoder Model] HuBERT Large')
-        print(' [Loading] ' + path)
+        logger.info('[Encoder Model] HuBERT Large')
+        logger.info('Loading {}', path)
         self.models, self.saved_cfg, self.task = checkpoint_utils.load_model_ensemble_and_task([path], suffix="", )
         self.hubert = self.models[0]
         self.hubert = self.hubert.to(self.device)

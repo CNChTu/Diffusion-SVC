@@ -9,6 +9,7 @@ import torch.nn.functional as F
 import json
 import argparse
 from torch.nn.utils import weight_norm
+from loguru import logger
 
 parser = argparse.ArgumentParser(description='Onnx Export')
 parser.add_argument('--project', type=str, help='Project Name')
@@ -47,7 +48,7 @@ def load_model_vocoder(
                 args.data.sampling_rate,
                 block_size=args.data.block_size)
     
-    print(' [Loading] ' + model_path)
+    logger.info('Loading {}', model_path)
     ckpt = torch.load(model_path, map_location=torch.device(device))
     model.to(device)
     model.load_state_dict(ckpt['model'])
@@ -167,7 +168,7 @@ class Unit2MelNaive(nn.Module):
         return x.transpose(1, 2).unsqueeze(0)
 
     def init_spkembed(self, units, f0, volume, spk_id = None, spk_mix_dict = None, aug_shift = None,
-                gt_spec=None, infer=True, infer_speedup=10, method='dpm-solver', k_step=300, use_tqdm=True):
+                gt_spec=None, infer=True, infer_speedup=10, method='dpm-solver', k_step=300, show_progress=True):
         spk_dice_offset = 0
         self.speaker_map = torch.zeros((self.n_spk,1,1,self.hidden_size))
 
@@ -288,7 +289,7 @@ class Unit2Mel(nn.Module):
             return x.transpose(1, 2)
         
     def init_spkembed(self, units, f0, volume, spk_id = None, spk_mix_dict = None, aug_shift = None,
-                gt_spec=None, infer=True, infer_speedup=10, method='dpm-solver', k_step=300, use_tqdm=True):
+                gt_spec=None, infer=True, infer_speedup=10, method='dpm-solver', k_step=300, show_progress=True):
         
         '''
         input: 

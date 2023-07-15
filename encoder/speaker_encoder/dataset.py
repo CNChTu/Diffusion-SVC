@@ -4,7 +4,7 @@ import queue
 import torch
 import random
 from torch.utils.data import Dataset
-from tqdm import tqdm
+from rich.progress import track
 
 
 class MyDataset(Dataset):

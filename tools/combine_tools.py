@@ -2,7 +2,7 @@ import os
 import yaml
 import torch
 from diffusion.unit2mel import Unit2Mel, Unit2MelNaive, load_model_vocoder
-
+from loguru import logger
 
 class NaiveAndDiffModel:
     def __init__(self, diff_model_path, naive_model_path, device="cpu"):
@@ -36,7 +36,7 @@ class NaiveAndDiffModel:
         # load ckpt
         self.diff_model = torch.load(diff_model_path, map_location=torch.device(device))
         self.naive_model = torch.load(naive_model_path, map_location=torch.device(device))
-        print(" [INFO] Loaded model and config check out.")
+        logger.info("Loaded model and config check out.")
 
     def save_combo_model(self, save_path, save_name):
         os.makedirs(save_path, exist_ok=True)
@@ -48,4 +48,4 @@ class NaiveAndDiffModel:
             "naive_config_dict": self.naive_config_dict
         }
         torch.save(save_dict, out_path)
-        print(" [INFO] Combo model saved. Done.")
+        logger.info("Combo model saved. Done.")

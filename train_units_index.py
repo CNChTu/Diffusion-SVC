@@ -3,6 +3,7 @@ from logger import utils
 import pickle
 import argparse
 import os
+from loguru import logger
 
 
 def parse_args(args=None, namespace=None):
@@ -24,7 +25,7 @@ if __name__ == '__main__':
     units_path = os.path.join(args.data.train_path, 'units')
     exp_work_path = os.path.join(args.env.expdir, 'units_index')
     spk_str_list = os.listdir(units_path)
-    print(" [INFO] The feature index is constructing.")
+    logger.info("The feature index is constructing.")
     for spk_str in spk_str_list:
         result = {}
         index = train_index(os.path.join(units_path, spk_str))
@@ -33,4 +34,4 @@ if __name__ == '__main__':
         os.makedirs(exp_work_path, exist_ok=True)
         with open(out_path, "wb") as f:
             pickle.dump(result, f)
-    print(" [INFO] Successfully build index")
+    logger.info("Successfully build index")

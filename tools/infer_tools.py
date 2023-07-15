@@ -4,12 +4,12 @@ import os
 import torch
 import torch.nn.functional
 from torchaudio.transforms import Resample
-from tqdm import tqdm
+from rich.progress import track
 from diffusion.unit2mel import load_model_vocoder, load_model_vocoder_from_combo
 from tools.slicer import split
 from tools.units_index import UnitsIndexer
 from tools.tools import F0_Extractor, Volume_Extractor, Units_Encoder, SpeakerEncoder, cross_fade
-
+from loguru import logger
 
 class DiffusionSVC:
     def __init__(self, device=None):
@@ -132,7 +132,7 @@ class DiffusionSVC:
         model, _, args = load_model_vocoder(naive_model_path, device=self.device, loaded_vocoder=self.vocoder)
         self.naive_model = model
         self.naive_model_args = args
-        print(f" [INFO] Load naive model from {naive_model_path}")
+        logger.info(f"Load naive model from {naive_model_path}")
 
     @torch.no_grad()
     def naive_model_call(self, units, f0, volume, spk_id=1, spk_mix_dict=None,
@@ -155,10 +155,10 @@ class DiffusionSVC:
             return None
         if spk_emb_dict_or_path is dict:
             self.spk_emb_dict = spk_emb_dict_or_path
-            print(f" [INFO] Load spk_emb_dict from {spk_emb_dict_or_path}")
+            logger.info(f"Load spk_emb_dict from {spk_emb_dict_or_path}")
         else:
             self.spk_emb_dict = np.load(spk_emb_dict_or_path, allow_pickle=True).item()
-            print(f" [INFO] Load spk_emb_dict from {spk_emb_dict_or_path}")
+            logger.info(f"Load spk_emb_dict from {spk_emb_dict_or_path}")
 
     @torch.no_grad()
     def encode_units(self, audio, sr=44100, padding_mask=None):
@@ -233,7 +233,7 @@ class DiffusionSVC:
 
     @torch.no_grad()  # 最基本推理代码,将输入标准化为tensor,只与mel打交道
     def __call__(self, units, f0, volume, spk_id=1, spk_mix_dict=None, aug_shift=0,
-                 gt_spec=None, infer_speedup=10, method='dpm-solver', k_step=None, use_tqdm=True,
+                 gt_spec=None, infer_speedup=10, method='dpm-solver', k_step=None, show_progress=True,
                  spk_emb=None):
 
         if self.args.model.k_step_max is not None:
@@ -244,7 +244,7 @@ class DiffusionSVC:
             if gt_spec is None:
                 raise ValueError("gt_spec must not None when Shallow Diffusion Model inferring, gt_spec can from "
                                  "input mel or output of naive model")
-            print(f' [INFO] k_step_max is {self.args.model.k_step_max}.')
+            logger.info(f'k_step_max is {self.args.model.k_step_max}.')
 
         aug_shift = torch.from_numpy(np.array([[float(aug_shift)]])).float().to(self.device)
 
@@ -257,30 +257,30 @@ class DiffusionSVC:
             spk_id = torch.LongTensor(np.array([[int(spk_id)]])).to(self.device)
 
         if k_step is not None:
-            print(f' [INFO] get k_step, do shallow diffusion {k_step} steps')
+            logger.info(f'get k_step, do shallow diffusion {k_step} steps')
         else:
-            print(f' [INFO] Do full 1000 steps depth diffusion {k_step}')
-        print(f" [INFO] method:{method}; infer_speedup:{infer_speedup}")
+            logger.info(f'Do full 1000 steps depth diffusion {k_step}')
+        logger.info(f"method: {method}; infer_speedup: {infer_speedup}")
         return self.model(units, f0, volume, spk_id=spk_id, spk_mix_dict=spk_mix_dict, aug_shift=aug_shift,
                           gt_spec=gt_spec, infer=True, infer_speedup=infer_speedup, method=method, k_step=k_step,
-                          use_tqdm=use_tqdm, spk_emb=spk_emb, spk_emb_dict=spk_emb_dict)
+                          show_progress=show_progress, spk_emb=spk_emb, spk_emb_dict=spk_emb_dict)
 
     @torch.no_grad()  # 比__call__多了声码器代码，输出波形
     def infer(self, units, f0, volume, gt_spec=None, spk_id=1, spk_mix_dict=None, aug_shift=0,
-              infer_speedup=10, method='dpm-solver', k_step=None, use_tqdm=True,
+              infer_speedup=10, method='dpm-solver', k_step=None, show_progress=True,
               spk_emb=None):
         if k_step is not None:
             if self.naive_model is not None:
                 gt_spec = self.naive_model_call(units, f0, volume, spk_id=spk_id, spk_mix_dict=spk_mix_dict,
                                                 aug_shift=aug_shift, spk_emb=spk_emb)
-                print(f" [INFO] get mel from naive model out.")
+                logger.info(f"get mel from naive model out.")
             assert gt_spec is not None
             if self.naive_model is None:
-                print(f" [INFO] get mel from input wav.")
-                if input(" [WARN] You are attempting shallow diffusion "
-                         "on the mel of the input source,"
-                         " Please enter 'gt_mel' to continue") != 'gt_mel':
-                    raise ValueError("Please understand what you're doing")
+                logger.info(f"get mel from input wav.")
+                # if input(" [WARN] You are attempting shallow diffusion "
+                #          "on the mel of the input source,"
+                #          " Please enter 'gt_mel' to continue") != 'gt_mel':
+                #     raise ValueError("Please understand what you're doing")
             k_step = int(k_step)
             gt_spec = gt_spec
         else:
@@ -288,12 +288,12 @@ class DiffusionSVC:
 
         out_mel = self.__call__(units, f0, volume, spk_id=spk_id, spk_mix_dict=spk_mix_dict, aug_shift=aug_shift,
                                 gt_spec=gt_spec, infer_speedup=infer_speedup, method=method, k_step=k_step,
-                                use_tqdm=use_tqdm, spk_emb=spk_emb)
+                                show_progress=show_progress, spk_emb=spk_emb)
         return self.mel2wav(out_mel, f0)
 
     @torch.no_grad()  # 为实时浅扩散优化的推理代码，可以切除pad省算力
     def infer_for_realtime(self, units, f0, volume, audio_t=None, spk_id=1, spk_mix_dict=None, aug_shift=0,
-                           infer_speedup=10, method='dpm-solver', k_step=None, use_tqdm=True,
+                           infer_speedup=10, method='dpm-solver', k_step=None, show_progress=True,
                            spk_emb=None, silence_front=0, diff_jump_silence_front=False):
 
         start_frame = int(silence_front * self.vocoder.vocoder_sample_rate / self.vocoder.vocoder_hop_size)
@@ -315,7 +315,7 @@ class DiffusionSVC:
 
         out_mel = self.__call__(units, f0, volume, spk_id=spk_id, spk_mix_dict=spk_mix_dict, aug_shift=aug_shift,
                                 gt_spec=gt_spec, infer_speedup=infer_speedup, method=method, k_step=k_step,
-                                use_tqdm=use_tqdm, spk_emb=spk_emb)
+                                show_progress=show_progress, spk_emb=spk_emb)
 
         if diff_jump_silence_front:
             out_wav = self.mel2wav(out_mel, f0)
@@ -325,7 +325,7 @@ class DiffusionSVC:
 
     @torch.no_grad()  # 不切片从音频推理代码
     def infer_from_audio(self, audio, sr=44100, key=0, spk_id=1, spk_mix_dict=None, aug_shift=0,
-                         infer_speedup=10, method='dpm-solver', k_step=None, use_tqdm=True,
+                         infer_speedup=10, method='dpm-solver', k_step=None, show_progress=True,
                          spk_emb=None, threhold=-60, index_ratio=0):
         units = self.encode_units(audio, sr)
         if index_ratio > 0:
@@ -342,26 +342,27 @@ class DiffusionSVC:
             gt_spec = None
         output = self.infer(units, f0, volume, gt_spec=gt_spec, spk_id=spk_id, spk_mix_dict=spk_mix_dict,
                             aug_shift=aug_shift, infer_speedup=infer_speedup, method=method, k_step=k_step,
-                            use_tqdm=use_tqdm, spk_emb=spk_emb)
+                            show_progress=show_progress, spk_emb=spk_emb)
         output *= mask
         return output.squeeze().cpu().numpy(), self.args.data.sampling_rate
 
     @torch.no_grad()  # 切片从音频推理代码
-    def infer_from_long_audio(self, audio, sr=44100, key=0, spk_id=1, spk_mix_dict=None, aug_shift=0,
-                              infer_speedup=10, method='dpm-solver', k_step=None, use_tqdm=True,
-                              spk_emb=None,
-                              threhold=-60, threhold_for_split=-40, min_len=5000, index_ratio=0):
+    def infer_from_long_audio(
+        self, audio, sr=44100, key=0, spk_id=1, spk_mix_dict=None, aug_shift=0,
+        infer_speedup=10, method='dpm-solver', k_step=None, show_progress=True,
+        spk_emb=None,
+        threhold=-60, threhold_for_split=-40, min_len=5000, index_ratio=0):
 
         hop_size = self.args.data.block_size * sr / self.args.data.sampling_rate
         segments = split(audio, sr, hop_size, db_thresh=threhold_for_split, min_len=min_len)
 
-        print(f' [INFO] Extract f0 volume and mask: Use {self.f0_model}, start...')
+        logger.info(f'Extract f0 volume and mask: Use {self.f0_model}, start...')
         _f0_start_time = time.time()
         f0 = self.extract_f0(audio, key=key, sr=sr)
         volume, mask = self.extract_volume_and_mask(audio, sr, threhold=float(threhold))
         _f0_end_time = time.time()
         _f0_used_time = _f0_end_time - _f0_start_time
-        print(f' [INFO] Extract f0 volume and mask: Done. Use time:{_f0_used_time}')
+        logger.info(f'Extract f0 volume and mask: Done. Use time:{_f0_used_time}')
 
         if k_step is not None:
             assert 0 < int(k_step) <= 1000
@@ -374,22 +375,27 @@ class DiffusionSVC:
 
         result = np.zeros(0)
         current_length = 0
-        for segment in tqdm(segments):
+        for segment in track(segments):
             start_frame = segment[0]
             seg_input = torch.from_numpy(segment[1]).float().unsqueeze(0).to(self.device)
             seg_units = self.units_encoder.encode(seg_input, sr, hop_size)
+
             if index_ratio > 0:
                 seg_units = self.units_indexer(units_t=seg_units, spk_id=spk_id, ratio=index_ratio)
+
             seg_f0 = f0[:, start_frame: start_frame + seg_units.size(1), :]
             seg_volume = volume[:, start_frame: start_frame + seg_units.size(1), :]
+
             if gt_spec is not None:
                 seg_gt_spec = gt_spec[:, start_frame: start_frame + seg_units.size(1), :]
             else:
                 seg_gt_spec = None
+
             seg_output = self.infer(seg_units, seg_f0, seg_volume, gt_spec=seg_gt_spec, spk_id=spk_id,
                                     spk_mix_dict=spk_mix_dict,
                                     aug_shift=aug_shift, infer_speedup=infer_speedup, method=method, k_step=k_step,
-                                    use_tqdm=use_tqdm, spk_emb=spk_emb)
+                                    show_progress=show_progress, spk_emb=spk_emb)
+
             _left = start_frame * self.args.data.block_size
             _right = (start_frame + seg_units.size(1)) * self.args.data.block_size
             seg_output *= mask[:, _left:_right]
@@ -405,19 +411,20 @@ class DiffusionSVC:
         return result, self.args.data.sampling_rate
 
     @torch.no_grad()  # 为实时优化的推理代码，可以切除pad省算力
-    def infer_from_audio_for_realtime(self, audio, sr, key, spk_id=1, spk_mix_dict=None, aug_shift=0,
-                                      infer_speedup=10, method='dpm-solver', k_step=None, use_tqdm=True,
-                                      spk_emb=None, silence_front=0, diff_jump_silence_front=False, threhold=-60,
-                                      index_ratio=0, use_hubert_mask=False):
+    def infer_from_audio_for_realtime(
+        self, audio, sr, key, spk_id=1, spk_mix_dict=None, aug_shift=0,
+        infer_speedup=10, method='dpm-solver', k_step=None, show_progress=True,
+        spk_emb=None, silence_front=0, diff_jump_silence_front=False, threhold=-60,
+        index_ratio=0, use_hubert_mask=False):
 
         start_frame = int(silence_front * self.vocoder.vocoder_sample_rate / self.vocoder.vocoder_hop_size)
         audio_t = torch.from_numpy(audio).float().unsqueeze(0).to(self.device)
 
         if self.naive_model is None:
-            print(" [INFO] No combo_model or naive_model, diffusion without shallow-model.")
+            logger.info("No combo_model or naive_model, diffusion without shallow-model.")
         else:
             assert k_step is not None
-            print(" [INFO] Shallow Diffusion mode!")
+            logger.info("Shallow Diffusion mode!")
 
         key_str = str(sr)
         if key_str not in self.resample_dict_16000:
@@ -470,7 +477,7 @@ class DiffusionSVC:
 
         out_mel = self.__call__(units, f0, volume, spk_id=spk_id, spk_mix_dict=spk_mix_dict, aug_shift=aug_shift,
                                 gt_spec=gt_spec, infer_speedup=infer_speedup, method=method, k_step=k_step,
-                                use_tqdm=use_tqdm, spk_emb=spk_emb)
+                                show_progress=show_progress, spk_emb=spk_emb)
 
         if diff_jump_silence_front:
             out_wav = self.mel2wav(out_mel, f0)
