@@ -1,6 +1,7 @@
 import locale
 import json
 import os
+from loguru import logger
 
 '''
 本地化方式如下所示
@@ -34,7 +35,7 @@ class I18nAuto:
         if language not in self.model_info["language_list"]:
             language = self.model_info["base_language"]
         self.language = language
-        print(f" [INFO] Loading language {self.language} for model {model}.")
+        logger.info(f"Loading language {self.language} for model {model}.")
         # 首先读base语言,并断言其继承值为"SUPER"标识其为base语言
         base_path = os.path.join(self.model_info["path"], self.model_info["base_language"] + ".json")
         self.map = read_json_to_map(base_path)

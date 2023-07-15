@@ -6,7 +6,9 @@ import numpy as np
 import soundfile as sf
 from ast import literal_eval
 
-from tqdm import tqdm
+from loguru import logger
+
+from rich.progress import track
 
 from tools.infer_tools import DiffusionSVC
 
@@ -46,11 +48,11 @@ if __name__ == '__main__':
     if naive_model_path is not None:
         if k_step is None:
             naive_model_path = None
-            print(" [WARN] Could not shallow diffusion without k_step value when Only set naive_model path")
+            logger.warning("Could not shallow diffusion without k_step value when Only set naive_model path")
         else:
             diffusion_svc.load_naive_model(naive_model_path=naive_model_path)
 
-    for file in tqdm(os.listdir(input_path)):
+    for file in track(os.listdir(input_path)):
         in_path = os.path.join(input_path, file)
         assert os.path.isfile(in_path)
         out_path = os.path.join(output_path, file)
@@ -59,6 +61,6 @@ if __name__ == '__main__':
                                                          spk_mix_dict=spk_mix_dict,
                                                          aug_shift=aug_shift,
                                                          infer_speedup=infer_speedup, method=method, k_step=k_step,
-                                                         use_tqdm=False, spk_emb=spk_emb, threhold=threhold,
+                                                         show_progress=False, spk_emb=spk_emb, threhold=threhold,
                                                          index_ratio=index_ratio)
         sf.write(out_path, out_wav, out_sr)

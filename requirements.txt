@@ -24,3 +24,6 @@ pysimplegui
 sounddevice
 gradio
 faiss-cpu
+loguru
+rich
+PyYAML

@@ -6,6 +6,7 @@ import numpy as np
 import soundfile as sf
 from ast import literal_eval
 from tools.infer_tools import DiffusionSVC
+from loguru import logger
 
 
 def parse_args(args=None, namespace=None):
@@ -174,12 +175,12 @@ if __name__ == '__main__':
     diffusion_svc.load_model(model_path=cmd.model, f0_model=cmd.pitch_extractor, f0_max=cmd.f0_max, f0_min=cmd.f0_min)
 
     spk_mix_dict = literal_eval(cmd.spk_mix_dict)
-
+    print(spk_mix_dict)
     naive_model_path = cmd.naive_model
     if naive_model_path is not None:
         if cmd.k_step is None:
             naive_model_path = None
-            print(" [WARN] Could not shallow diffusion without k_step value when Only set naive_model path")
+            logger.warning("Could not shallow diffusion without k_step value when Only set naive_model path")
         else:
             diffusion_svc.load_naive_model(naive_model_path=naive_model_path)
 
@@ -199,7 +200,7 @@ if __name__ == '__main__':
         infer_speedup=int(cmd.speedup),
         method=cmd.method,
         k_step=cmd.k_step,
-        use_tqdm=True,
+        show_progress=True,
         spk_emb=spk_emb,
         threhold=float(cmd.threhold),
         threhold_for_split=float(cmd.threhold_for_split),

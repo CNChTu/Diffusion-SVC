@@ -4,13 +4,15 @@ import torchaudio
 
 
 class Slicer:
-    def __init__(self,
-                 sr: int,
-                 threshold: float = -40.,
-                 min_length: int = 5000,
-                 min_interval: int = 300,
-                 hop_size: int = 20,
-                 max_sil_kept: int = 5000):
+    def __init__(
+        self,
+        sr: int,
+        threshold: float = -40.,
+        min_length: int = 5000,
+        min_interval: int = 300,
+        hop_size: int = 20,
+        max_sil_kept: int = 5000):
+        
         if not min_length >= min_interval >= hop_size:
             raise ValueError('The following condition must be satisfied: min_length >= min_interval >= hop_size')
         if not max_sil_kept >= hop_size:

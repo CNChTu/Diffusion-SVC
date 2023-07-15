@@ -5,8 +5,9 @@ import numpy as np
 import librosa
 import torch
 import random
-from tqdm import tqdm
+from rich.progress import track
 from torch.utils.data import Dataset
+from loguru import logger
 
 
 def traverse_dir(
@@ -139,10 +140,10 @@ class AudioDataset(Dataset):
         self.data_buffer = {}
         self.pitch_aug_dict = np.load(os.path.join(self.path_root, 'pitch_aug_dict.npy'), allow_pickle=True).item()
         if load_all_data:
-            print('Load all the data from :', path_root)
+            logger.debug('Load all the data from: {}', path_root)
         else:
-            print('Load the f0, volume data from :', path_root)
-        for name_ext in tqdm(self.paths, total=len(self.paths)):
+            logger.debug('Load the f0, volume data from: {}', path_root)
+        for name_ext in track(self.paths, total=len(self.paths)):
             name = os.path.splitext(name_ext)[0]
             path_audio = os.path.join(self.path_root, 'audio', name_ext)
             duration = librosa.get_duration(filename=path_audio, sr=self.sample_rate)

@@ -6,7 +6,8 @@ import librosa.sequence
 import numpy as np
 import torch
 from torch import nn
-from tqdm import tqdm
+from rich.progress import track
+from tools.progress_helper import TQDMLikeProgress
 
 
 def exists(x):
@@ -216,14 +217,15 @@ class GaussianDiffusion(nn.Module):
 
         return loss
 
-    def forward(self, 
-                condition, 
-                gt_spec=None, 
-                infer=True,
-                infer_speedup=10, 
-                method='dpm-solver',
-                k_step=None,
-                use_tqdm=True):
+    def forward(
+        self, 
+        condition, 
+        gt_spec=None, 
+        infer=True,
+        infer_speedup=10, 
+        method='dpm-solver',
+        k_step=None,
+        show_progress=True):
         """
             conditioning diffusion, use fastspeech2 encoder output as the condition
         """
@@ -263,7 +265,7 @@ class GaussianDiffusion(nn.Module):
                     def my_wrapper(fn):
                         def wrapped(x, t, **kwargs):
                             ret = fn(x, t, **kwargs)
-                            if use_tqdm:
+                            if show_progress:
                                 self.bar.update(1)
                             return ret
 
@@ -283,8 +285,8 @@ class GaussianDiffusion(nn.Module):
                     dpm_solver = DPM_Solver(model_fn, noise_schedule, algorithm_type="dpmsolver++")
 
                     steps = t // infer_speedup
-                    if use_tqdm:
-                        self.bar = tqdm(desc="sample time step", total=steps)
+                    if show_progress:
+                        self.bar = TQDMLikeProgress(description="sample time step", total=steps)
                     x = dpm_solver.sample(
                         x,
                         steps=steps,
@@ -292,7 +294,7 @@ class GaussianDiffusion(nn.Module):
                         skip_type="time_uniform",
                         method="multistep",
                     )
-                    if use_tqdm:
+                    if show_progress:
                         self.bar.close()
                 elif method == 'unipc':
                     from .uni_pc import NoiseScheduleVP, model_wrapper, UniPC
@@ -305,7 +307,7 @@ class GaussianDiffusion(nn.Module):
                     def my_wrapper(fn):
                         def wrapped(x, t, **kwargs):
                             ret = fn(x, t, **kwargs)
-                            if use_tqdm:
+                            if show_progress:
                                 self.bar.update(1)
                             return ret
 
@@ -324,8 +326,10 @@ class GaussianDiffusion(nn.Module):
                     uni_pc = UniPC(model_fn, noise_schedule, variant='bh2')
 
                     steps = t // infer_speedup
-                    if use_tqdm:
-                        self.bar = tqdm(desc="sample time step", total=steps)
+
+                    if show_progress:
+                        self.bar = TQDMLikeProgress(description="sample time step", total=steps)
+                        
                     x = uni_pc.sample(
                         x,
                         steps=steps,
@@ -333,13 +337,13 @@ class GaussianDiffusion(nn.Module):
                         skip_type="time_uniform",
                         method="multistep",
                     )
-                    if use_tqdm:
+                    if show_progress:
                         self.bar.close()
                 elif method == 'pndm':
                     self.noise_list = deque(maxlen=4)
-                    if use_tqdm:
-                        for i in tqdm(
-                                reversed(range(0, t, infer_speedup)), desc='sample time step',
+                    if show_progress:
+                        for i in track(
+                                reversed(range(0, t, infer_speedup)), description='sample time step',
                                 total=t // infer_speedup,
                         ):
                             x = self.p_sample_plms(
@@ -353,9 +357,9 @@ class GaussianDiffusion(nn.Module):
                                 infer_speedup, cond=cond
                             )
                 elif method == 'ddim':
-                    if use_tqdm:
-                        for i in tqdm(
-                                reversed(range(0, t, infer_speedup)), desc='sample time step',
+                    if show_progress:
+                        for i in track(
+                                reversed(range(0, t, infer_speedup)), description='sample time step',
                                 total=t // infer_speedup,
                         ):
                             x = self.p_sample_ddim(
@@ -371,8 +375,8 @@ class GaussianDiffusion(nn.Module):
                 else:
                     raise NotImplementedError(method)
             else:
-                if use_tqdm:
-                    for i in tqdm(reversed(range(0, t)), desc='sample time step', total=t):
+                if show_progress:
+                    for i in track(reversed(range(0, t)), description='sample time step', total=t):
                         x = self.p_sample(x, torch.full((b,), i, device=device, dtype=torch.long), cond)
                 else:
                     for i in reversed(range(0, t)):

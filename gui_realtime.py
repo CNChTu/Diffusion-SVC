@@ -330,7 +330,7 @@ class GUI:
             infer_speedup=self.config.diff_acc,
             method=self.config.diff_method,
             k_step=self.config.k_step,
-            use_tqdm=False,
+            show_progress=False,
             spk_emb=None,
             silence_front=self.f_safe_prefix_pad_length,
             diff_jump_silence_front=self.config.jump_silence,

@@ -6,10 +6,11 @@ import torch
 import argparse
 import shutil
 from logger import utils
-from tqdm import tqdm
+from rich.progress import track
 from tools.tools import F0_Extractor, Volume_Extractor, Units_Encoder, SpeakerEncoder
 from diffusion.vocoder import Vocoder
 from logger.utils import traverse_dir
+from loguru import logger
 
 
 def parse_args(args=None, namespace=None):
@@ -132,15 +133,15 @@ def preprocess(path, f0_extractor, volume_extractor, mel_extractor, units_encode
                 os.makedirs(os.path.dirname(path_spk_embfile), exist_ok=True)
                 np.save(path_spk_embfile, spk_emb)
         else:
-            print('\n[Error] F0 extraction failed: ' + path_srcfile)
+            logger.error('\n F0 extraction failed: ' + path_srcfile)
             os.makedirs(os.path.dirname(path_skipfile), exist_ok=True)
             shutil.move(path_srcfile, os.path.dirname(path_skipfile))
-            print('This file has been moved to ' + path_skipfile)
+            logger.info('This file has been moved to ' + path_skipfile)
 
-    print('Preprocess the audio clips in :', path_srcdir)
+    logger.info('Preprocess the audio clips in :', path_srcdir)
 
     # single process
-    for file in tqdm(filelist, total=len(filelist)):
+    for file in track(filelist, total=len(filelist)):
         process(file)
 
     if mel_extractor is not None:
@@ -149,7 +150,7 @@ def preprocess(path, f0_extractor, volume_extractor, mel_extractor, units_encode
     # multi-process (have bugs)
     '''
     with concurrent.futures.ProcessPoolExecutor(max_workers=2) as executor:
-        list(tqdm(executor.map(process, filelist), total=len(filelist)))
+        list(track(executor.map(process, filelist), total=len(filelist)))
     '''
 
 
@@ -192,7 +193,7 @@ if __name__ == '__main__':
     mel_extractor = Vocoder(args.vocoder.type, args.vocoder.ckpt, device=device)
     if mel_extractor.vocoder_sample_rate != sample_rate or mel_extractor.vocoder_hop_size != hop_size:
         mel_extractor = None
-        print('Unmatch vocoder parameters, mel extraction is ignored!')
+        logger.info('Unmatch vocoder parameters, mel extraction is ignored!')
     elif args.model.use_pitch_aug:
         use_pitch_aug = True
 
