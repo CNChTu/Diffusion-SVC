@@ -203,6 +203,7 @@ class F0_Extractor:
         self.f0_min = f0_min
         self.f0_max = f0_max
         self.transformer_f0 = None
+        self.rmvpe = None
         if f0_extractor == 'crepe':
             key_str = str(sample_rate)
             if key_str not in CREPE_RESAMPLE_KERNEL:
@@ -286,15 +287,24 @@ class F0_Extractor:
 
         elif self.f0_extractor == "transformer_f0":
             if self.transformer_f0 is None:
-                from transformer_f0.model import TransformerF0Infer
-                self.transformer_f0 = TransformerF0Infer(model_path='exp/f0_test_genshin/model_540000.pt')
+                from transformer_f0_wav.model_with_bce import TransformerF0Infer
+                self.transformer_f0 = TransformerF0Infer(model_path='exp/f0bce_test_R002_cu0/model_200000.pt')
             # raw_audio = audio
             f0 = self.transformer_f0(audio=raw_audio, sr=self.sample_rate)
-            # f0 = f0.transpose(1, 2)
-            # f0 = torch.nn.functional.interpolate(f0, size=int(n_frames), mode='nearest')
-            # f0 = f0.transpose(1, 2)
+            f0 = f0.transpose(1, 2)
+            f0 = torch.nn.functional.interpolate(f0, size=int(n_frames), mode='nearest')
+            f0 = f0.transpose(1, 2)
             f0 = f0.squeeze().cpu().numpy()
             # f0 = np.pad(f0.astype('float'), (start_frame, n_frames - len(f0) - start_frame))
+        elif self.f0_extractor == "rmvpe":
+            if self.rmvpe is None:
+                from rmvpe import RMVPE
+                self.rmvpe = RMVPE('pretrain/rmvpe/model.pt', hop_length=160)
+            f0 = self.rmvpe.infer_from_audio(audio, self.sample_rate, device=device, thred=0.05, use_viterbi=False)
+            f0 = np.array(
+                [f0[int(min(int(np.round(n * self.hop_size / self.sample_rate / 0.01)), len(f0) - 1))] for n in
+                 range(n_frames - start_frame)])
+            f0 = np.pad(f0, (start_frame, 0))
         else:
             raise ValueError(f" [x] Unknown f0 extractor: {self.f0_extractor}")
 
