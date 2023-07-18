@@ -3,9 +3,9 @@ import torch
 import torch.nn.functional as F
 from torchaudio.transforms import Resample
 from .constants import *
-from .model import E2E0
+from .model import E2E0, E2E
 from .spec import MelSpectrogram 
-from .utils import to_local_average_cents, to_viterbi_cents
+from .utils import to_local_average_f0, to_viterbi_f0
 
 class RMVPE:
     def __init__(self, model_path, hop_length=160):
@@ -27,10 +27,9 @@ class RMVPE:
 
     def decode(self, hidden, thred=0.03, use_viterbi=False):
         if use_viterbi:
-            cents_pred = to_viterbi_cents(hidden, thred=thred)
+            f0 = to_viterbi_f0(hidden, thred=thred)
         else:
-            cents_pred = to_local_average_cents(hidden, thred=thred)
-        f0 = np.array([10 * (2 ** (cent_pred / 1200)) if cent_pred else 0 for cent_pred in cents_pred])
+            f0 = to_local_average_f0(hidden, thred=thred)  
         return f0
 
     def infer_from_audio(self, audio, sample_rate=16000, device=None, thred=0.03, use_viterbi=False):
@@ -49,5 +48,5 @@ class RMVPE:
         self.model = self.model.to(device)
         mel = mel_extractor(audio_res, center=True)
         hidden = self.mel2hidden(mel)
-        f0 = self.decode(hidden.squeeze(0).cpu().numpy(), thred=thred, use_viterbi=use_viterbi)
+        f0 = self.decode(hidden, thred=thred, use_viterbi=use_viterbi)
         return f0
