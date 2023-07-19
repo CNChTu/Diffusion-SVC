@@ -186,13 +186,15 @@ tensorboard --logdir=exp
 
 ## 6. 非实时推理
 ```bash
-python main.py -i <input.wav> -model <model_ckpt.pt> -o <output.wav> -k <keychange> -id <speaker_id> -speedup <speedup> -method <method> -kstep <kstep> -nmodel <nmodel>
+python main.py -i <input.wav> -model <model_ckpt.pt> -o <output.wav> -k <keychange> -id <speaker_id> -speedup <speedup> -method <method> -kstep <kstep> -nmodel <nmodel> -pe <f0_extractor>
 ```
 `-model`是模型的路径，`-k`是变调， `-speedup`为加速倍速，`-method`为`pndm`,`ddim`,`unipc`或`dpm-solver`, `-kstep`为浅扩散步数，`-id`为扩散模型的说话人id。
 
 如果`-kstep`不为空，则以输入源的 mel 进行浅扩散，若`-kstep`为空，则进行完整深度的高斯扩散。
 
 `-nmodel`(可选，需要单独训练)是naive模型的路径，用来提供一个大致的mel给扩散模型进行k_step深度的浅扩散，其参数需要与主模型匹配。
+
+`-pe` 可选项为 `crepe` `parselmouth` `dio` `harvest` `rmvpe` 默认 `crepe`  
 
 ~~如果使用了声纹编码，那么可以通过`-spkemb`指定一个外部声纹，或者通过`-spkembdict`覆盖模型模型的声纹词典。~~
 
