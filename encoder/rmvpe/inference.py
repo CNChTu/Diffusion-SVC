@@ -12,7 +12,7 @@ class RMVPE:
         self.resample_kernel = {}
         model = E2E0(4, 1, (2, 2))
         ckpt = torch.load(model_path)
-        model.load_state_dict(ckpt['model'])
+        model.load_state_dict(ckpt['model'], strict=False)
         model.eval()
         self.model = model
         self.mel_extractor = MelSpectrogram(N_MELS, SAMPLE_RATE, WINDOW_LENGTH, hop_length, None, MEL_FMIN, MEL_FMAX)
@@ -21,7 +21,7 @@ class RMVPE:
     def mel2hidden(self, mel):
         with torch.no_grad():
             n_frames = mel.shape[-1]
-            mel = F.pad(mel, (0, 32 * ((n_frames - 1) // 32 + 1) - n_frames), mode='reflect')
+            mel = F.pad(mel, (0, 32 * ((n_frames - 1) // 32 + 1) - n_frames), mode='constant')
             hidden = self.model(mel)
             return hidden[:, :n_frames]
 
