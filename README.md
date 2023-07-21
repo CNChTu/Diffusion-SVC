@@ -132,7 +132,7 @@ python train.py -c configs/config.yaml
 |--------------------------------------------------------------------------------|--------|------------|-------------------|-----------------------------------------------------------------------------------------------------------------------------------------------|
 | [contentvec768l12](https://ibm.ent.box.com/s/z1wgl1stco8ffooyatzdwsqn2psd9lrr) | 512*30 | 100        | VCTK<br/>m4singer | [HuggingFace](https://huggingface.co/datasets/ms903/Diff-SVC-refactor-pre-trained-model/resolve/main/Diffusion-SVC/shallow_512_30/model_0.pt) |
 | [contentvec768l12](https://ibm.ent.box.com/s/z1wgl1stco8ffooyatzdwsqn2psd9lrr) | 512*20 | 200        | VCTK<br/>m4singer | [HuggingFace](https://huggingface.co/datasets/ms903/Diff-SVC-refactor-pre-trained-model/resolve/main/Diffusion-SVC/shallow_512_20/model_0.pt) |
-
+| [whisper-ppg(仅支持sovits)](https://openaipublic.azureedge.net/main/whisper/models/345ae4da62f9b3d59415adc60127b97c714f32e89e936602e85993674d08dcb1/medium.pt) | 768*30 | 200        | PTDB<br/>m4singer<br/>kiritan<br/>opencpop<br/>pjs_corpus<br/>popcs | [HuggingFace](https://huggingface.co/OOPPEENN/Diffusion-SVC-pretrained-models/resolve/main/whisper_medium_vol_76830_k200.zip) |
 - **实验发现naive模型在小数据上有音域问题，请优先考虑用较少的步数微调naive模型或直接使用无限音域的ddsp模型**
 
 ### 2.3 和2.2配套的Naive预训练模型和DDSP预训练模型
@@ -186,13 +186,15 @@ tensorboard --logdir=exp
 
 ## 6. 非实时推理
 ```bash
-python main.py -i <input.wav> -model <model_ckpt.pt> -o <output.wav> -k <keychange> -id <speaker_id> -speedup <speedup> -method <method> -kstep <kstep> -nmodel <nmodel>
+python main.py -i <input.wav> -model <model_ckpt.pt> -o <output.wav> -k <keychange> -id <speaker_id> -speedup <speedup> -method <method> -kstep <kstep> -nmodel <nmodel> -pe <f0_extractor>
 ```
 `-model`是模型的路径，`-k`是变调， `-speedup`为加速倍速，`-method`为`pndm`,`ddim`,`unipc`或`dpm-solver`, `-kstep`为浅扩散步数，`-id`为扩散模型的说话人id。
 
 如果`-kstep`不为空，则以输入源的 mel 进行浅扩散，若`-kstep`为空，则进行完整深度的高斯扩散。
 
 `-nmodel`(可选，需要单独训练)是naive模型的路径，用来提供一个大致的mel给扩散模型进行k_step深度的浅扩散，其参数需要与主模型匹配。
+
+`-pe` 可选项为 `crepe` `parselmouth` `dio` `harvest` `rmvpe` 默认 `crepe`  
 
 ~~如果使用了声纹编码，那么可以通过`-spkemb`指定一个外部声纹，或者通过`-spkembdict`覆盖模型模型的声纹词典。~~
 
