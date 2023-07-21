@@ -285,17 +285,25 @@ class F0_Extractor:
                  range(n_frames - start_frame)])
             f0 = np.pad(f0, (start_frame, 0))
 
-        elif self.f0_extractor == "transformer_f0":
+        elif self.f0_extractor == "fcpe":
+            _JUMP_SAFE_PAD = False
             if self.transformer_f0 is None:
-                from transformer_f0_wav.model_with_bce import TransformerF0Infer
-                self.transformer_f0 = TransformerF0Infer(model_path='exp/f0bce_test_R002_cu0/model_200000.pt')
-            # raw_audio = audio
+                from encoder.fcpe.model import FCPEInfer
+                self.transformer_f0 = FCPEInfer(model_path='exp/f0bce_test_R004_cu0/model_270000.pt')
+            if _JUMP_SAFE_PAD:
+                raw_audio = audio
             f0 = self.transformer_f0(audio=raw_audio, sr=self.sample_rate)
             f0 = f0.transpose(1, 2)
-            f0 = torch.nn.functional.interpolate(f0, size=int(n_frames), mode='nearest')
+            if not _JUMP_SAFE_PAD:
+                f0 = torch.nn.functional.interpolate(f0, size=int(n_frames), mode='nearest')
             f0 = f0.transpose(1, 2)
             f0 = f0.squeeze().cpu().numpy()
-            # f0 = np.pad(f0.astype('float'), (start_frame, n_frames - len(f0) - start_frame))
+            if _JUMP_SAFE_PAD:
+                f0 = np.array(
+                    [f0[int(min(int(np.round(n * self.hop_size / self.sample_rate / 0.01)), len(f0) - 1))] for n in
+                     range(n_frames - start_frame)])
+                f0 = np.pad(f0.astype('float'), (start_frame, n_frames - len(f0) - start_frame))
+
         elif self.f0_extractor == "rmvpe":
             if self.rmvpe is None:
                 from encoder.rmvpe import RMVPE

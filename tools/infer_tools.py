@@ -437,7 +437,10 @@ class DiffusionSVC:
         units = self.encode_units(audio_t_16k, sr=16000, padding_mask=mask16k)
         if index_ratio > 0:
             units = self.units_indexer(units_t=units, spk_id=spk_id, ratio=index_ratio)
+        _f0_star_time = time.time()
         f0 = self.extract_f0(audio, key=key, sr=sr, silence_front=silence_front)
+        _f0_end_time = time.time()
+        print(f' [INFO] Extract f0 volume and mask: Done. Use time:{_f0_end_time - _f0_star_time}')
 
         if diff_jump_silence_front:
             audio_t = audio_t[:, start_frame * self.vocoder.vocoder_hop_size:]
