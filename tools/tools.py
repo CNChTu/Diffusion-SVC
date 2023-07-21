@@ -298,7 +298,7 @@ class F0_Extractor:
             # f0 = np.pad(f0.astype('float'), (start_frame, n_frames - len(f0) - start_frame))
         elif self.f0_extractor == "rmvpe":
             if self.rmvpe is None:
-                from rmvpe import RMVPE
+                from encoder.rmvpe import RMVPE
                 self.rmvpe = RMVPE('pretrain/rmvpe/model.pt', hop_length=160)
             f0 = self.rmvpe.infer_from_audio(audio, self.sample_rate, device=device, thred=0.05, use_viterbi=False)
             f0 = np.array(
