@@ -118,7 +118,8 @@ python train.py -c configs/config.yaml
 只训练k_step_max深度的浅扩散模型与naive模型的组合比单纯完全扩散的质量可能还要更高，同时训练速度更快。但是naive模型可能存在音域问题。
 ****
 
-### 2.1 训练完整过程的扩散预训练模型（注意：whisper-ppg对应whisper的medium权重，whisper-ppg-large对应whisper的large-v2权重）
+### 2.1 训练完整过程的扩散预训练模型 
+（注意：whisper-ppg对应whisper的medium权重，whisper-ppg-large对应whisper的large-v2权重）
 | Units Encoder                                                                                                                                               | 网络大小   | 数据集                                        | 下载                                                                                                  |
 |-------------------------------------------------------------------------------------------------------------------------------------------------------------|--------|--------------------------------------------|-----------------------------------------------------------------------------------------------------|
 | [contentvec768l12(推荐)](https://ibm.ent.box.com/s/z1wgl1stco8ffooyatzdwsqn2psd9lrr)                                                                          | 512*20 | VCTK<br/>m4singer                          | [HuggingFace](https://huggingface.co/ChiTu/Diffusion-SVC/resolve/main/v0.1/contentvec768l12.7z)     |
@@ -127,7 +128,8 @@ python train.py -c configs/config.yaml
 
 补充一个用contentvec768l12编码的整活底模，数据集为`m4singer`/`opencpop`/`vctk`，不推荐使用，不保证没问题：[下载](https://huggingface.co/ChiTu/Diffusion-SVC/resolve/main/v0.1/contentvec768l12%2Bmakefunny.7z)。
 
-### 2.2 只训练k_step_max深度的扩散预训练模型（注意：whisper-ppg对应whisper的medium权重，whisper-ppg-large对应whisper的large-v2权重）
+### 2.2 只训练k_step_max深度的扩散预训练模型 
+（注意：whisper-ppg对应whisper的medium权重，whisper-ppg-large对应whisper的large-v2权重）
 | 所用编码器                                                                          | 网络大小   | k_step_max | 数据集               | 浅扩散模型下载                                                                                                                                       |
 |--------------------------------------------------------------------------------|--------|------------|-------------------|-----------------------------------------------------------------------------------------------------------------------------------------------|
 | [contentvec768l12](https://ibm.ent.box.com/s/z1wgl1stco8ffooyatzdwsqn2psd9lrr) | 512*30 | 100        | VCTK<br/>m4singer | [HuggingFace](https://huggingface.co/datasets/ms903/Diff-SVC-refactor-pre-trained-model/resolve/main/Diffusion-SVC/shallow_512_30/model_0.pt) |
