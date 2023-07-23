@@ -120,7 +120,8 @@ python train.py -c configs/config.yaml
 The combination of shallow Diffusion model that only train k_step_max depth and Naive model may have higher quality and faster training speed than pure full diffusion model. But the Naive model may have f0 range issues.
 ****
 
-### 2.1 Pre training Diffusion model which training full depth
+### 2.1 Pre training Diffusion model which training full depth  
+(Note: whisper-ppg corresponds to the medium-weight version of Whisper, while whisper-ppg-large corresponds to the large-v2-weight version of Whisper.)
 | Units Encoder                                                                                                                                                              | Network size | Datasets                                   | Model                                                                                               |
 |----------------------------------------------------------------------------------------------------------------------------------------------------------------------------|--------------|--------------------------------------------|-----------------------------------------------------------------------------------------------------|
 | [contentvec768l12(Recommend)](https://ibm.ent.box.com/s/z1wgl1stco8ffooyatzdwsqn2psd9lrr)                                                                                  | 512*20       | VCTK<br/>m4singer                          | [HuggingFace](https://huggingface.co/ChiTu/Diffusion-SVC/resolve/main/v0.1/contentvec768l12.7z)     |
@@ -129,12 +130,13 @@ The combination of shallow Diffusion model that only train k_step_max depth and 
 
 Here is an additional special pre-trained model using the contentvec768l12 encoder, the dataset is `m4singer`/`opencpop`/`vctk`. It is not recommended to use this and there's no guarantee it won't cause problems: [Download](https://huggingface.co/ChiTu/Diffusion-SVC/resolve/main/v0.1/contentvec768l12%2Bmakefunny.7z).
 
-### 2.2 Diffusion pre training model that only trains k_step_max depth
+### 2.2 Diffusion pre training model that only trains k_step_max depth  
+(Note: whisper-ppg corresponds to the medium-weight version of Whisper, while whisper-ppg-large corresponds to the large-v2-weight version of Whisper.)
 | Units Encoder                                                                  | Network size | k_step_max | Datasets          | Diffusion Model                                                                                                                               |
 |--------------------------------------------------------------------------------|--------------|------------|-------------------|-----------------------------------------------------------------------------------------------------------------------------------------------|
 | [contentvec768l12](https://ibm.ent.box.com/s/z1wgl1stco8ffooyatzdwsqn2psd9lrr) | 512*30       | 100        | VCTK<br/>m4singer | [HuggingFace](https://huggingface.co/datasets/ms903/Diff-SVC-refactor-pre-trained-model/resolve/main/Diffusion-SVC/shallow_512_30/model_0.pt) |
 | [contentvec768l12](https://ibm.ent.box.com/s/z1wgl1stco8ffooyatzdwsqn2psd9lrr) | 512*20       | 200        | VCTK<br/>m4singer | [HuggingFace](https://huggingface.co/datasets/ms903/Diff-SVC-refactor-pre-trained-model/resolve/main/Diffusion-SVC/shallow_512_20/model_0.pt) |
-
+| [whisper-ppg(only can use with sovits)](https://openaipublic.azureedge.net/main/whisper/models/345ae4da62f9b3d59415adc60127b97c714f32e89e936602e85993674d08dcb1/medium.pt) | 768*30 | 200        | PTDB<br/>m4singer<br/>kiritan<br/>opencpop<br/>pjs_corpus<br/>popcs | [HuggingFace](https://huggingface.co/OOPPEENN/Diffusion-SVC-pretrained-models/resolve/main/whisper_medium_vol_76830_k200.zip) |
 - **The experiment found that the Naive model has f0 range issues on small data. Please prioritize fine-tuning the Naive model with fewer steps or directly using the infinite range ddsp model.**
 
 ### 2.3 Naive pre training model and DDSP pre training model matched with 2.2
