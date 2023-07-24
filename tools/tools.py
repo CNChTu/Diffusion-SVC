@@ -308,10 +308,15 @@ class F0_Extractor:
             if self.rmvpe is None:
                 from encoder.rmvpe import RMVPE
                 self.rmvpe = RMVPE('pretrain/rmvpe/model.pt', hop_length=160)
-            f0 = self.rmvpe.infer_from_audio(audio, self.sample_rate, device=device, thred=0.05, use_viterbi=False)
-            f0 = np.array(
-                [f0[int(min(int(np.round(n * self.hop_size / self.sample_rate / 0.01)), len(f0) - 1))] for n in
-                 range(n_frames - start_frame)])
+            f0 = self.rmvpe.infer_from_audio(audio, self.sample_rate, device=device, thred=0.03, use_viterbi=False)
+            uv = f0 == 0
+            if len(f0[~uv]) > 0:
+                f0[uv] = np.interp(np.where(uv)[0], np.where(~uv)[0], f0[~uv])
+            origin_time = 0.01 * np.arange(len(f0))
+            target_time = self.hop_size / self.sample_rate * np.arange(n_frames - start_frame)
+            f0 = np.interp(target_time, origin_time, f0)
+            uv = np.interp(target_time, origin_time, uv.astype(float)) > 0.5
+            f0[uv] = 0
             f0 = np.pad(f0, (start_frame, 0))
         else:
             raise ValueError(f" [x] Unknown f0 extractor: {self.f0_extractor}")
