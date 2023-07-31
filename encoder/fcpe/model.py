@@ -168,10 +168,11 @@ class FCPE(nn.Module):
 
 class FCPEInfer:
     def __init__(self, model_path, device=None):
-        config_file = os.path.join(os.path.split(model_path)[0], 'config.yaml')
-        with open(config_file, "r") as config:
-            args = yaml.safe_load(config)
-        self.args = DotDict(args)
+        if device is None:
+            device = 'cuda' if torch.cuda.is_available() else 'cpu'
+        self.device = device
+        ckpt = torch.load(model_path, map_location=torch.device(self.device))
+        self.args = DotDict(ckpt["config"])
         model = FCPE(
             input_channel=self.args.model.input_channel,
             out_dims=self.args.model.out_dims,
@@ -188,16 +189,11 @@ class FCPEInfer:
             f0_min=self.args.model.f0_min,
             confidence=self.args.model.confidence,
         )
-        if device is None:
-            device = 'cuda' if torch.cuda.is_available() else 'cpu'
-        self.device = device
-        ckpt = torch.load(model_path, map_location=torch.device(self.device))
         model.to(device)
         model.load_state_dict(ckpt['model'])
         model.eval()
         self.model = model
         self.wav2mel = Wav2Mel(self.args)
-        self.args = args
 
     @torch.no_grad()
     def __call__(self, audio, sr):
