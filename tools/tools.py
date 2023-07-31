@@ -289,7 +289,7 @@ class F0_Extractor:
             _JUMP_SAFE_PAD = False
             if self.transformer_f0 is None:
                 from encoder.fcpe.model import FCPEInfer
-                self.transformer_f0 = FCPEInfer(model_path='exp/fcpe.pt')
+                self.transformer_f0 = FCPEInfer(model_path='pretrain/fcpe/fcpe.pt')
             if _JUMP_SAFE_PAD:
                 raw_audio = audio
             f0 = self.transformer_f0(audio=raw_audio, sr=self.sample_rate)
