@@ -6,10 +6,9 @@ import numpy as np
 import torch.nn.functional as F
 from torch.nn.utils import weight_norm
 from .diffusion import GaussianDiffusion
-from .wavenet import WaveNet
 from .vocoder import Vocoder
 from .naive.naive import Unit2MelNaive
-
+from .unet1d.unet_1d_condition import UNet1DConditionModel
 
 class DotDict(dict):
     def __getattr__(*args):
@@ -72,12 +71,13 @@ def load_model_vocoder_from_combo(combo_model_path, device='cpu'):
 def load_svc_model(args, vocoder_dimension):
     if args.model.type == 'Diffusion':
         model = Unit2Mel(
-                    args.data.encoder_out_channels,
+                    args.data.encoder_out_channels, 
                     args.model.n_spk,
                     args.model.use_pitch_aug,
                     vocoder_dimension,
                     args.model.n_layers,
-                    args.model.n_chans,
+                    args.model.block_out_channels,
+                    args.model.n_heads,
                     args.model.n_hidden,
                     use_speaker_encoder=args.model.use_speaker_encoder,
                     speaker_encoder_out_channels=args.data.speaker_encoder_out_channels)
@@ -117,8 +117,9 @@ class Unit2Mel(nn.Module):
             n_spk,
             use_pitch_aug=False,
             out_dims=128,
-            n_layers=20,
-            n_chans=384,
+            n_layers=2,
+            block_out_channels=(256,384,512,512),
+            n_heads=8,
             n_hidden=256,
             use_speaker_encoder=False,
             speaker_encoder_out_channels=256):
@@ -137,9 +138,16 @@ class Unit2Mel(nn.Module):
         else:
             if n_spk is not None and n_spk > 1:
                 self.spk_embed = nn.Embedding(n_spk, n_hidden)
-
         # diffusion
-        self.decoder = GaussianDiffusion(WaveNet(out_dims, n_layers, n_chans, n_hidden), out_dims=out_dims)
+        self.decoder = GaussianDiffusion(UNet1DConditionModel(in_channels=out_dims + n_hidden,
+        out_channels=out_dims,
+        block_out_channels=block_out_channels,
+        norm_num_groups=8,
+        cross_attention_dim = block_out_channels,
+        attention_head_dim = n_heads,
+        only_cross_attention = True,
+        layers_per_block = n_layers,
+        resnet_time_scale_shift='scale_shift'), out_dims=out_dims)
 
     def forward(self, units, f0, volume, spk_id=None, spk_mix_dict=None, aug_shift=None,
                 gt_spec=None, infer=True, infer_speedup=10, method='dpm-solver', k_step=None, use_tqdm=True,

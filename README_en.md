@@ -11,7 +11,8 @@ I am not good at English. If there are any errors, please point them out.
 
 This repository is a separate storage for the diffusion part of the [DDSP-SVC](https://github.com/yxlllc/DDSP-SVC) repository. It can be trained and inferred independently.
 ***
-**Recent update: The use of the naive model and the shallow Diffusion model of the repository can achieve better results than the simple Diffusion model with extremely low training costs, which is strongly recommended.However, the Naive model has weak generalization ability and may have too small f0 range on small datasets. At this point, the Naive model cannot train too many steps for fine-tuning (which will degrade the base model), and the front stage can also be considered to be replaced with an infinite range ddsp model.**
+**The branch has replaced Diffusion-SVC with the same UNetConditionModel network as Stable Diffusion. Special thanks to [NS2VC](https://github.com/adelacvg/NS2VC)**
+
 <br>Samples and introductions can be found in [[Introduction Video(Not done yet)]]()
 
 ![Diagram](doc/diagram.jpg)
@@ -258,7 +259,7 @@ After the export is completed, a configuration file for [MoeVS](https://github.c
 * [soft-vc](https://github.com/bshall/soft-vc)
 * [diff-SVC](https://github.com/prophesier/diff-SVC)
 * [DiffSinger (OpenVPI version)](https://github.com/openvpi/DiffSinger)
-
+* [NS2VC](https://github.com/adelacvg/NS2VC)
 ## Thank you to all contributors for their efforts
 <a href="https://github.com/CNChTu/Diffusion-SVC/graphs/contributors">
   <img src="https://contrib.rocks/image?repo=CNChTu/Diffusion-SVC" />

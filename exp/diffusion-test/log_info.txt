@@ -1,0 +1,81 @@
+--- model size ---
+model: 114,198,016
+======= start training =======
+--- model size ---
+model: 114,198,016
+======= start training =======
+--- model size ---
+model: 114,198,016
+======= start training =======
+--- model size ---
+model: 114,198,016
+======= start training =======
+--- model size ---
+model: 114,198,016
+======= start training =======
+--- model size ---
+model: 114,198,016
+======= start training =======
+--- model size ---
+model: 113,706,496
+======= start training =======
+--- model size ---
+model: 113,706,496
+======= start training =======
+--- model size ---
+model: 113,706,496
+======= start training =======
+--- model size ---
+model: 129,662,464
+======= start training =======
+--- model size ---
+model: 116,817,408
+======= start training =======
+--- model size ---
+model: 116,817,408
+======= start training =======
+--- model size ---
+model: 116,817,408
+======= start training =======
+--- model size ---
+model: 116,817,408
+======= start training =======
+--- model size ---
+model: 115,015,168
+======= start training =======
+--- model size ---
+model: 115,015,168
+======= start training =======
+--- model size ---
+model: 115,015,168
+======= start training =======
+--- model size ---
+model: 115,015,168
+======= start training =======
+--- model size ---
+model: 115,015,168
+======= start training =======
+--- model size ---
+model: 118,881,792
+======= start training =======
+--- model size ---
+model: 118,881,792
+======= start training =======
+--- model size ---
+model: 118,881,792
+======= start training =======
+--- model size ---
+model: 118,881,792
+======= start training =======
+--- model size ---
+model: 118,881,792
+======= start training =======
+epoch: 1 |   0/  9 | exp/diffusion-test | batch/s: 0.52 | lr: 0.0002 | loss: 1.004 | time: 0:00:19.5 | step: 10
+--- model size ---
+model: 118,881,792
+======= start training =======
+epoch: 1 |   0/  9 | exp/diffusion-test | batch/s: 0.58 | lr: 0.0002 | loss: 1.000 | time: 0:00:17.3 | step: 10
+epoch: 2 |   1/  9 | exp/diffusion-test | batch/s: 0.96 | lr: 0.0002 | loss: 0.992 | time: 0:00:27.7 | step: 20
+epoch: 3 |   2/  9 | exp/diffusion-test | batch/s: 0.97 | lr: 0.0002 | loss: 0.992 | time: 0:00:38.0 | step: 30
+epoch: 4 |   3/  9 | exp/diffusion-test | batch/s: 0.96 | lr: 0.0002 | loss: 0.982 | time: 0:00:48.4 | step: 40
+epoch: 5 |   4/  9 | exp/diffusion-test | batch/s: 0.96 | lr: 0.0002 | loss: 0.947 | time: 0:00:58.8 | step: 50

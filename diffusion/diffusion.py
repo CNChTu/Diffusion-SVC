@@ -131,7 +131,8 @@ class GaussianDiffusion(nn.Module):
         return posterior_mean, posterior_variance, posterior_log_variance_clipped
 
     def p_mean_variance(self, x, t, cond):
-        noise_pred = self.denoise_fn(x, t, cond=cond)
+        denoise_input = torch.cat([x[:,0,:,:], cond], dim=-2)
+        noise_pred = self.denoise_fn(denoise_input, t).sample[:,None,:,:]
         x_recon = self.predict_start_from_noise(x, t=t, noise=noise_pred)
 
         x_recon.clamp_(-1., 1.)
@@ -153,7 +154,8 @@ class GaussianDiffusion(nn.Module):
         a_t = extract(self.alphas_cumprod, t, x.shape)
         a_prev = extract(self.alphas_cumprod, torch.max(t - interval, torch.zeros_like(t)), x.shape)
         
-        noise_pred = self.denoise_fn(x, t, cond=cond)
+        denoise_input = torch.cat([x[:,0,:,:], cond], dim=-2)
+        noise_pred = self.denoise_fn(denoise_input, t).sample[:,None,:,:]
         x_prev = a_prev.sqrt() * (x / a_t.sqrt() + (((1 - a_prev) / a_prev).sqrt()-((1 - a_t) / a_t).sqrt()) * noise_pred)
         return x_prev
         
@@ -174,13 +176,17 @@ class GaussianDiffusion(nn.Module):
             x_pred = x + x_delta
 
             return x_pred
+        
+        denoise_input = torch.cat([x[:,0,:,:], cond], dim=-2)
 
         noise_list = self.noise_list
-        noise_pred = self.denoise_fn(x, t, cond=cond)
+        noise_pred = self.denoise_fn(denoise_input, t).sample[:,None,:,:]
 
         if len(noise_list) == 0:
             x_pred = get_x_pred(x, noise_pred, t)
-            noise_pred_prev = self.denoise_fn(x_pred, max(t - interval, 0), cond=cond)
+            
+            denoise_input = torch.cat([x_pred[:,0,:,:], cond], dim=-2)
+            noise_pred_prev = self.denoise_fn(denoise_input, max(t - interval, 0)).sample[:,None,:,:]
             noise_pred_prime = (noise_pred + noise_pred_prev) / 2
         elif len(noise_list) == 1:
             noise_pred_prime = (3 * noise_pred - noise_list[-1]) / 2
@@ -205,8 +211,9 @@ class GaussianDiffusion(nn.Module):
         noise = default(noise, lambda: torch.randn_like(x_start))
 
         x_noisy = self.q_sample(x_start=x_start, t=t, noise=noise)
-        x_recon = self.denoise_fn(x_noisy, t, cond)
-
+        denoise_input = torch.cat([x_noisy[:,0,:,:], cond], dim=-2)
+        x_recon = self.denoise_fn(denoise_input, t).sample[:,None,:,:]
+        
         if loss_type == 'l1':
             loss = (noise - x_recon).abs().mean()
         elif loss_type == 'l2':
@@ -261,19 +268,18 @@ class GaussianDiffusion(nn.Module):
                     # noise prediction model. Here is an example for a diffusion model
                     # `model` with the noise prediction type ("noise") .
                     def my_wrapper(fn):
-                        def wrapped(x, t, **kwargs):
-                            ret = fn(x, t, **kwargs)
+                        def wrapped(x, t, cond, **kwargs):
+                            denoise_input = torch.cat([x[:,0,:,:], cond], dim=-2)
+                            ret = fn(denoise_input, t, **kwargs).sample[:,None,:,:]
                             if use_tqdm:
                                 self.bar.update(1)
                             return ret
-
                         return wrapped
 
                     model_fn = model_wrapper(
                         my_wrapper(self.denoise_fn),
                         noise_schedule,
-                        model_type="noise",  # or "x_start" or "v" or "score"
-                        model_kwargs={"cond": cond}
+                        model_type="noise"  # or "x_start" or "v" or "score"
                     )
 
                     # 3. Define dpm-solver and sample by singlestep DPM-Solver.
@@ -303,19 +309,18 @@ class GaussianDiffusion(nn.Module):
                     # noise prediction model. Here is an example for a diffusion model
                     # `model` with the noise prediction type ("noise") .
                     def my_wrapper(fn):
-                        def wrapped(x, t, **kwargs):
-                            ret = fn(x, t, **kwargs)
+                        def wrapped(x, t, cond, **kwargs):
+                            denoise_input = torch.cat([x[:,0,:,:], cond], dim=-2)
+                            ret = fn(denoise_input, t, **kwargs).sample[:,None,:,:]
                             if use_tqdm:
                                 self.bar.update(1)
                             return ret
-
                         return wrapped
 
                     model_fn = model_wrapper(
                         my_wrapper(self.denoise_fn),
                         noise_schedule,
                         model_type="noise",  # or "x_start" or "v" or "score"
-                        model_kwargs={"cond": cond}
                     )
 
                     # 3. Define uni_pc and sample by multistep UniPC.

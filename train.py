@@ -41,7 +41,8 @@ if __name__ == '__main__':
                     args.model.use_pitch_aug,
                     vocoder.dimension,
                     args.model.n_layers,
-                    args.model.n_chans,
+                    args.model.block_out_channels,
+                    args.model.n_heads,
                     args.model.n_hidden,
                     use_speaker_encoder=args.model.use_speaker_encoder,
                     speaker_encoder_out_channels=args.data.speaker_encoder_out_channels)

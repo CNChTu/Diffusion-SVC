@@ -1,13 +1,14 @@
 Language: [English](./README_en.md) **简体中文**
 
-# Diffusion-SVC
+# Diffusion-SVC-V2
 [![Colab_CN](https://img.shields.io/static/v1?label=Colab&message=Notebook&color=F9AB00&logo=googlecolab&style=flat-square)](https://colab.research.google.com/github/CNChTu/Diffusion-SVC/blob/main/Diffusion_SVC_CN.ipynb)
 [![madewithlove](https://forthebadge.com/images/badges/built-with-love.svg)](https://github.com/CNChTu/Diffusion-SVC/)
 [![Discord](https://img.shields.io/discord/1044927142900809739?color=%23738ADB&label=Discord&style=for-the-badge)](https://discord.gg/jvA5c2xzSE)
 
 此仓库是[DDSP-SVC](https://github.com/yxlllc/DDSP-SVC)仓库的扩散部分的单独存放。可单独训练和推理。
 ***
-**最近更新：使用本仓库的naive模型和浅扩散模型搭配可以用极低训练成本达到比单纯扩散模型更好的效果，强力推荐。但是小网络的naive模型泛化能力较弱，在小数据集上可能会有音域问题，这个时候naive模型微调不能训练太多步数(这会让底模退化)，前级也可以考虑更换为无限音域的ddsp模型。**
+**本分支的Diffusion-SVC更换为了Stable Diffusion的同款网络UNetConditionModel，特别鸣谢[NS2VC](https://github.com/adelacvg/NS2VC)**
+
 <br>效果和介绍见[[介绍视频(暂未完成)]]()
 **欢迎加群交流讨论：882426004**
 ![Diagram](doc/diagram.jpg)
@@ -259,6 +260,7 @@ python diffusion/onnx_export.py --project <ProjectName>
 * [soft-vc](https://github.com/bshall/soft-vc)
 * [diff-SVC](https://github.com/prophesier/diff-SVC)
 * [DiffSinger (OpenVPI version)](https://github.com/openvpi/DiffSinger)
+* [NS2VC](https://github.com/adelacvg/NS2VC)
 
 ## 感谢所有贡献者作出的努力
 <a href="https://github.com/CNChTu/Diffusion-SVC/graphs/contributors">

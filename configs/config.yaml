@@ -19,7 +19,9 @@ data:
     - wav
 model:
   type: 'Diffusion'
-  n_layers: 20
+  n_layers: 2
+  n_heads: 8
+  block_out_channels: [256,384,512,512]
   n_chans: 512
   n_hidden: 256
   use_pitch_aug: true  

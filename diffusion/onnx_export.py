@@ -41,11 +41,11 @@ def load_model_vocoder(
                 args.model.use_pitch_aug,
                 128,
                 args.model.n_layers,
-                args.model.n_chans,
+                args.model.block_out_channels,
+                args.model.n_heads,
                 args.model.n_hidden,
-                args.data.encoder_hop_size,
-                args.data.sampling_rate,
-                block_size=args.data.block_size)
+                use_speaker_encoder=args.model.use_speaker_encoder,
+                speaker_encoder_out_channels=args.data.speaker_encoder_out_channels)
     
     print(' [Loading] ' + model_path)
     ckpt = torch.load(model_path, map_location=torch.device(device))
