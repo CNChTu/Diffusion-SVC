@@ -2,3 +2,4 @@ checkpoint_best_legacy_500.pt
 pretrain/nsf_hifigan/config.json
 pretrain/nsf_hifigan/model
 data/*
+__pycache__
