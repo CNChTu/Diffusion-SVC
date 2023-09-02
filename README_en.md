@@ -11,7 +11,7 @@ I am not good at English. If there are any errors, please point them out.
 
 This repository is a separate storage for the diffusion part of the [DDSP-SVC](https://github.com/yxlllc/DDSP-SVC) repository. It can be trained and inferred independently.
 ***
-**The branch has replaced Diffusion-SVC with the same UNetConditionModel network as Stable Diffusion. Special thanks to [NS2VC](https://github.com/adelacvg/NS2VC)**
+**The branch has replaced Diffusion-SVC with the same UNetConditionModel network as [Stable Diffusion](https://github.com/AUTOMATIC1111/stable-diffusion-webui). Special thanks to [NS2VC](https://github.com/adelacvg/NS2VC)**
 
 <br>Samples and introductions can be found in [[Introduction Video(Not done yet)]]()
 

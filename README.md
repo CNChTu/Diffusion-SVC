@@ -7,7 +7,7 @@ Language: [English](./README_en.md) **简体中文**
 
 此仓库是[DDSP-SVC](https://github.com/yxlllc/DDSP-SVC)仓库的扩散部分的单独存放。可单独训练和推理。
 ***
-**本分支的Diffusion-SVC更换为了Stable Diffusion的同款网络UNetConditionModel，特别鸣谢[NS2VC](https://github.com/adelacvg/NS2VC)**
+**本分支的Diffusion-SVC更换为了[Stable Diffusion](https://github.com/AUTOMATIC1111/stable-diffusion-webui)的同款网络UNetConditionModel，特别鸣谢[NS2VC](https://github.com/adelacvg/NS2VC)**
 
 <br>效果和介绍见[[介绍视频(暂未完成)]]()
 **欢迎加群交流讨论：882426004**
