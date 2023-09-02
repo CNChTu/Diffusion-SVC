@@ -268,9 +268,8 @@ class GaussianDiffusion(nn.Module):
                     # noise prediction model. Here is an example for a diffusion model
                     # `model` with the noise prediction type ("noise") .
                     def my_wrapper(fn):
-                        def wrapped(x, t, cond, **kwargs):
-                            denoise_input = torch.cat([x[:,0,:,:], cond], dim=-2)
-                            ret = fn(denoise_input, t, **kwargs).sample[:,None,:,:]
+                        def wrapped(x, t, **kwargs):
+                            ret = fn(x, t, **kwargs).sample[:,None,:,:]
                             if use_tqdm:
                                 self.bar.update(1)
                             return ret
@@ -292,8 +291,10 @@ class GaussianDiffusion(nn.Module):
                     steps = t // infer_speedup
                     if use_tqdm:
                         self.bar = tqdm(desc="sample time step", total=steps)
+                    
+                    denoise_input = torch.cat([x[:,0,:,:], cond], dim=-2)
                     x = dpm_solver.sample(
-                        x,
+                        denoise_input,
                         steps=steps,
                         order=2,
                         skip_type="time_uniform",
@@ -310,9 +311,8 @@ class GaussianDiffusion(nn.Module):
                     # noise prediction model. Here is an example for a diffusion model
                     # `model` with the noise prediction type ("noise") .
                     def my_wrapper(fn):
-                        def wrapped(x, t, cond, **kwargs):
-                            denoise_input = torch.cat([x[:,0,:,:], cond], dim=-2)
-                            ret = fn(denoise_input, t, **kwargs).sample[:,None,:,:]
+                        def wrapped(x, t, **kwargs):
+                            ret = fn(x, t, **kwargs).sample[:,None,:,:]
                             if use_tqdm:
                                 self.bar.update(1)
                             return ret
@@ -333,8 +333,10 @@ class GaussianDiffusion(nn.Module):
                     steps = t // infer_speedup
                     if use_tqdm:
                         self.bar = tqdm(desc="sample time step", total=steps)
+                    
+                    denoise_input = torch.cat([x[:,0,:,:], cond], dim=-2)
                     x = uni_pc.sample(
-                        x,
+                        denoise_input,
                         steps=steps,
                         order=2,
                         skip_type="time_uniform",
