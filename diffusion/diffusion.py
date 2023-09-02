@@ -279,7 +279,8 @@ class GaussianDiffusion(nn.Module):
                     model_fn = model_wrapper(
                         my_wrapper(self.denoise_fn),
                         noise_schedule,
-                        model_type="noise"  # or "x_start" or "v" or "score"
+                        model_type="noise",  # or "x_start" or "v" or "score"
+                        model_kwargs={"cond": cond}
                     )
 
                     # 3. Define dpm-solver and sample by singlestep DPM-Solver.
@@ -296,7 +297,7 @@ class GaussianDiffusion(nn.Module):
                         steps=steps,
                         order=2,
                         skip_type="time_uniform",
-                        method="multistep",
+                        method="multistep"
                     )
                     if use_tqdm:
                         self.bar.close()
@@ -321,6 +322,7 @@ class GaussianDiffusion(nn.Module):
                         my_wrapper(self.denoise_fn),
                         noise_schedule,
                         model_type="noise",  # or "x_start" or "v" or "score"
+                        model_kwargs={"cond": cond}
                     )
 
                     # 3. Define uni_pc and sample by multistep UniPC.
