@@ -293,9 +293,8 @@ class GaussianDiffusion(nn.Module):
                     if use_tqdm:
                         self.bar = tqdm(desc="sample time step", total=steps)
                     
-                    denoise_input = torch.cat([x[:,0,:,:], cond], dim=-2)
                     x = dpm_solver.sample(
-                        denoise_input,
+                        x,
                         steps=steps,
                         order=2,
                         skip_type="time_uniform",
@@ -336,9 +335,8 @@ class GaussianDiffusion(nn.Module):
                     if use_tqdm:
                         self.bar = tqdm(desc="sample time step", total=steps)
                     
-                    denoise_input = torch.cat([x[:,0,:,:], cond], dim=-2)
                     x = uni_pc.sample(
-                        denoise_input,
+                        x,
                         steps=steps,
                         order=2,
                         skip_type="time_uniform",
