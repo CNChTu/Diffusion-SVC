@@ -11,7 +11,7 @@ def parse_args(args=None, namespace=None):
     parser.add_argument(
         "-t",
         "--trainrate",
-        type=int,
+        type=float,
         default=0.7,
         help="train set rate")
     
