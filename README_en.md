@@ -53,7 +53,7 @@ Place all validation set data (.wav format audio clips) in the `data/val/audio` 
 
 #### ~~1.2 Random Selection by Program (Not Implemented):~~
 
-~~Run `python draw.py`. The program will help you select validation set data (you can adjust parameters such as the number of files to be extracted in `draw.py`).~~
+Run `python draw.py`. The program will help you select validation set data (you can adjust parameters such as the number of files to be extracted in `draw.py`).
 
 #### 1.3 Folder Structure Directory Display:
 **Note: Speaker IDs must start from 1, not 0; if there is only one speaker, this speaker's ID must be 1.**
