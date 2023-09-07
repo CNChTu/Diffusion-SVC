@@ -229,7 +229,7 @@ class AudioDataset(Dataset):
         # get item
         return self.get_data(name_ext, data_buffer)
 
-    def get_data(self, name_ext, data_buffer):
+    def get_data(self, name_ext, data_buffer, reference_duration):
         name = os.path.splitext(name_ext)[0]
         frame_resolution = self.hop_size / self.sample_rate
         duration = data_buffer['duration']
@@ -291,8 +291,7 @@ class AudioDataset(Dataset):
         volume = data_buffer.get(vol_key)
         volume_frames = volume[start_frame: start_frame + units_frame_len]
         
-        # 生成一个范围在reference_duration上下浮动100的随机数
-        reference_duration = self.reference_duration + random.randint(-100, 100)
+        reference_duration = self.reference_duration
 
         start = random.randint(0, mel.shape[0] - reference_duration)
         refer_mel = mel[start:start + reference_duration, :]
