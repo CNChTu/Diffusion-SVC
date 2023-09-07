@@ -229,7 +229,7 @@ class AudioDataset(Dataset):
         # get item
         return self.get_data(name_ext, data_buffer)
 
-    def get_data(self, name_ext, data_buffer, reference_duration):
+    def get_data(self, name_ext, data_buffer):
         name = os.path.splitext(name_ext)[0]
         frame_resolution = self.hop_size / self.sample_rate
         duration = data_buffer['duration']
