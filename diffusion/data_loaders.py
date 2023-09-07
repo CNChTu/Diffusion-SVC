@@ -291,14 +291,16 @@ class AudioDataset(Dataset):
         volume = data_buffer.get(vol_key)
         volume_frames = volume[start_frame: start_frame + units_frame_len]
         
-        # 生成个随机数，范围在mel.shape[0]到mel.shape[0] - self.reference_duration之间
-        start = random.randint(0, mel.shape[0] - self.reference_duration)
-        refer_mel = mel[start:start + self.reference_duration, :]
+        # 生成一个范围在reference_duration上下浮动100的随机数
+        reference_duration = self.reference_duration + random.randint(-100, 100)
+
+        start = random.randint(0, mel.shape[0] - reference_duration)
+        refer_mel = mel[start:start + reference_duration, :]
         if self.is_clip:
-            mel = torch.cat((mel[:start,:],mel[start + self.reference_duration:, :]))
-            f0_frames = torch.cat((f0_frames[:start,:],f0_frames[start + self.reference_duration:, :]))
-            units = torch.cat((units[:start,:],units[start + self.reference_duration:, :]))
-            volume_frames = torch.cat((volume_frames[:start,:],volume_frames[start + self.reference_duration:, :]))
+            mel = torch.cat((mel[:start,:],mel[start + reference_duration:, :]))
+            f0_frames = torch.cat((f0_frames[:start,:],f0_frames[start + reference_duration:, :]))
+            units = torch.cat((units[:start,:],units[start + reference_duration:, :]))
+            volume_frames = torch.cat((volume_frames[:start,:],volume_frames[start + reference_duration:, :]))
 
         # load shift
         aug_shift = torch.from_numpy(np.array([[aug_shift]])).float()
