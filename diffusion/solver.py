@@ -39,13 +39,12 @@ def test(args, model, vocoder, loader_test, saver):
                 data['units'],
                 data['f0'],
                 data['volume'],
-                data['spk_id'],
+                reference_audio_mel = data['refer_mel'],
                 gt_spec=data['mel'],
                 infer=True,
                 infer_speedup=args.infer.speedup,
                 method=args.infer.method,
-                k_step=args.model.k_step_max,
-                spk_emb=data['spk_emb'])
+                k_step=args.model.k_step_max)
             signal = vocoder.infer(mel, data['f0'])
             ed_time = time.time()
 
@@ -62,11 +61,10 @@ def test(args, model, vocoder, loader_test, saver):
                     data['units'],
                     data['f0'],
                     data['volume'],
-                    data['spk_id'],
+                    reference_audio_mel = data['refer_mel'],
                     gt_spec=data['mel'],
                     infer=False,
-                    k_step=args.model.k_step_max,
-                    spk_emb=data['spk_emb'])
+                    k_step=args.model.k_step_max)
                 test_loss += loss.item()
 
             # log mel
@@ -125,14 +123,12 @@ def train(args, initial_global_step, model, optimizer, scheduler, vocoder, loade
 
             # forward
             if dtype == torch.float32:
-                loss = model(data['units'].float(), data['f0'], data['volume'], data['spk_id'],
-                             aug_shift=data['aug_shift'], gt_spec=data['mel'].float(), infer=False, k_step=args.model.k_step_max,
-                             spk_emb=data['spk_emb'])
+                loss = model(data['units'].float(), data['f0'], data['volume'], data['refer_mel'],
+                             aug_shift=data['aug_shift'], gt_spec=data['mel'].float(), infer=False, k_step=args.model.k_step_max)
             else:
                 with autocast(device_type=args.device, dtype=dtype):
-                    loss = model(data['units'], data['f0'], data['volume'], data['spk_id'],
-                                 aug_shift=data['aug_shift'], gt_spec=data['mel'], infer=False, k_step=args.model.k_step_max,
-                                 spk_emb=data['spk_emb'])
+                    loss = model(data['units'], data['f0'], data['volume'], data['refer_mel'],
+                                 aug_shift=data['aug_shift'], gt_spec=data['mel'], infer=False, k_step=args.model.k_step_max)
 
             # handle nan loss
             if torch.isnan(loss):

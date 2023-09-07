@@ -12,7 +12,7 @@ def parse_args(args=None, namespace=None):
         "-t",
         "--trainrate",
         type=float,
-        default=0.7,
+        default=0.9,
         help="train set rate")
     
     
@@ -31,24 +31,23 @@ if __name__ == '__main__':
     train_rate = cmd.trainrate
     test_rate = 1 - train_rate
 
-    for i in list(filter(lambda x: os.path.isdir(f"./dataset_raw/{x}") ,os.listdir('./dataset_raw'))):
-        speaker_path = os.path.join('./dataset_raw', i)
-        # 读取dataset_raw文件夹下的所有.wav文件
-        file_list = list(filter(lambda x: x.endswith('.wav') ,os.listdir(speaker_path)))
-        file_list = list(map(lambda x: os.path.join("./dataset_raw",i,x), file_list))
-        
-        # 打乱文件列表
-        random.shuffle(file_list)
-        train_list = file_list[:int(len(file_list)*train_rate)]
-        val_list = file_list[int(len(file_list)*train_rate):]
+    audio_path = './dataset_raw'
+    # 读取dataset_raw文件夹下的所有.wav文件
+    file_list = list(filter(lambda x: x.endswith('.wav') ,os.listdir(audio_path)))
+    file_list = list(map(lambda x: os.path.join("./dataset_raw",x), file_list))
     
-        train_path = f"./data/train/audio/{i}/"
-        mkdir(train_path)
-        val_path = f"./data/val/audio/{i}/"
-        mkdir(val_path)
+    # 打乱文件列表
+    random.shuffle(file_list)
+    train_list = file_list[:int(len(file_list)*train_rate)]
+    val_list = file_list[int(len(file_list)*train_rate):]
 
-        for j in tqdm(train_list, desc=f"copying {i} train set"):
-            shutil.copy(j, train_path)
-        for j in tqdm(val_list, desc=f"copying {i} val set"):
-            shutil.copy(j, val_path)
+    train_path = f"./data/train/audio/"
+    mkdir(train_path)
+    val_path = f"./data/val/audio/"
+    mkdir(val_path)
+
+    for j in tqdm(train_list, desc=f"copying train set"):
+        shutil.copy(j, train_path)
+    for j in tqdm(val_list, desc=f"copying val set"):
+        shutil.copy(j, val_path)
             

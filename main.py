@@ -40,20 +40,12 @@ def parse_args(args=None, namespace=None):
         help="path to the output audio file",
     )
     parser.add_argument(
-        "-id",
-        "--spk_id",
+        "-ref",
+        "--refer_audio",
         type=str,
-        required=False,
+        required=True,
         default=1,
-        help="speaker id (for multi-speaker model) | default: 1",
-    )
-    parser.add_argument(
-        "-mix",
-        "--spk_mix_dict",
-        type=str,
-        required=False,
-        default="None",
-        help="mix-speaker dictionary (for multi-speaker model) | default: None",
+        help="refer audio path",
     )
     parser.add_argument(
         "-k",
@@ -189,12 +181,17 @@ if __name__ == '__main__':
     in_wav, in_sr = librosa.load(cmd.input, sr=None)
     if len(in_wav.shape) > 1:
         in_wav = librosa.to_mono(in_wav)
+
+    # load wav
+    in_refer, in_rsr = librosa.load(cmd.refer_audio, sr=None)
+    if len(in_wav.shape) > 1:
+        in_wav = librosa.to_mono(in_wav)
+
     # infer
     out_wav, out_sr = diffusion_svc.infer_from_long_audio(
-        in_wav, sr=in_sr,
+        in_refer, sr=(in_sr,in_rsr),
         key=float(cmd.key),
-        spk_id=int(cmd.spk_id),
-        spk_mix_dict=spk_mix_dict,
+        refer_audio=str(cmd.refer_audio),
         aug_shift=int(cmd.formant_shift_key),
         infer_speedup=int(cmd.speedup),
         method=cmd.method,

@@ -68,7 +68,9 @@ def get_data_loaders(args, whole_audio=False):
         use_aug=True,
         use_spk_encoder=args.model.use_speaker_encoder,
         spk_encoder_mode=args.data.speaker_encoder_mode,
-        volume_noise=volume_noise
+        volume_noise=volume_noise,
+        is_clip = True,
+        reference_duration=args.train.reference_duration
     )
     loader_train = torch.utils.data.DataLoader(
         data_train,
@@ -89,7 +91,9 @@ def get_data_loaders(args, whole_audio=False):
         n_spk=args.model.n_spk,
         use_spk_encoder=args.model.use_speaker_encoder,
         spk_encoder_mode=args.data.speaker_encoder_mode,
-        volume_noise=volume_noise
+        volume_noise=volume_noise,
+        is_clip = False,
+        reference_duration=args.train.reference_duration
     )
     loader_valid = torch.utils.data.DataLoader(
         data_valid,
@@ -117,7 +121,9 @@ class AudioDataset(Dataset):
             use_aug=False,
             use_spk_encoder=False,
             spk_encoder_mode='each_spk',
-            volume_noise=None
+            volume_noise=None,
+            is_clip = False,
+            reference_duration = 300
     ):
         super().__init__()
 
@@ -125,8 +131,9 @@ class AudioDataset(Dataset):
         self.sample_rate = sample_rate
         self.hop_size = hop_size
         self.path_root = path_root
-        self.use_spk_encoder = use_spk_encoder
         self.spk_encoder_mode = spk_encoder_mode
+        self.reference_duration = reference_duration
+        self.is_clip = is_clip
         self.paths = traverse_dir(
             os.path.join(path_root, 'audio'),
             extensions=extensions,
@@ -165,16 +172,6 @@ class AudioDataset(Dataset):
                 _noise = volume_noise * torch.rand(aug_vol.shape,).to(device)
                 aug_vol = aug_vol + _noise * torch.sign(aug_vol)
 
-            if n_spk is not None and n_spk > 1:
-                dirname_split = re.split(r"_|\-", os.path.dirname(name_ext), 2)[0]
-                t_spk_id = spk_id = int(dirname_split) if str.isdigit(dirname_split) else 0
-                if spk_id < 1 or spk_id > n_spk:
-                    raise ValueError(
-                        ' [x] Muiti-speaker traing error : spk_id must be a positive integer from 1 to n_spk ')
-            else:
-                spk_id = 1
-                t_spk_id = spk_id
-            spk_id = torch.LongTensor(np.array([spk_id])).to(device)
 
             if load_all_data:
                 '''
@@ -197,17 +194,6 @@ class AudioDataset(Dataset):
                 units = torch.from_numpy(units).to(device)
 
                 spk_emb = torch.rand(1, 1)
-                if use_spk_encoder and (spk_encoder_mode == 'each_spk'):
-                    path_spk_emb_dict = os.path.join(self.path_root, 'spk_emb_dict.npy')
-                    spk_emb = np.load(path_spk_emb_dict, allow_pickle=True).item()
-                    spk_emb = spk_emb[str(t_spk_id)]
-                    spk_emb = np.tile(spk_emb, (units_len, 1))
-                    spk_emb = torch.from_numpy(spk_emb).to(device)
-
-                if use_spk_encoder and (spk_encoder_mode == 'each_wav'):
-                    path_spk_emb = os.path.join(self.path_root, 'spk_emb', name_ext) + '.npy'
-                    spk_emb = np.load(path_spk_emb)
-                    spk_emb = torch.from_numpy(spk_emb).to(device)
 
                 if fp16:
                     mel = mel.half()
@@ -223,8 +209,6 @@ class AudioDataset(Dataset):
                     'f0': f0,
                     'volume': volume,
                     'aug_vol': aug_vol,
-                    'spk_id': spk_id,
-                    't_spk_id': t_spk_id,
                     'spk_emb': spk_emb
                 }
             else:
@@ -233,8 +217,6 @@ class AudioDataset(Dataset):
                     'f0': f0,
                     'volume': volume,
                     'aug_vol': aug_vol,
-                    'spk_id': spk_id,
-                    't_spk_id': t_spk_id
                 }
 
     def __getitem__(self, file_idx):
@@ -297,26 +279,6 @@ class AudioDataset(Dataset):
         else:
             units = units[start_frame: start_frame + units_frame_len]
 
-        # load spk_emb
-        spk_emb = data_buffer.get('spk_emb')
-        if self.use_spk_encoder:
-            if spk_emb is None:
-                spk_emb = os.path.join(self.path_root, 'spk_emb', name_ext) + '.npy'
-                if self.spk_encoder_mode == 'each_wav':
-                    spk_emb = np.load(spk_emb)
-                elif self.spk_encoder_mode == 'each_spk':
-                    path_spk_emb_dict = os.path.join(self.path_root, 'spk_emb_dict.npy')
-                    t_spk_id = data_buffer.get('t_spk_id')
-                    spk_emb = np.load(path_spk_emb_dict, allow_pickle=True).item()
-                    spk_emb = spk_emb[str(t_spk_id)]
-                    spk_emb = np.tile(spk_emb, (units_len, 1))
-                spk_emb = spk_emb[start_frame: start_frame + units_frame_len]
-                spk_emb = torch.from_numpy(spk_emb).float()
-            else:
-                spk_emb = spk_emb[start_frame: start_frame + units_frame_len]
-        else:
-            spk_emb = torch.rand(1, 1)
-
         # load f0
         f0 = data_buffer.get('f0')
         aug_shift = 0
@@ -328,15 +290,21 @@ class AudioDataset(Dataset):
         vol_key = 'aug_vol' if aug_flag else 'volume'
         volume = data_buffer.get(vol_key)
         volume_frames = volume[start_frame: start_frame + units_frame_len]
-
-        # load spk_id
-        spk_id = data_buffer.get('spk_id')
+        
+        # 生成个随机数，范围在mel.shape[0]到mel.shape[0] - self.reference_duration之间
+        start = random.randint(0, mel.shape[0] - self.reference_duration)
+        refer_mel = mel[start:start + self.reference_duration, :]
+        if self.is_clip:
+            mel = torch.cat((mel[:start,:],mel[start + self.reference_duration:, :]))
+            f0_frames = torch.cat((f0_frames[:start,:],f0_frames[start + self.reference_duration:, :]))
+            units = torch.cat((units[:start,:],units[start + self.reference_duration:, :]))
+            volume_frames = torch.cat((volume_frames[:start,:],volume_frames[start + self.reference_duration:, :]))
 
         # load shift
         aug_shift = torch.from_numpy(np.array([[aug_shift]])).float()
 
-        return dict(mel=mel, f0=f0_frames, volume=volume_frames, units=units, spk_id=spk_id, aug_shift=aug_shift,
-                    name=name, name_ext=name_ext, spk_emb=spk_emb)
+        return dict(mel=mel,refer_mel=refer_mel ,f0=f0_frames, volume=volume_frames, units=units, aug_shift=aug_shift,
+                    name=name, name_ext=name_ext)
 
     def __len__(self):
         return len(self.paths)

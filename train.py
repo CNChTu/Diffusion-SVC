@@ -37,15 +37,15 @@ if __name__ == '__main__':
     if args.model.type == 'Diffusion':
         model = Unit2Mel(
                     args.data.encoder_out_channels, 
-                    args.model.n_spk,
                     args.model.use_pitch_aug,
                     vocoder.dimension,
                     args.model.n_layers,
                     args.model.block_out_channels,
                     args.model.n_heads,
                     args.model.n_hidden,
-                    use_speaker_encoder=args.model.use_speaker_encoder,
-                    speaker_encoder_out_channels=args.data.speaker_encoder_out_channels)
+                    mrte_layer=args.model.mrte_layer,
+                    mrte_hident_size=args.model.mrte_hident_size
+                    )
     
     elif args.model.type == 'Naive':
         model = Unit2MelNaive(
