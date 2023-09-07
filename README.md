@@ -1,13 +1,13 @@
 Language: [English](./README_en.md) **简体中文**
 
-# Diffusion-SVC-V2
+# Diffusion-SVC-Zero
 [![Colab_CN](https://img.shields.io/static/v1?label=Colab&message=Notebook&color=F9AB00&logo=googlecolab&style=flat-square)](https://colab.research.google.com/github/CNChTu/Diffusion-SVC/blob/main/Diffusion_SVC_CN.ipynb)
 [![madewithlove](https://forthebadge.com/images/badges/built-with-love.svg)](https://github.com/CNChTu/Diffusion-SVC/)
 [![Discord](https://img.shields.io/discord/1044927142900809739?color=%23738ADB&label=Discord&style=for-the-badge)](https://discord.gg/jvA5c2xzSE)
 
 此仓库是[DDSP-SVC](https://github.com/yxlllc/DDSP-SVC)仓库的扩散部分的单独存放。可单独训练和推理。
 ***
-**本分支的Diffusion-SVC更换为了[Stable Diffusion](https://github.com/AUTOMATIC1111/stable-diffusion-webui)的同款网络UNetConditionModel，特别鸣谢[NS2VC](https://github.com/adelacvg/NS2VC)**
+**本分支的Diffusion-SVC更换为了[Stable Diffusion](https://github.com/AUTOMATIC1111/stable-diffusion-webui)的同款网络UNetConditionModel，增加MRTE支持Zero-Shot，特别鸣谢[NS2VC](https://github.com/adelacvg/NS2VC)**
 
 <br>效果和介绍见[[介绍视频(暂未完成)]]()
 **欢迎加群交流讨论：882426004**
@@ -52,7 +52,7 @@ pip install -r requirements.txt
 
 #### 1.2 程序随机选择：
 
-运行`python draw.py`,程序将帮助你挑选验证集数据（可以调整 `draw.py` 中的参数修改抽取文件的数量等参数）。
+运行`python draw.py`,程序将帮助你挑选验证集数据（可以调整 `draw.py` 中的参数修改抽取文件的数量等参数）。此时音频要放到`dataset_raw`中
 
 #### 1.3文件夹结构目录展示：
 **注意：说话人id必须从1开始，不能从0开始；如果只有一个说话人则该说话人id必须为1**
@@ -61,28 +61,19 @@ pip install -r requirements.txt
 ```
 data
 ├─ train
-│    ├─ audio
-│    │    ├─ 1
-│    │    │   ├─ aaa.wav
-│    │    │   ├─ bbb.wav
-│    │    │   └─ ....wav
-│    │    ├─ 2
-│    │    │   ├─ ccc.wav
-│    │    │   ├─ ddd.wav
-│    │    │   └─ ....wav
-│    │    └─ ...
+│    └─ audio
+│         ├─ aaa.wav
+│         ├─ bbb.wav
+│         └─ ....wav
+│         
 |
 ├─ val
-|    ├─ audio
-│    │    ├─ 1
-│    │    │   ├─ eee.wav
-│    │    │   ├─ fff.wav
-│    │    │   └─ ....wav
-│    │    ├─ 2
-│    │    │   ├─ ggg.wav
-│    │    │   ├─ hhh.wav
-│    │    │   └─ ....wav
-│    │    └─ ...
+|    └─ audio
+│         ├─ eee.wav
+│         ├─ fff.wav
+│         └─ ....wav
+│         
+└─ 
 ```
 
 #### 2. 正式预处理

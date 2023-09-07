@@ -4,14 +4,14 @@ Language: [简体中文](./README.md) **English**
 
 I am not good at English. If there are any errors, please point them out.
 
-# Diffusion-SVC-V2
+# Diffusion-SVC-Zero
 [![Colab_CN](https://img.shields.io/static/v1?label=Colab&message=Notebook&color=F9AB00&logo=googlecolab&style=flat-square)](https://colab.research.google.com/github/CNChTu/Diffusion-SVC/blob/main/Diffusion_SVC_EN.ipynb)
 [![madewithlove](https://forthebadge.com/images/badges/built-with-love.svg)](https://github.com/CNChTu/Diffusion-SVC/)
 [![Discord](https://img.shields.io/discord/1044927142900809739?color=%23738ADB&label=Discord&style=for-the-badge)](https://discord.gg/jvA5c2xzSE)
 
 This repository is a separate storage for the diffusion part of the [DDSP-SVC](https://github.com/yxlllc/DDSP-SVC) repository. It can be trained and inferred independently.
 ***
-**The branch has replaced Diffusion-SVC with the same UNetConditionModel network as [Stable Diffusion](https://github.com/AUTOMATIC1111/stable-diffusion-webui). Special thanks to [NS2VC](https://github.com/adelacvg/NS2VC)**
+**The branch has replaced Diffusion-SVC with the same UNetConditionModel network as [Stable Diffusion](https://github.com/AUTOMATIC1111/stable-diffusion-webui).Add MRTE support for Zero Shot, Special thanks to [NS2VC](https://github.com/adelacvg/NS2VC)**
 
 <br>Samples and introductions can be found in [[Introduction Video(Not done yet)]]()
 
@@ -54,7 +54,7 @@ Place all validation set data (.wav format audio clips) in the `data/val/audio` 
 
 #### 1.2 Random Selection by Program:
 
-Run `python draw.py`. The program will help you select validation set data (you can adjust parameters such as the number of files to be extracted in `draw.py`).
+Run `python draw.py`. The program will help you select validation set data (you can adjust parameters such as the number of files to be extracted in `draw.py`).At this point, the audio needs to be placed in the `dataset_raw`
 
 #### 1.3 Folder Structure Directory Display:
 **Note: Speaker IDs must start from 1, not 0; if there is only one speaker, this speaker's ID must be 1.**
@@ -63,30 +63,20 @@ Run `python draw.py`. The program will help you select validation set data (you 
 ```
 data
 ├─ train
-│    ├─ audio
-│    │    ├─ 1
-│    │    │   ├─ aaa.wav
-│    │    │   ├─ bbb.wav
-│    │    │   └─ ....wav
-│    │    ├─ 2
-│    │    │   ├─ ccc.wav
-│    │    │   ├─ ddd.wav
-│    │    │   └─ ....wav
-│    │    └─ ...
+│    └─ audio
+│         ├─ aaa.wav
+│         ├─ bbb.wav
+│         └─ ....wav
+│         
 |
 ├─ val
-|    ├─ audio
-│    │    ├─ 1
-│    │    │   ├─ eee.wav
-│    │    │   ├─ fff.wav
-│    │    │   └─ ....wav
-│    │    ├─ 2
-│    │    │   ├─ ggg.wav
-│    │    │   ├─ hhh.wav
-│    │    │   └─ ....wav
-│    │    └─ ...
+|    └─ audio
+│         ├─ eee.wav
+│         ├─ fff.wav
+│         └─ ....wav
+│         
+└─ 
 ```
-
 #### 2. Start Preprocessing
 ```bash
 python preprocess.py -c configs/config.yaml
