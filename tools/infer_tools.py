@@ -356,6 +356,10 @@ class DiffusionSVC:
         print(f' [INFO] Extract f0 volume and mask: Done. Use time:{_f0_used_time}')
 
         refer_audio = torchaudio.load(refer_audio)[0].float().to(self.device)
+        
+        if refer_audio.shape[0] == 2:
+            refer_audio = torch.mean(refer_audio, dim=0, keepdim=True)
+
         refer_spec = self.vocoder.extract(refer_audio, in_rsr)
         if k_step is not None:
             assert 0 < int(k_step) <= 1000
