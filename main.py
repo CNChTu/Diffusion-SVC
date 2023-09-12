@@ -165,8 +165,6 @@ if __name__ == '__main__':
     diffusion_svc = DiffusionSVC(device=device)  # 加载模型
     diffusion_svc.load_model(model_path=cmd.model, f0_model=cmd.pitch_extractor, f0_max=cmd.f0_max, f0_min=cmd.f0_min)
 
-    spk_mix_dict = literal_eval(cmd.spk_mix_dict)
-
     naive_model_path = cmd.naive_model
     if naive_model_path is not None:
         if cmd.k_step is None:
@@ -189,7 +187,7 @@ if __name__ == '__main__':
 
     # infer
     out_wav, out_sr = diffusion_svc.infer_from_long_audio(
-        in_refer, sr=(in_sr,in_rsr),
+        in_wav, sr=(in_sr,in_rsr),
         key=float(cmd.key),
         refer_audio=str(cmd.refer_audio),
         aug_shift=int(cmd.formant_shift_key),

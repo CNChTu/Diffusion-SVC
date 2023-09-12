@@ -3,6 +3,7 @@ import time
 import os
 import torch
 import torch.nn.functional
+import torchaudio
 from torchaudio.transforms import Resample
 from tqdm import tqdm
 from diffusion.unit2mel import load_model_vocoder, load_model_vocoder_from_combo
@@ -354,8 +355,7 @@ class DiffusionSVC:
         _f0_used_time = _f0_end_time - _f0_start_time
         print(f' [INFO] Extract f0 volume and mask: Done. Use time:{_f0_used_time}')
 
-        refer_audio = torch.from_numpy(refer_audio).float().to(self.device)
-
+        refer_audio = torchaudio.load(refer_audio)[0].float().to(self.device)
         refer_spec = self.vocoder.extract(refer_audio, in_rsr)
         if k_step is not None:
             assert 0 < int(k_step) <= 1000
@@ -371,7 +371,7 @@ class DiffusionSVC:
         for segment in tqdm(segments):
             start_frame = segment[0]
             seg_input = torch.from_numpy(segment[1]).float().unsqueeze(0).to(self.device)
-            seg_units = self.units_encoder.encode(seg_input, sr, hop_size)
+            seg_units = self.units_encoder.encode(seg_input, in_sr, hop_size)
             #if index_ratio > 0:
             #    seg_units = self.units_indexer(units_t=seg_units, spk_id=spk_id, ratio=index_ratio)
             seg_f0 = f0[:, start_frame: start_frame + seg_units.size(1), :]
@@ -421,7 +421,7 @@ class DiffusionSVC:
         else:
             audio_t_16k = audio_t
 
-        refer_audio = torch.from_numpy(refer_audio).float().to(self.device)
+        refer_audio = torchaudio.load(refer_audio)[0].float().to(self.device)
 
         refer_spec = self.vocoder.extract(refer_audio, in_rsr)
 
