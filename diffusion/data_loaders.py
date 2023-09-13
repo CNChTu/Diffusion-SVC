@@ -70,7 +70,8 @@ def get_data_loaders(args, whole_audio=False):
         spk_encoder_mode=args.data.speaker_encoder_mode,
         volume_noise=volume_noise,
         is_clip = True,
-        reference_duration=args.train.reference_duration
+        reference_duration=args.train.reference_duration,
+        mix_aug_vol = args.train.mix_aug_vol
     )
     loader_train = torch.utils.data.DataLoader(
         data_train,
@@ -93,7 +94,8 @@ def get_data_loaders(args, whole_audio=False):
         spk_encoder_mode=args.data.speaker_encoder_mode,
         volume_noise=volume_noise,
         is_clip = False,
-        reference_duration=args.train.reference_duration
+        reference_duration=args.train.reference_duration,
+        mix_aug_vol = False
     )
     loader_valid = torch.utils.data.DataLoader(
         data_valid,
@@ -123,7 +125,8 @@ class AudioDataset(Dataset):
             spk_encoder_mode='each_spk',
             volume_noise=None,
             is_clip = False,
-            reference_duration = 300
+            reference_duration = 300,
+            mix_aug_vol = False
     ):
         super().__init__()
 
@@ -145,6 +148,8 @@ class AudioDataset(Dataset):
         self.use_aug = use_aug
         self.data_buffer = {}
         self.pitch_aug_dict = np.load(os.path.join(self.path_root, 'pitch_aug_dict.npy'), allow_pickle=True).item()
+        self.mix_aug_vol = mix_aug_vol
+
         if load_all_data:
             print('Load all the data from :', path_root)
         else:
@@ -240,23 +245,8 @@ class AudioDataset(Dataset):
         start_frame = int(idx_from / frame_resolution)
         units_frame_len = int(waveform_sec / frame_resolution)
         aug_flag = random.choice([True, False]) and self.use_aug
-        '''
-        audio = data_buffer.get('audio')
-        if audio is None:
-            path_audio = os.path.join(self.path_root, 'audio', name) + '.wav'
-            audio, sr = librosa.load(
-                    path_audio, 
-                    sr = self.sample_rate, 
-                    offset = start_frame * frame_resolution,
-                    duration = waveform_sec)
-            if len(audio.shape) > 1:
-                audio = librosa.to_mono(audio)
-            # clip audio into N seconds
-            audio = audio[ : audio.shape[-1] // self.hop_size * self.hop_size]       
-            audio = torch.from_numpy(audio).float()
-        else:
-            audio = audio[start_frame * self.hop_size : (start_frame + units_frame_len) * self.hop_size]
-        '''
+        mix_aug_vol = random.choice([True, False]) and self.mix_aug_vol
+
         # load mel
         mel_key = 'aug_mel' if aug_flag else 'mel'
         mel = data_buffer.get(mel_key)
@@ -267,13 +257,23 @@ class AudioDataset(Dataset):
             mel = torch.from_numpy(mel).float()
         else:
             mel = mel[start_frame: start_frame + units_frame_len]
+        
+        if mix_aug_vol:
+            mel_key = 'aug_mel' if not aug_flag else 'mel'
+            another_mel = data_buffer.get(mel_key)
+            if another_mel is None:
+                another_mel = os.path.join(self.path_root, mel_key, name_ext) + '.npy'
+                another_mel = np.load(another_mel)
+                another_mel = another_mel[start_frame: start_frame + units_frame_len]
+                another_mel = torch.from_numpy(another_mel).float()
+            else:
+                another_mel = another_mel[start_frame: start_frame + units_frame_len]
 
         # load units
         units = data_buffer.get('units')
         if units is None:
             units = os.path.join(self.path_root, 'units', name_ext) + '.npy'
             units = np.load(units)
-            units_len = units.shape[0]
             units = units[start_frame: start_frame + units_frame_len]
             units = torch.from_numpy(units).float()
         else:
@@ -294,7 +294,11 @@ class AudioDataset(Dataset):
         reference_duration = self.reference_duration
 
         start = random.randint(0, mel.shape[0] - reference_duration)
-        refer_mel = mel[start:start + reference_duration, :]
+        if mix_aug_vol:
+            refer_mel = another_mel[start:start + reference_duration, :]
+        else:
+            refer_mel = mel[start:start + reference_duration, :]
+
         if self.is_clip:
             mel = torch.cat((mel[:start,:],mel[start + reference_duration:, :]))
             f0_frames = torch.cat((f0_frames[:start,:],f0_frames[start + reference_duration:, :]))

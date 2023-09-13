@@ -75,7 +75,13 @@ if __name__ == '__main__':
         raise ValueError(f" [x] Unknown Model: {args.model.type}")
     
     # load parameters
-    optimizer = torch.optim.AdamW(model.parameters())
+    if args.train.optimizer == 'adamw':
+        optimizer = torch.optim.AdamW(model.parameters())
+    elif args.train.optimizer == 'adam':
+        optimizer = torch.optim.Adam(model.parameters())
+    elif args.train.optimizer == 'lion':
+        from diffusion.lion import Lion
+        optimizer = Lion(model.parameters())
     initial_global_step, model, optimizer = utils.load_model(args.env.expdir, model, optimizer, device=args.device)
     for param_group in optimizer.param_groups:
         param_group['initial_lr'] = args.train.lr

@@ -55,3 +55,5 @@ train:
   weight_decay: 0
   save_opt: false
   reference_duration: 300 # frames 
+  optimizer: 'adamw' # 'adam', 'adamw' or 'lion'
+  mix_aug_vol: true
