@@ -42,7 +42,7 @@ Place all validation set data (.wav format audio clips) in the `data/val/audio` 
 Run `python draw.py`. The program will help you select validation set data (you can adjust parameters such as the number of files to be extracted in `draw.py`).At this point, the audio needs to be placed in the `dataset_raw`
 
 #### 1.3 Folder Structure Directory Display:
-**Note: Speaker IDs must start from 1, not 0; if there is only one speaker, this speaker's ID must be 1.**
+
 - Directory Structure:
 
 ```
