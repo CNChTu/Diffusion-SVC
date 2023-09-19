@@ -80,7 +80,8 @@ def load_svc_model(args, vocoder_dimension):
                     args.model.n_chans,
                     args.model.n_hidden,
                     use_speaker_encoder=args.model.use_speaker_encoder,
-                    speaker_encoder_out_channels=args.data.speaker_encoder_out_channels)
+                    speaker_encoder_out_channels=args.data.speaker_encoder_out_channels,
+                    z_rate=args.model.z_rate)
 
     elif args.model.type == 'Naive':
         model = Unit2MelNaive(
@@ -121,8 +122,10 @@ class Unit2Mel(nn.Module):
             n_chans=384,
             n_hidden=256,
             use_speaker_encoder=False,
-            speaker_encoder_out_channels=256):
+            speaker_encoder_out_channels=256,
+            z_rate=None):
         super().__init__()
+        self.z_rate = z_rate
         self.unit_embed = nn.Linear(input_channel, n_hidden)
         self.f0_embed = nn.Linear(1, n_hidden)
         self.volume_embed = nn.Linear(1, n_hidden)
@@ -143,7 +146,7 @@ class Unit2Mel(nn.Module):
 
     def forward(self, units, f0, volume, spk_id=None, spk_mix_dict=None, aug_shift=None,
                 gt_spec=None, infer=True, infer_speedup=10, method='dpm-solver', k_step=None, use_tqdm=True,
-                spk_emb=None, spk_emb_dict=None):
+                spk_emb=None, spk_emb_dict=None, use_vae=False):
 
         '''
         input: 
@@ -174,7 +177,22 @@ class Unit2Mel(nn.Module):
         if self.aug_shift_embed is not None and aug_shift is not None:
             x = x + self.aug_shift_embed(aug_shift / 5)
 
+        if use_vae:
+            gt_spec = get_z(gt_spec)
+            if self.z_rate is not None:
+                gt_spec = gt_spec * self.z_rate
+
         x = self.decoder(x, gt_spec=gt_spec, infer=infer, infer_speedup=infer_speedup, method=method, k_step=k_step,
                          use_tqdm=use_tqdm)
 
+        if self.z_rate is not None:
+            x = x / self.z_rate
+
         return x
+
+
+def get_z(stack_tensor):
+    m = stack_tensor.transpose(-1, 0)[:1].transpose(-1, 0).squeeze(-1)
+    logs = stack_tensor.transpose(-1, 0)[:1].transpose(-1, 0).squeeze(-1)
+    z = m + torch.randn_like(m) * torch.exp(logs)
+    return z
