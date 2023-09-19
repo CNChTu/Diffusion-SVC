@@ -51,7 +51,7 @@ Place all training set data (.wav format audio clips) in the `data/train/audio` 
 
 Place all validation set data (.wav format audio clips) in the `data/val/audio` folder, or in a directory specified in the configuration file such as `aaaa/bbbb/audio`.
 
-#### ~~1.2 Random Selection by Program (Not Implemented):~~
+#### 1.2 Random Selection by Program :
 
 Run `python draw.py`. The program will help you select validation set data (you can adjust parameters such as the number of files to be extracted in `draw.py`).
 
