@@ -195,6 +195,8 @@ if __name__ == '__main__':
         print('Unmatch vocoder parameters, mel extraction is ignored!')
     elif args.model.use_pitch_aug:
         use_pitch_aug = True
+    if args.vocoder.type == 'hifivaegan':
+        use_pitch_aug = False
 
     # initialize units encoder
     if args.data.encoder == 'cnhubertsoftfish':

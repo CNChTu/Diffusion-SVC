@@ -44,7 +44,8 @@ if __name__ == '__main__':
                     args.model.n_chans,
                     args.model.n_hidden,
                     use_speaker_encoder=args.model.use_speaker_encoder,
-                    speaker_encoder_out_channels=args.data.speaker_encoder_out_channels)
+                    speaker_encoder_out_channels=args.data.speaker_encoder_out_channels,
+                    z_rate=args.model.z_rate)
     
     elif args.model.type == 'Naive':
         model = Unit2MelNaive(
