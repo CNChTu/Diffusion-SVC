@@ -4,3 +4,4 @@ pretrain/nsf_hifigan/model
 data/*
 __pycache__
 exp/*
+dataset_raw/*
