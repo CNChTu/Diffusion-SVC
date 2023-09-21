@@ -24,7 +24,13 @@ model:
   n_hidden: 256
   use_pitch_aug: true  
   n_spk: 1 # max number of different speakers
-  z_rate: 0.1
+  z_rate: 0
+  mean_only: false
+  wn_dilation: 5
+  max_beta: 0.02
+  spec_min: -10
+  spec_max: 10
+
 device: cuda
 vocoder:
   type: 'hifivaegan'
@@ -33,7 +39,7 @@ infer:
   speedup: 1
   method: 'pndm' # 'ddim', 'pndm', 'dpm-solver' or 'unipc'
 env:
-  expdir: exp/vae-test
+  expdir: exp/vae-test2
   gpu_id: 0
 train:
   num_workers: 0 # If your cpu and gpu are both very strong, set to 0 may be faster!
