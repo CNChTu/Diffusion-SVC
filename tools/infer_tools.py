@@ -36,6 +36,7 @@ class DiffusionSVC:
         self.naive_model = None
         self.naive_model_args = None
         self.use_combo_model = False
+        self.enable_gt_mel = False
 
     def load_model(self, model_path, f0_model=None, f0_min=None, f0_max=None):
 
@@ -261,9 +262,14 @@ class DiffusionSVC:
         else:
             print(f' [INFO] Do full 1000 steps depth diffusion {k_step}')
         print(f" [INFO] method:{method}; infer_speedup:{infer_speedup}")
+
+        if self.args.vocoder.type == 'hifivaegan':
+            use_vae = True
+        else:
+            use_vae = False
         return self.model(units, f0, volume, spk_id=spk_id, spk_mix_dict=spk_mix_dict, aug_shift=aug_shift,
                           gt_spec=gt_spec, infer=True, infer_speedup=infer_speedup, method=method, k_step=k_step,
-                          use_tqdm=use_tqdm, spk_emb=spk_emb, spk_emb_dict=spk_emb_dict)
+                          use_tqdm=use_tqdm, spk_emb=spk_emb, spk_emb_dict=spk_emb_dict, use_vae=use_vae)
 
     @torch.no_grad()  # 比__call__多了声码器代码，输出波形
     def infer(self, units, f0, volume, gt_spec=None, spk_id=1, spk_mix_dict=None, aug_shift=0,
@@ -275,12 +281,13 @@ class DiffusionSVC:
                                                 aug_shift=aug_shift, spk_emb=spk_emb)
                 print(f" [INFO] get mel from naive model out.")
             assert gt_spec is not None
-            if self.naive_model is None:
+            if (self.naive_model is None) and (not self.enable_gt_mel):
                 print(f" [INFO] get mel from input wav.")
                 if input(" [WARN] You are attempting shallow diffusion "
                          "on the mel of the input source,"
                          " Please enter 'gt_mel' to continue") != 'gt_mel':
                     raise ValueError("Please understand what you're doing")
+                self.enable_gt_mel = True
             k_step = int(k_step)
             gt_spec = gt_spec
         else:
@@ -374,6 +381,7 @@ class DiffusionSVC:
 
         result = np.zeros(0)
         current_length = 0
+        self.enable_gt_mel = False
         for segment in tqdm(segments):
             start_frame = segment[0]
             seg_input = torch.from_numpy(segment[1]).float().unsqueeze(0).to(self.device)
@@ -448,7 +456,7 @@ class DiffusionSVC:
             units = units[:, start_frame:, :]
             volume = volume[:, start_frame:, :]
 
-        if k_step is not None:
+        if (k_step is not None) and k_step != 1000:
             k_step = int(k_step)
             if (k_step >= 1000) or (k_step <= 0):
                 k_step = 300
