@@ -62,7 +62,7 @@ class ResidualBlock(nn.Module):
 
 
 class WaveNet(nn.Module):
-    def __init__(self, in_dims=128, n_layers=20, n_chans=384, n_hidden=256):
+    def __init__(self, in_dims=128, n_layers=20, n_chans=384, n_hidden=256, dilation=1):
         super().__init__()
         self.input_projection = Conv1d(in_dims, n_chans, 1)
         self.diffusion_embedding = SinusoidalPosEmb(n_chans)
@@ -75,7 +75,7 @@ class WaveNet(nn.Module):
             ResidualBlock(
                 encoder_hidden=n_hidden,
                 residual_channels=n_chans,
-                dilation=1
+                dilation=dilation
             )
             for i in range(n_layers)
         ])

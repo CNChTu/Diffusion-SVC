@@ -81,7 +81,12 @@ def load_svc_model(args, vocoder_dimension):
                     args.model.n_hidden,
                     use_speaker_encoder=args.model.use_speaker_encoder,
                     speaker_encoder_out_channels=args.data.speaker_encoder_out_channels,
-                    z_rate=args.model.z_rate)
+                    z_rate=args.model.z_rate,
+                    mean_only=args.model.mean_only,
+                    wn_dilation=args.model.wn_dilation,
+                    max_beta=args.model.max_beta,
+                    spec_min=args.model.spec_min,
+                    spec_max=args.model.spec_max)
 
     elif args.model.type == 'Naive':
         model = Unit2MelNaive(
@@ -123,9 +128,20 @@ class Unit2Mel(nn.Module):
             n_hidden=256,
             use_speaker_encoder=False,
             speaker_encoder_out_channels=256,
-            z_rate=None):
+            z_rate=None,
+            mean_only=False,
+            wn_dilation=1,
+            max_beta=0.02,
+            spec_min=-12,
+            spec_max=2):
         super().__init__()
         self.z_rate = z_rate
+        self.mean_only = mean_only if (mean_only is not None) else False
+        self.wn_dilation = wn_dilation if (wn_dilation is not None) else 1
+        self.max_beta = max_beta if (max_beta is not None) else 0.02
+        self.spec_min = spec_min if (spec_min is not None) else -12
+        self.spec_max = spec_max if (spec_max is not None) else 2
+
         self.unit_embed = nn.Linear(input_channel, n_hidden)
         self.f0_embed = nn.Linear(1, n_hidden)
         self.volume_embed = nn.Linear(1, n_hidden)
@@ -142,7 +158,11 @@ class Unit2Mel(nn.Module):
                 self.spk_embed = nn.Embedding(n_spk, n_hidden)
 
         # diffusion
-        self.decoder = GaussianDiffusion(WaveNet(out_dims, n_layers, n_chans, n_hidden), out_dims=out_dims)
+        self.decoder = GaussianDiffusion(WaveNet(out_dims, n_layers, n_chans, n_hidden, self.wn_dilation),
+                                         out_dims=out_dims,
+                                         max_beta=self.max_beta,
+                                         spec_min=self.spec_min,
+                                         spec_max=self.spec_max)
 
     def forward(self, units, f0, volume, spk_id=None, spk_mix_dict=None, aug_shift=None,
                 gt_spec=None, infer=True, infer_speedup=10, method='dpm-solver', k_step=None, use_tqdm=True,
@@ -178,21 +198,24 @@ class Unit2Mel(nn.Module):
             x = x + self.aug_shift_embed(aug_shift / 5)
 
         if use_vae:
-            gt_spec = get_z(gt_spec)
-            if self.z_rate is not None:
+            gt_spec = get_z(gt_spec, mean_only=self.mean_only)
+            if (self.z_rate is not None) and (self.z_rate != 0):
                 gt_spec = gt_spec * self.z_rate
 
         x = self.decoder(x, gt_spec=gt_spec, infer=infer, infer_speedup=infer_speedup, method=method, k_step=k_step,
                          use_tqdm=use_tqdm)
 
-        if self.z_rate is not None:
+        if (self.z_rate is not None) and (self.z_rate != 0):
             x = x / self.z_rate
 
         return x
 
 
-def get_z(stack_tensor):
+def get_z(stack_tensor, mean_only=False):
     m = stack_tensor.transpose(-1, 0)[:1].transpose(-1, 0).squeeze(-1)
     logs = stack_tensor.transpose(-1, 0)[:1].transpose(-1, 0).squeeze(-1)
-    z = m + torch.randn_like(m) * torch.exp(logs)
+    if mean_only:
+        z = m + torch.randn_like(m) * torch.exp(logs)
+    else:
+        z = m
     return z
