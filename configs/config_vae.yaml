@@ -30,7 +30,6 @@ model:
   max_beta: 0.02
   spec_min: -10
   spec_max: 10
-
 device: cuda
 vocoder:
   type: 'hifivaegan'
@@ -39,7 +38,7 @@ infer:
   speedup: 1
   method: 'pndm' # 'ddim', 'pndm', 'dpm-solver' or 'unipc'
 env:
-  expdir: exp/vae-test2
+  expdir: exp/vae-test
   gpu_id: 0
 train:
   num_workers: 0 # If your cpu and gpu are both very strong, set to 0 may be faster!
