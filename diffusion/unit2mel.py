@@ -215,7 +215,7 @@ def get_z(stack_tensor, mean_only=False):
     m = stack_tensor.transpose(-1, 0)[:1].transpose(-1, 0).squeeze(-1)
     logs = stack_tensor.transpose(-1, 0)[:1].transpose(-1, 0).squeeze(-1)
     if mean_only:
-        z = m + torch.randn_like(m) * torch.exp(logs)
-    else:
         z = m
+    else:
+        z = m + torch.randn_like(m) * torch.exp(logs)
     return z
