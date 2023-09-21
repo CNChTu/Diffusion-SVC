@@ -45,7 +45,12 @@ if __name__ == '__main__':
                     args.model.n_hidden,
                     use_speaker_encoder=args.model.use_speaker_encoder,
                     speaker_encoder_out_channels=args.data.speaker_encoder_out_channels,
-                    z_rate=args.model.z_rate)
+                    z_rate=args.model.z_rate,
+                    mean_only=args.model.mean_only,
+                    wn_dilation=args.model.wn_dilation,
+                    max_beta=args.model.max_beta,
+                    spec_min=args.model.spec_min,
+                    spec_max=args.model.spec_max)
     
     elif args.model.type == 'Naive':
         model = Unit2MelNaive(
