@@ -75,7 +75,7 @@ class WaveNet(nn.Module):
             ResidualBlock(
                 encoder_hidden=n_hidden,
                 residual_channels=n_chans,
-                dilation=dilation
+                dilation=(2 ** (i % dilation)) if (dilation != 1) else 1
             )
             for i in range(n_layers)
         ])
