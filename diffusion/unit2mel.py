@@ -197,7 +197,7 @@ class Unit2Mel(nn.Module):
         if self.aug_shift_embed is not None and aug_shift is not None:
             x = x + self.aug_shift_embed(aug_shift / 5)
 
-        if use_vae:
+        if use_vae and (gt_spec is not None):
             gt_spec = get_z(gt_spec, mean_only=self.mean_only)
             if (self.z_rate is not None) and (self.z_rate != 0):
                 gt_spec = gt_spec * self.z_rate
