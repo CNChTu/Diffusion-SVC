@@ -29,14 +29,14 @@ class SinusoidalPosEmb(nn.Module):
 
 
 class ResidualBlock(nn.Module):
-    def __init__(self, encoder_hidden, residual_channels, dilation):
+    def __init__(self, encoder_hidden, residual_channels, dilation, kernel_size=3):
         super().__init__()
         self.residual_channels = residual_channels
         self.dilated_conv = nn.Conv1d(
             residual_channels,
             2 * residual_channels,
-            kernel_size=3,
-            padding=dilation,
+            kernel_size=kernel_size,
+            padding=dilation if (kernel_size == 3) else (kernel_size-1) * dilation / 2,
             dilation=dilation
         )
         self.diffusion_projection = nn.Linear(residual_channels, residual_channels)
@@ -62,7 +62,7 @@ class ResidualBlock(nn.Module):
 
 
 class WaveNet(nn.Module):
-    def __init__(self, in_dims=128, n_layers=20, n_chans=384, n_hidden=256, dilation=1):
+    def __init__(self, in_dims=128, n_layers=20, n_chans=384, n_hidden=256, dilation=1, kernel_size=3):
         super().__init__()
         self.input_projection = Conv1d(in_dims, n_chans, 1)
         self.diffusion_embedding = SinusoidalPosEmb(n_chans)
@@ -75,7 +75,8 @@ class WaveNet(nn.Module):
             ResidualBlock(
                 encoder_hidden=n_hidden,
                 residual_channels=n_chans,
-                dilation=(2 ** (i % dilation)) if (dilation != 1) else 1
+                dilation=(2 ** (i % dilation)) if (dilation != 1) else 1,
+                kernel_size=kernel_size
             )
             for i in range(n_layers)
         ])

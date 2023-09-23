@@ -86,7 +86,8 @@ def load_svc_model(args, vocoder_dimension):
                     wn_dilation=args.model.wn_dilation,
                     max_beta=args.model.max_beta,
                     spec_min=args.model.spec_min,
-                    spec_max=args.model.spec_max)
+                    spec_max=args.model.spec_max,
+                    wn_kernel=args.model.wn_kernel)
 
     elif args.model.type == 'Naive':
         model = Unit2MelNaive(
@@ -133,7 +134,8 @@ class Unit2Mel(nn.Module):
             wn_dilation=1,
             max_beta=0.02,
             spec_min=-12,
-            spec_max=2):
+            spec_max=2,
+            wn_kernel=3):
         super().__init__()
         self.z_rate = z_rate
         self.mean_only = mean_only if (mean_only is not None) else False
@@ -141,6 +143,7 @@ class Unit2Mel(nn.Module):
         self.max_beta = max_beta if (max_beta is not None) else 0.02
         self.spec_min = spec_min if (spec_min is not None) else -12
         self.spec_max = spec_max if (spec_max is not None) else 2
+        self.wn_kernel = wn_kernel if (wn_kernel is not None) else 3
 
         self.unit_embed = nn.Linear(input_channel, n_hidden)
         self.f0_embed = nn.Linear(1, n_hidden)
@@ -158,7 +161,7 @@ class Unit2Mel(nn.Module):
                 self.spk_embed = nn.Embedding(n_spk, n_hidden)
 
         # diffusion
-        self.decoder = GaussianDiffusion(WaveNet(out_dims, n_layers, n_chans, n_hidden, self.wn_dilation),
+        self.decoder = GaussianDiffusion(WaveNet(out_dims, n_layers, n_chans, n_hidden, self.wn_dilation, self.wn_kernel),
                                          out_dims=out_dims,
                                          max_beta=self.max_beta,
                                          spec_min=self.spec_min,
