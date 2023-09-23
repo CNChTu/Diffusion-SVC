@@ -36,7 +36,7 @@ class ResidualBlock(nn.Module):
             residual_channels,
             2 * residual_channels,
             kernel_size=kernel_size,
-            padding=dilation if (kernel_size == 3) else (kernel_size-1) * dilation / 2,
+            padding=dilation if (kernel_size == 3) else int((kernel_size-1) * dilation / 2),
             dilation=dilation
         )
         self.diffusion_projection = nn.Linear(residual_channels, residual_channels)
