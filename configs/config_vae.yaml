@@ -24,12 +24,13 @@ model:
   n_hidden: 256
   use_pitch_aug: true  
   n_spk: 1 # max number of different speakers
-  z_rate: 0
-  mean_only: false
-  wn_dilation: 5
+  z_rate: 0 # 0.34535473585
+  mean_only: true
+  wn_dilation: 12
   max_beta: 0.02
-  spec_min: -10
-  spec_max: 10
+  spec_min: -8.1980
+  spec_max: 7.7127
+  wn_kernel: 3
 device: cuda
 vocoder:
   type: 'hifivaegan'
@@ -38,7 +39,7 @@ infer:
   speedup: 1
   method: 'pndm' # 'ddim', 'pndm', 'dpm-solver' or 'unipc'
 env:
-  expdir: exp/vae-test
+  expdir: exp/vae-test0
   gpu_id: 0
 train:
   num_workers: 0 # If your cpu and gpu are both very strong, set to 0 may be faster!
@@ -47,7 +48,7 @@ train:
   cache_all_data: true # Save Internal-Memory or Graphics-Memory if it is false, but may be slow
   cache_device: 'cuda' # Set to 'cuda' to cache the data into the Graphics-Memory, fastest speed for strong gpu
   cache_fp16: false
-  epochs: 100000
+  epochs: 50000
   interval_log: 100
   interval_val: 5000
   interval_force_save: 10000
