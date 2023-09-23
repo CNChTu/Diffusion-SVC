@@ -50,7 +50,8 @@ if __name__ == '__main__':
                     wn_dilation=args.model.wn_dilation,
                     max_beta=args.model.max_beta,
                     spec_min=args.model.spec_min,
-                    spec_max=args.model.spec_max)
+                    spec_max=args.model.spec_max,
+                    wn_kernel=args.model.wn_kernel)
     
     elif args.model.type == 'Naive':
         model = Unit2MelNaive(
