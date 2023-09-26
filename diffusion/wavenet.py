@@ -82,12 +82,13 @@ class WaveNet(nn.Module):
             )
             for i in range(n_layers)
         ])
+        self.transformer_roformer_use = transformer_roformer_use if (transformer_roformer_use is not None) else False
         if transformer_use:
             if transformer_roformer_use:
                 self.transformer = RoFormerEncoder(
                     RoFormerConfig(
-                        embedding_size=n_chans,
-                        hidden_size=n_hidden,
+                        embedding_size=n_hidden,
+                        hidden_size=n_chans,
                         max_position_embeddings=4096,
                         num_attention_heads=transformer_n_head,
                         num_hidden_layers=transformer_n_layers,
@@ -132,6 +133,9 @@ class WaveNet(nn.Module):
         x = self.skip_projection(x)
         x = F.relu(x)
         if self.transformer is not None:
-            x = self.transformer(x.transpose(1, 2)).transpose(1, 2)
+            if self.transformer_roformer_use:
+                x = self.transformer(x.transpose(1, 2))[0].transpose(1, 2)
+            else:
+                x = self.transformer(x.transpose(1, 2)).transpose(1, 2)
         x = self.output_projection(x)  # [B, mel_bins, T]
         return x[:, None, :, :]
