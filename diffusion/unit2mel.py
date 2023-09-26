@@ -166,7 +166,7 @@ class Unit2MelV2(nn.Module):
                           'wn_dilation': 1,
                           'wn_kernel': 3,
                           'wn_tf_use': False,
-                          'wn_rf_use': False,
+                          'wn_tf_rf': False,
                           'wn_tf_n_layers': 2,
                           'wn_tf_n_head': 4}
             denoise_fn = DotDict(denoise_fn)
@@ -178,12 +178,13 @@ class Unit2MelV2(nn.Module):
             self.wn_dilation = denoise_fn.wn_dilation if (denoise_fn.wn_dilation is not None) else 1
             self.wn_kernel = denoise_fn.wn_kernel if (denoise_fn.wn_kernel is not None) else 3
             self.wn_tf_use = denoise_fn.wn_tf_use if (denoise_fn.wn_tf_use is not None) else False
+            self.wn_tf_rf = denoise_fn.wn_tf_rf if (denoise_fn.wn_tf_rf is not None) else False
             self.wn_tf_n_layers = denoise_fn.wn_tf_n_layers if (denoise_fn.wn_tf_n_layers is not None) else 2
             self.wn_tf_n_head = denoise_fn.wn_tf_n_head if (denoise_fn.wn_tf_n_head is not None) else 4
-            self.wn_rf_use = denoise_fn.wn_rf_use if (denoise_fn.wn_rf_use is not None) else False
+
             # init wavenet denoiser
             denoiser = WaveNet(out_dims, self.wn_layers, self.wn_chans, n_hidden, self.wn_dilation, self.wn_kernel,
-                               self.wn_tf_use,self.wn_rf_use, self.wn_tf_n_layers, self.wn_tf_n_head)
+                               self.wn_tf_use, self.wn_tf_rf, self.wn_tf_n_layers, self.wn_tf_n_head)
 
         elif denoise_fn.type == 'ConvNext':
             # catch None
