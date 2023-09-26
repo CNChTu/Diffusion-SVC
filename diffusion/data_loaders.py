@@ -7,6 +7,7 @@ import torch
 import random
 from tqdm import tqdm
 from torch.utils.data import Dataset
+import copy
 
 
 def traverse_dir(
@@ -295,9 +296,9 @@ class AudioDataset(Dataset):
 
         start = random.randint(0, mel.shape[0] - reference_duration)
         if mix_aug_vol:
-            refer_mel = another_mel[start:start + reference_duration, :]
+            refer_mel = copy.deepcopy(another_mel[start:start + reference_duration, :])
         else:
-            refer_mel = mel[start:start + reference_duration, :]
+            refer_mel = copy.deepcopy(mel[start:start + reference_duration, :])
 
         if self.is_clip:
             mel = torch.cat((mel[:start,:],mel[start + reference_duration:, :]))
