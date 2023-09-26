@@ -18,19 +18,24 @@ data:
   extensions: # List of extension included in the data collection
     - wav
 model:
-  type: 'Diffusion'
-  n_layers: 20
-  n_chans: 512
+  type: 'DiffusionV2'
   n_hidden: 256
   use_pitch_aug: true  
   n_spk: 1 # max number of different speakers
-  z_rate: 0 # 0.34535473585
+  z_rate: 0 # dont change
   mean_only: true
-  wn_dilation: 12
   max_beta: 0.02
   spec_min: -8.1980
   spec_max: 7.7127
-  wn_kernel: 3
+  denoise_fn:
+    type: 'WaveNet'
+    wn_layers: 20
+    wn_chans: 512
+    wn_dilation: 4 # dont change
+    wn_kernel: 3 # dont change
+    wn_tf_use: true
+    wn_tf_n_layers: 2
+    wn_tf_n_head: 4
 device: cuda
 vocoder:
   type: 'hifivaegan'
