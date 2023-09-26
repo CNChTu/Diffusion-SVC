@@ -5,7 +5,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from torch.nn import Mish
-
+from transformers.models.roformer.modeling_roformer import RoFormerEncoder, RoFormerConfig
 
 class Conv1d(torch.nn.Conv1d):
     def __init__(self, *args, **kwargs):
@@ -63,7 +63,7 @@ class ResidualBlock(nn.Module):
 
 class WaveNet(nn.Module):
     def __init__(self, in_dims=128, n_layers=20, n_chans=384, n_hidden=256, dilation=1, kernel_size=3,
-                 transformer_use=False, transformer_n_layers=2, transformer_n_head=4):
+                 transformer_use=False, roformer_use=False, transformer_n_layers=2, transformer_n_head=4):
         super().__init__()
         self.input_projection = Conv1d(in_dims, n_chans, 1)
         self.diffusion_embedding = SinusoidalPosEmb(n_chans)
@@ -92,6 +92,20 @@ class WaveNet(nn.Module):
             self.transformer = nn.TransformerEncoder(transformer_layer, num_layers=transformer_n_layers)
         else:
             self.transformer = None
+        if roformer_use:
+            self.roformer = RoFormerEncoder(
+                RoFormerConfig(
+                    embedding_size=n_chans,
+                    hidden_size=n_hidden,
+                    max_position_embeddings=4096,
+                    num_attention_heads=transformer_n_head,
+                    num_hidden_layers=transformer_n_layers,
+                    add_cross_attention=False,
+
+                )
+            )
+        else:
+            self.roformer = None
         self.skip_projection = Conv1d(n_chans, n_chans, 1)
         self.output_projection = Conv1d(n_chans, in_dims, 1)
         nn.init.zeros_(self.output_projection.weight)
@@ -119,5 +133,7 @@ class WaveNet(nn.Module):
         x = F.relu(x)
         if self.transformer is not None:
             x = self.transformer(x.transpose(1, 2)).transpose(1, 2)
+        if self.roformer is not None:
+            x = self.roformer(x.transpose(1, 2))[0].transpose(1, 2)
         x = self.output_projection(x)  # [B, mel_bins, T]
         return x[:, None, :, :]

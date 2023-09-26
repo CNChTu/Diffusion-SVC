@@ -33,7 +33,8 @@ model:
     wn_chans: 512
     wn_dilation: 4 # dont change
     wn_kernel: 3 # dont change
-    wn_tf_use: true
+    wn_tf_use: false
+    wn_rf_use: true
     wn_tf_n_layers: 2
     wn_tf_n_head: 4
 device: cuda
