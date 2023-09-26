@@ -28,15 +28,11 @@ model:
   spec_min: -8.1980
   spec_max: 7.7127
   denoise_fn:
-    type: 'WaveNet'
-    wn_layers: 20
-    wn_chans: 512
-    wn_dilation: 4 # dont change
-    wn_kernel: 3 # dont change
-    wn_tf_use: true # use WaveNet with Transformer
-    wn_tf_rf: false # only wn_tf_use is true and here is true will use RoFormer
-    wn_tf_n_layers: 2
-    wn_tf_n_head: 4
+    type: 'ConvNext'
+    cn_layers: 20
+    cn_chans: 512
+    cn_dilation_cycle: 12
+    mlp_factor: 4
 device: cuda
 vocoder:
   type: 'hifivaegan'
@@ -45,7 +41,7 @@ infer:
   speedup: 1
   method: 'pndm' # 'ddim', 'pndm', 'dpm-solver' or 'unipc'
 env:
-  expdir: exp/vae-test0
+  expdir: exp/vae-test2
   gpu_id: 0
 train:
   num_workers: 0 # If your cpu and gpu are both very strong, set to 0 may be faster!
