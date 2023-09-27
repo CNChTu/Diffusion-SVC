@@ -192,6 +192,8 @@ class Unit2MelV2(nn.Module):
             self.cn_chans = denoise_fn.cn_chans if (denoise_fn.cn_chans is not None) else 384
             self.cn_dilation_cycle = denoise_fn.cn_dilation_cycle if (denoise_fn.cn_dilation_cycle is not None) else 4
             self.mlp_factor = denoise_fn.mlp_factor if (denoise_fn.mlp_factor is not None) else 4
+            self.gradient_checkpointing = denoise_fn.gradient_checkpointing if (
+                    denoise_fn.gradient_checkpointing is not None) else False
             # init convnext denoiser
             denoiser = ConvNext(
                 mel_channels=out_dims,
@@ -200,6 +202,7 @@ class Unit2MelV2(nn.Module):
                 condition_dim=n_hidden,
                 num_layers=self.cn_layers,
                 dilation_cycle=self.cn_dilation_cycle,
+                gradient_checkpointing=self.gradient_checkpointing
             )
 
         else:

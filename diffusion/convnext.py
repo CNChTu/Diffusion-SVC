@@ -140,7 +140,9 @@ class ConvNext(nn.Module):
 
         self.gradient_checkpointing = gradient_checkpointing
 
-    def forward(self, x, diffusion_step, conditioner):
+    def forward(self, spec, diffusion_step, cond):
+        x = spec
+        conditioner = cond
         """
 
         :param x: [B, M, T]
