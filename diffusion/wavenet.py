@@ -87,7 +87,6 @@ class WaveNet(nn.Module):
             if transformer_roformer_use:
                 self.transformer = RoFormerEncoder(
                     RoFormerConfig(
-                        embedding_size=n_hidden,
                         hidden_size=n_chans,
                         max_position_embeddings=4096,
                         num_attention_heads=transformer_n_head,
