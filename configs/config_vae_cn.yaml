@@ -29,10 +29,11 @@ model:
   spec_max: 7.7127
   denoise_fn:
     type: 'ConvNext'
-    cn_layers: 20
-    cn_chans: 512
+    cn_layers: 40
+    cn_chans: 768
     cn_dilation_cycle: 12
     mlp_factor: 4
+    gradient_checkpointing: false
 device: cuda
 vocoder:
   type: 'hifivaegan'
@@ -44,10 +45,10 @@ env:
   expdir: exp/vae-test2
   gpu_id: 0
 train:
-  num_workers: 0 # If your cpu and gpu are both very strong, set to 0 may be faster!
+  num_workers: 8 # If your cpu and gpu are both very strong, set to 0 may be faster!
   amp_dtype: fp32 # fp32, fp16 or bf16 (fp16 or bf16 may be faster if it is supported by your gpu)
   batch_size: 48
-  cache_all_data: true # Save Internal-Memory or Graphics-Memory if it is false, but may be slow
+  cache_all_data: false # Save Internal-Memory or Graphics-Memory if it is false, but may be slow
   cache_device: 'cuda' # Set to 'cuda' to cache the data into the Graphics-Memory, fastest speed for strong gpu
   cache_fp16: false
   epochs: 50000
