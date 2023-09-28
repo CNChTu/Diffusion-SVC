@@ -163,6 +163,9 @@ class Unit2Mel(nn.Module):
             dict of B x n_frames x feat
         '''
 
+        # x = self.mrte(self.unit_embed(units), reference_audio_mel)
+        # x += self.f0_embed((1 + f0 / 700).log()) + self.volume_embed(volume)
+
         x = self.unit_embed(units) + self.f0_embed((1 + f0 / 700).log()) + self.volume_embed(volume)
         if self.aug_shift_embed is not None and aug_shift is not None:
             x = x + self.aug_shift_embed(aug_shift / 5)
