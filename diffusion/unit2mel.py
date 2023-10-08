@@ -159,8 +159,17 @@ class Unit2Mel(nn.Module):
         return: 
             dict of B x n_frames x feat
         '''
+        
+        if f0 is None:
+            f0 = 0
+        else:
+            f0 = self.f0_embed((1 + f0 / 700).log())
+        if volume is None:
+            volume = 0
+        else:
+            volume = self.volume_embed(volume)
 
-        x = self.unit_embed(units) + self.f0_embed((1 + f0 / 700).log()) + self.volume_embed(volume)
+        x = self.unit_embed(units) + f0 + volume
         if self.use_speaker_encoder:
             if spk_mix_dict is not None:
                 assert spk_emb_dict is not None

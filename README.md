@@ -262,6 +262,8 @@ python diffusion/onnx_export.py --project <ProjectName>
 * [DiffSinger (OpenVPI version)](https://github.com/openvpi/DiffSinger)
 * [NS2VC](https://github.com/adelacvg/NS2VC)
 * [diffusers](https://github.com/huggingface/diffusers)
+* [BERT-VITS2](https://github.com/fishaudio/Bert-VITS2)
+
 ## 感谢所有贡献者作出的努力
 <a href="https://github.com/CNChTu/Diffusion-SVC/graphs/contributors">
   <img src="https://contrib.rocks/image?repo=CNChTu/Diffusion-SVC" />

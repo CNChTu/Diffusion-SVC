@@ -15,6 +15,7 @@ data:
   volume_noise: 0 # if not 0 ,add noise for volume in train ;;;;EXPERIMENTAL FUNCTION, NOT RECOMMENDED FOR USE;;;;
   train_path: data/train # Create a folder named "audio" under this path and put the audio clip in it
   valid_path: data/val # Create a folder named "audio" under this path and put the audio clip in it
+  is_tts: true # If TTS or VC, it is false, if SVC, it is true
   extensions: # List of extension included in the data collection
     - wav
 model:
@@ -26,6 +27,10 @@ model:
   n_hidden: 256
   use_pitch_aug: true  
   n_spk: 1 # max number of different speakers
+  text2semantic:
+    type: 'llama'
+    mode: 'phone' # choice: phone, phone+text, phone+bert, phone+text+bert
+    semantic_kmeans_num: 10000
 device: cuda
 vocoder:
   type: 'nsf-hifigan'

@@ -10,7 +10,7 @@ from tqdm import tqdm
 from tools.tools import F0_Extractor, Volume_Extractor, Units_Encoder, SpeakerEncoder
 from diffusion.vocoder import Vocoder
 from logger.utils import traverse_dir
-
+from text.cleaner import text_to_sequence
 
 def parse_args(args=None, namespace=None):
     """Parse command-line arguments."""
@@ -28,11 +28,17 @@ def parse_args(args=None, namespace=None):
         default=None,
         required=False,
         help="cpu or cuda, auto if not set")
+    parser.add_argument(
+        "-t",
+        "--tts",
+        action='store_true',
+        default= True,
+        help="train tts model")
     return parser.parse_args(args=args, namespace=namespace)
 
 
 def preprocess(path, f0_extractor, volume_extractor, mel_extractor, units_encoder, sample_rate, hop_size,
-               device='cuda', use_pitch_aug=False, extensions=['wav'], speaker_encoder=None):
+               device='cuda', use_pitch_aug=False, extensions=['wav'], speaker_encoder=None, is_tts = False, text2semantic_mode = "phone"):
     path_srcdir = os.path.join(path, 'audio')
     path_unitsdir = os.path.join(path, 'units')
     path_f0dir = os.path.join(path, 'f0')
@@ -42,7 +48,9 @@ def preprocess(path, f0_extractor, volume_extractor, mel_extractor, units_encode
     path_augmeldir = os.path.join(path, 'aug_mel')
     path_skipdir = os.path.join(path, 'skip')
     path_spk_embdir = os.path.join(path, 'spk_emb')
-
+    if is_tts:
+        path_uttdir = os.path.join(path, 'utt')
+        
     # list files
     filelist = traverse_dir(
         path_srcdir,
@@ -66,7 +74,16 @@ def preprocess(path, f0_extractor, volume_extractor, mel_extractor, units_encode
         path_augmelfile = os.path.join(path_augmeldir, binfile)
         path_skipfile = os.path.join(path_skipdir, file)
         path_spk_embfile = os.path.join(path_spk_embdir, binfile)
-
+        if is_tts:
+            path_uttfile = os.path.join(path_srcdir, file)
+            path_uttfile = os.path.dirname(path_uttfile)
+            path_uttfile = os.path.join(path_uttfile,"utt_text.txt")
+            with open(path_uttfile,"r",encoding="UTF8") as f:
+                utt_text = {}
+                for f_i in f.readlines():
+                    k, v = f_i.replace("\n","").split("|")
+                    utt_text[k] = v
+            path_uttfile = os.path.join(path_uttdir, binfile)
         # load audio
         audio, _ = librosa.load(path_srcfile, sr=sample_rate)
         if len(audio.shape) > 1:
@@ -76,7 +93,18 @@ def preprocess(path, f0_extractor, volume_extractor, mel_extractor, units_encode
 
         # extract volume
         volume = volume_extractor.extract(audio, sr=sample_rate)
-
+        
+        if is_tts:
+            # 得到文件名
+            file_name = os.path.split(file)[-1]
+            # 得到文本
+            text = utt_text[file_name]
+            # 文本转换为音素
+            (phones, tones, lang_ids), (norm_text, word2ph) = text_to_sequence(text, "ZH")
+            # 保存音素
+            os.makedirs(os.path.dirname(path_uttfile), exist_ok=True)
+            np.save(path_uttfile, np.array((np.array(phones), np.array(tones), np.array(lang_ids), np.array(word2ph)),dtype=object), allow_pickle=True)
+            
         # extract mel and volume augmentaion
         if mel_extractor is not None:
             mel_t = mel_extractor.extract(audio_t, sample_rate)
@@ -158,6 +186,7 @@ if __name__ == '__main__':
     cmd = parse_args()
 
     device = cmd.device
+    is_tts = cmd.tts
     if device is None:
         device = 'cuda' if torch.cuda.is_available() else 'cpu'
 
@@ -221,12 +250,12 @@ if __name__ == '__main__':
     # preprocess training set
     preprocess(args.data.train_path, f0_extractor, volume_extractor, mel_extractor, units_encoder, sample_rate,
                hop_size,
-               device=device, use_pitch_aug=use_pitch_aug, extensions=extensions, speaker_encoder=speaker_encoder)
+               device=device, use_pitch_aug=use_pitch_aug, extensions=extensions, speaker_encoder=speaker_encoder,is_tts = is_tts, text2semantic_mode=args.model.text2semantic.mode)
 
     # preprocess validation set
     preprocess(args.data.valid_path, f0_extractor, volume_extractor, mel_extractor, units_encoder, sample_rate,
                hop_size,
-               device=device, use_pitch_aug=False, extensions=extensions, speaker_encoder=speaker_encoder)
+               device=device, use_pitch_aug=False, extensions=extensions, speaker_encoder=speaker_encoder,is_tts = is_tts, text2semantic_mode=args.model.text2semantic.mode)
 
     # get spk_emb_dict
     if args.model.use_speaker_encoder:

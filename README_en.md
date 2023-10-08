@@ -261,6 +261,8 @@ After the export is completed, a configuration file for [MoeVS](https://github.c
 * [DiffSinger (OpenVPI version)](https://github.com/openvpi/DiffSinger)
 * [NS2VC](https://github.com/adelacvg/NS2VC)
 * [diffusers](https://github.com/huggingface/diffusers)
+* [BERT-VITS2](https://github.com/fishaudio/Bert-VITS2)
+
 
 ## Thank you to all contributors for their efforts
 <a href="https://github.com/CNChTu/Diffusion-SVC/graphs/contributors">

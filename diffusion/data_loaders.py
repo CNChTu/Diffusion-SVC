@@ -68,7 +68,8 @@ def get_data_loaders(args, whole_audio=False):
         use_aug=True,
         use_spk_encoder=args.model.use_speaker_encoder,
         spk_encoder_mode=args.data.speaker_encoder_mode,
-        volume_noise=volume_noise
+        volume_noise=volume_noise,
+        is_tts = args.train.is_f0
     )
     loader_train = torch.utils.data.DataLoader(
         data_train,
@@ -89,7 +90,8 @@ def get_data_loaders(args, whole_audio=False):
         n_spk=args.model.n_spk,
         use_spk_encoder=args.model.use_speaker_encoder,
         spk_encoder_mode=args.data.speaker_encoder_mode,
-        volume_noise=volume_noise
+        volume_noise=volume_noise,
+        is_tts = args.train.is_f0
     )
     loader_valid = torch.utils.data.DataLoader(
         data_valid,
@@ -117,7 +119,8 @@ class AudioDataset(Dataset):
             use_aug=False,
             use_spk_encoder=False,
             spk_encoder_mode='each_spk',
-            volume_noise=None
+            volume_noise=None,
+            is_tts=True,
     ):
         super().__init__()
 
@@ -147,23 +150,29 @@ class AudioDataset(Dataset):
             path_audio = os.path.join(self.path_root, 'audio', name_ext)
             duration = librosa.get_duration(filename=path_audio, sr=self.sample_rate)
 
-            path_f0 = os.path.join(self.path_root, 'f0', name_ext) + '.npy'
-            f0 = np.load(path_f0)
-            f0 = torch.from_numpy(f0).float().unsqueeze(-1).to(device)
+            if not is_tts:
+                path_f0 = os.path.join(self.path_root, 'f0', name_ext) + '.npy'
+                f0 = np.load(path_f0)
+                f0 = torch.from_numpy(f0).float().unsqueeze(-1).to(device)
 
-            path_volume = os.path.join(self.path_root, 'volume', name_ext) + '.npy'
-            volume = np.load(path_volume)
-            volume = torch.from_numpy(volume).float().unsqueeze(-1).to(device)
-            if volume_noise is not None:
-                _noise = volume_noise * torch.rand(volume.shape,).to(device)
-                volume = volume + _noise * torch.sign(volume)
+                path_volume = os.path.join(self.path_root, 'volume', name_ext) + '.npy'
+                volume = np.load(path_volume)
+                volume = torch.from_numpy(volume).float().unsqueeze(-1).to(device)
+                if volume_noise is not None:
+                    _noise = volume_noise * torch.rand(volume.shape,).to(device)
+                    volume = volume + _noise * torch.sign(volume)
 
-            path_augvol = os.path.join(self.path_root, 'aug_vol', name_ext) + '.npy'
-            aug_vol = np.load(path_augvol)
-            aug_vol = torch.from_numpy(aug_vol).float().unsqueeze(-1).to(device)
-            if volume_noise is not None:
-                _noise = volume_noise * torch.rand(aug_vol.shape,).to(device)
-                aug_vol = aug_vol + _noise * torch.sign(aug_vol)
+                path_augvol = os.path.join(self.path_root, 'aug_vol', name_ext) + '.npy'
+                aug_vol = np.load(path_augvol)
+                aug_vol = torch.from_numpy(aug_vol).float().unsqueeze(-1).to(device)
+                if volume_noise is not None:
+                    _noise = volume_noise * torch.rand(aug_vol.shape,).to(device)
+                    aug_vol = aug_vol + _noise * torch.sign(aug_vol)
+            else:
+                f0 = None
+                aug_vol = None
+                volume = None
+
 
             if n_spk is not None and n_spk > 1:
                 dirname_split = re.split(r"_|\-", os.path.dirname(name_ext), 2)[0]
@@ -186,11 +195,12 @@ class AudioDataset(Dataset):
                 path_mel = os.path.join(self.path_root, 'mel', name_ext) + '.npy'
                 mel = np.load(path_mel)
                 mel = torch.from_numpy(mel).to(device)
-
-                path_augmel = os.path.join(self.path_root, 'aug_mel', name_ext) + '.npy'
-                aug_mel = np.load(path_augmel)
-                aug_mel = torch.from_numpy(aug_mel).to(device)
-
+                if not is_tts:
+                    path_augmel = os.path.join(self.path_root, 'aug_mel', name_ext) + '.npy'
+                    aug_mel = np.load(path_augmel)
+                    aug_mel = torch.from_numpy(aug_mel).to(device)
+                else:
+                    aug_mel = mel
                 path_units = os.path.join(self.path_root, 'units', name_ext) + '.npy'
                 units = np.load(path_units)
                 units_len = units.shape[0]
