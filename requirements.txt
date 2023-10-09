@@ -24,3 +24,4 @@ pysimplegui
 sounddevice
 gradio
 faiss-cpu
+pynvml
