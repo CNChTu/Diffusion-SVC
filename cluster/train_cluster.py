@@ -53,7 +53,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument('--dataset', type=Path, default="./data/train/units",
                         help='path of training data directory')
-    parser.add_argument('--output', type=Path, default="data",
+    parser.add_argument('--output', type=Path, default="pretrain",
                         help='path of model output directory')
     parser.add_argument('--gpu',action='store_true', default=False ,
                         help='to use GPU')
