@@ -188,7 +188,7 @@ class KMeansGPU:
         c_grad = mask @ x / mask.sum(-1)[..., :, None]
         c_grad[c_grad!=c_grad] = 0 # remove NaNs
         error = (c_grad - self.centroids).pow(2).sum()
-        loop.set_postfix(error = error)
+        loop.set_postfix(error = error.item())
         if self.minibatch is not None:
           lr = 1/num_points_in_clusters[:,None] * 0.9 + 0.1
         else:
