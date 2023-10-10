@@ -173,7 +173,8 @@ class KMeansGPU:
         X = X[torch.randint(0, batch_size,[self.minibatch])].to(self.device)
       elif(self.minibatch>=batch_size):
         X=X.to(self.device)
-      for i in tqdm(range(self.max_iter)):
+      last_error = -1
+      for i in tqdm(range(self.max_iter) , total=last_error):
         iter_time = time()
         if self.minibatch<batch_size//2: # 可用minibatch数太小，每次都得从内存倒腾到显存
           x = X[torch.randint(0, batch_size, [self.minibatch])].to(self.device)
@@ -187,6 +188,7 @@ class KMeansGPU:
         c_grad = mask @ x / mask.sum(-1)[..., :, None]
         c_grad[c_grad!=c_grad] = 0 # remove NaNs
         error = (c_grad - self.centroids).pow(2).sum()
+        last_error = error
         if self.minibatch is not None:
           lr = 1/num_points_in_clusters[:,None] * 0.9 + 0.1
         else:
