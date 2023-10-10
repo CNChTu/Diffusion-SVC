@@ -75,7 +75,7 @@ if __name__ == "__main__":
             in_dirs.append(in_dir)
     x = train_cluster(in_dirs, n_clusters,use_minibatch=False,verbose=False,use_gpu=use_gpu)
 
-    checkpoint_path = checkpoint_dir / f"kmeans_{n_clusters}.pt"
+    checkpoint_path = checkpoint_dir / "semantic_codebook.pt"
     checkpoint_path.parent.mkdir(exist_ok=True, parents=True)
     torch.save(
         x,
