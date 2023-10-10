@@ -1,4 +1,5 @@
 checkpoint_best_legacy_500.pt
+semantic_codebook.pt
 pretrain/nsf_hifigan/config.json
 pretrain/nsf_hifigan/model
 data/*
