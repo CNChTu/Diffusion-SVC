@@ -1,4 +1,4 @@
-from transformers import RoFormerForCausalLM, RoFormerModel, RoFormerConfig
+from transformers import RoFormerForCausalLM, RoFormerModel, RoFormerConfig, GenerationConfig
 import torch
 from torch import nn
 from text.symbols import *
@@ -40,6 +40,10 @@ class Roformer(nn.Module):
         config.pad_token_id = semantic_kmeans_num + 2
         config.vocab_size = semantic_kmeans_num + 3
 
+        self.semantic_bos_token_id = semantic_kmeans_num
+        self.semantic_eos_token_id = semantic_kmeans_num + 1
+        self.semantic_pad_token_id = semantic_kmeans_num + 2
+
         config.type_vocab_size = 1
         config.is_decoder = True
         config.add_cross_attention = True
@@ -65,7 +69,6 @@ class Roformer(nn.Module):
         return_dict=None,
         **kwargs
     ):
-        B,T = phone.shape
         phone_tone_emb = self.text_encoder.embeddings(phone,tone)
 
         encoder_hidden_states = self.text_encoder(
@@ -87,6 +90,57 @@ class Roformer(nn.Module):
         )
         return outputs
 
+    def generate(self,
+                 phone,
+                 tone,
+                 attention_mask=None,
+                 use_cache=None,
+                 max_length=1024,
+                 do_sample=True,
+                 temperature=1.0,
+                 top_k=5,
+                 top_p=1.0,
+                 repetition_penalty=1.0,
+                 num_beams=1,
+                 no_repeat_ngram_size = 0,
+                 early_stopping = True,
+                 ):
+        phone_tone_emb = self.text_encoder.embeddings(phone,tone)
+
+        encoder_hidden_states = self.text_encoder(
+            inputs_embeds = phone_tone_emb,
+            attention_mask = attention_mask,
+            use_cache = use_cache
+        )[0]
+
+        if num_beams == 1:
+            early_stopping = False
+
+        generation_config = GenerationConfig(
+            max_length=max_length,
+            do_sample=do_sample,
+            temperature=temperature,
+            top_k=top_k,
+            top_p=top_p,
+            repetition_penalty=repetition_penalty,
+            num_beams=num_beams,
+            no_repeat_ngram_size = no_repeat_ngram_size,
+            early_stopping = early_stopping,
+            bos_token_id = self.semantic_bos_token_id
+        )
+
+        outputs = self.semantic_decoder.generate(
+            encoder_hidden_states = encoder_hidden_states,
+            encoder_attention_mask = attention_mask,
+            attention_mask = attention_mask,
+            use_cache = use_cache,
+            generation_config=generation_config
+        )
+
+        return outputs
+
+
+
 if __name__ == '__main__':
     a = RoFormerConfig(
          hidden_size=768,
@@ -102,4 +156,6 @@ if __name__ == '__main__':
     labels = torch.LongTensor([[1,2,3,4,5,6,7,8,9,10,11,12,13,14,15]])
     outputs = b(phone=phone, tone=tone, semantic=semantic,labels=labels)
     print(outputs)
+    generate = b.generate(phone=phone, tone=tone, attention_mask=None)
+    print(generate)
 

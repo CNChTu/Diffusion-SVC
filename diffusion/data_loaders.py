@@ -146,7 +146,6 @@ class AudioDataset(Dataset):
         else:
             print('Load the f0, volume data from :', path_root)
         for name_ext in tqdm(self.paths, total=len(self.paths)):
-            name = os.path.splitext(name_ext)[0]
             path_audio = os.path.join(self.path_root, 'audio', name_ext)
             duration = librosa.get_duration(filename=path_audio, sr=self.sample_rate)
 
