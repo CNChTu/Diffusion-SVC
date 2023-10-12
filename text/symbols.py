@@ -1,5 +1,6 @@
 punctuation = ['!', '?', '…', ",", ".", "'", '-']
 pu_symbols = punctuation + ["SP", "UNK"]
+
 pad = '_'
 
 # chinese
@@ -26,6 +27,7 @@ num_en_tones = 4
 normal_symbols = sorted(set(zh_symbols + ja_symbols + en_symbols))
 symbols = [pad] + normal_symbols + pu_symbols
 sil_phonemes_ids = [symbols.index(i) for i in pu_symbols]
+pad_id = 0
 
 # combine all tones
 num_tones = num_zh_tones + num_ja_tones + num_en_tones
@@ -48,4 +50,5 @@ if __name__ == '__main__':
     a = set(zh_symbols)
     b = set(en_symbols)
     print(sorted(a&b))
+    print(sil_phonemes_ids)
 
