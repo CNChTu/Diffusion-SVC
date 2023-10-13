@@ -7,6 +7,7 @@ from text2semantic.saver import Saver,Saver_empty
 from logger import utils
 from torch import autocast
 from torch.cuda.amp import GradScaler
+from torch.nn.parallel import DistributedDataParallel
 
 @torch.no_grad()
 def test(args, model, loader_test, diffusion_model, saver, accelerator):
@@ -101,12 +102,16 @@ def train(args, initial_global_step, model, optimizer, scheduler, diffusion_mode
                 for k in data.keys():
                     if type(data[k]) is torch.Tensor:
                         data[k] = data[k].to(accelerator.device)
+                        if type(model) is DistributedDataParallel:
+                            raw_model = model.module
+                        else:
+                            raw_model = model
                         if k == "phone":
-                            data[k][data[k] == -100] = model.PAD
+                            data[k][data[k] == -100] = raw_model.PAD
                         if k == "tone":
-                            data[k][data[k] == -100] = model.num_tones
+                            data[k][data[k] == -100] = raw_model.num_tones
                         if k == "semantic":
-                            data[k][data[k] == -100] = model.semantic_pad_token_id
+                            data[k][data[k] == -100] = raw_model.semantic_pad_token_id
                 # forward
                 loss = model(**data).loss
                 

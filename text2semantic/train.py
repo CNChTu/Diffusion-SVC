@@ -37,8 +37,9 @@ if __name__ == '__main__':
         gradient_accumulation_steps = args.model.text2semantic.train.gradient_accumulation_steps
     )
     device = accelerator.device
-    print(' > config:', cmd.config)
-    print(' >    exp:', args.env.expdir)
+    if accelerator.is_main_process:
+        print(' > config:', cmd.config)
+        print(' >    exp:', args.env.expdir)
     
     # load vocoder
     # vocoder = Vocoder(args.vocoder.type, args.vocoder.ckpt, device=args.device)
