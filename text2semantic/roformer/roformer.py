@@ -8,7 +8,7 @@ from cluster import get_cluster_model, get_cluster_result, get_cluster_center_re
 from torch.nn.utils.rnn import pad_sequence, pack_sequence
 
 
-def get_model(mode = "phone", semantic_kmeans_num = 10000, codebook_path = "pretrain/semantic_codebook.pt", **kwargs):
+def get_model(mode = "phone", semantic_kmeans_num = 10000, codebook_path = "pretrain/semantic_codebook.pt", n_spk = 1, **kwargs):
     config = RoFormerConfig(
             hidden_size=kwargs["model"]["hidden_size"],
             num_attention_heads=kwargs["model"]["num_attention_heads"],
@@ -24,7 +24,8 @@ def get_model(mode = "phone", semantic_kmeans_num = 10000, codebook_path = "pret
         config = config,
         mode = mode,
         semantic_kmeans_num = semantic_kmeans_num,
-        codebook_path = codebook_path
+        codebook_path = codebook_path,
+        n_spk = n_spk
     )
 
     return model
@@ -38,10 +39,12 @@ class Roformer(nn.Module):
         mode = "phone",
         semantic_kmeans_num = 10000,
         codebook_path = "pretrain/semantic_codebook.pt",
+        n_spk = 1
         ):
         super().__init__()
         self.mode = mode
         self.config = config
+        self.n_spk = n_spk
         if "phone" in self.mode:
             token_size = len(symbols)
             # token_size += semantic_kmeans_num + num_tones
@@ -77,6 +80,10 @@ class Roformer(nn.Module):
         if self.semantic_decoder.roformer.embeddings.word_embeddings.weight.data.shape[1] == self.quantizer.cluster_centers_.shape[1]:
             self.semantic_decoder.roformer.embeddings.word_embeddings.weight.data[:semantic_kmeans_num] = torch.from_numpy(self.quantizer.cluster_centers_.copy())
 
+        if n_spk > 1 and n_spk is not None:
+            self.spk_emb = nn.Embedding(n_spk + 1, config.hidden_size)
+        else:
+            self.spk_emb = None
 
     def forward(
         self,
@@ -90,10 +97,16 @@ class Roformer(nn.Module):
         output_attentions=None,
         output_hidden_states=None,
         return_dict=None,
+        spk_id=None,
         **kwargs
     ):
-        phone_tone_emb = self.text_encoder.embeddings(phone,tone)
+        if self.spk_emb is not None and spk_id is not None:
+            spk_emb = self.spk_emb(spk_id)
+        else:
+            spk_emb = 0
 
+        phone_tone_emb = self.text_encoder.embeddings(phone,tone) + spk_emb
+            
         encoder_hidden_states = self.text_encoder(
             inputs_embeds = phone_tone_emb,
             attention_mask = encoder_attention_mask,
@@ -112,7 +125,8 @@ class Roformer(nn.Module):
             use_cache = use_cache
         )
         return outputs
-
+    
+    @torch.no_grad()
     def generate(self,
                  phone,
                  tone,

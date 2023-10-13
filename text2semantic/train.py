@@ -23,13 +23,15 @@ def parse_args(args=None, namespace=None):
 
 
 if __name__ == '__main__':
-    accelerator = accelerate.Accelerator()
     # parse commands
     cmd = parse_args()
-    device = accelerator.device
     
     # load config
     args = utils.load_config(cmd.config)
+    accelerator = accelerate.Accelerator(
+        accumulate_grad_batches = args.model.text2semantic.train.accumulate_grad_batches
+    )
+    device = accelerator.device
     print(' > config:', cmd.config)
     print(' >    exp:', args.env.expdir)
     
@@ -44,11 +46,12 @@ if __name__ == '__main__':
     
     # load model
     model = get_model(**args.model.text2semantic)
-    if args.model.text2semantic.train.generate_audio:
-        diffusion_model = None
-    else:
+    
+    if args.model.text2semantic.train.generate_audio and accelerator.is_main_process:
         diffusion_svc = DiffusionSVC(device=device)  # 加载模型
         diffusion_svc.load_model(model_path=cmd.model, f0_model="fcpe", f0_max=cmd.f0_max, f0_min=cmd.f0_min)
+    else:
+        diffusion_model = None
 
     # load parameters
     optimizer = torch.optim.AdamW(model.parameters())
@@ -68,7 +71,9 @@ if __name__ == '__main__':
                     
     # datas
     loader_train, loader_valid = get_data_loaders(args, whole_audio=False)
-    
+    _, model, optim, scheduler = accelerator.prepare(
+        loader_train, model, optimizer, scheduler
+    )
 
     # run
     train(args, initial_global_step, model, optimizer, scheduler, diffusion_model, loader_train, loader_valid, accelerator)

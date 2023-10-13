@@ -53,6 +53,7 @@ def get_data_loaders(args, whole_audio=False, accelerate = None):
     data_train = TextDataset(
         path_root = args.data.train_path,
         use_cache = args.model.text2semantic.train.cache_all_data,
+        n_spk = args.model.text2semantic.model.n_spk,
         accelerate=accelerate
     )
     loader_train = torch.utils.data.DataLoader(
@@ -67,6 +68,7 @@ def get_data_loaders(args, whole_audio=False, accelerate = None):
     data_valid = TextDataset(
         path_root = args.data.valid_path,
         use_cache = args.model.text2semantic.train.cache_all_data,
+        n_spk = args.model.text2semantic.model.n_spk,
         accelerate = accelerate
     )
     loader_valid = torch.utils.data.DataLoader(
@@ -86,6 +88,7 @@ class TextDataset(Dataset):
             use_cache=True,
             extensions=['npy'],
             accelerate=None,
+            n_spk = None
     ):
         super().__init__()
 
@@ -93,7 +96,8 @@ class TextDataset(Dataset):
         self.path_utt_root = os.path.join(path_root, 'utt')
         self.path_semantic_token_root = os.path.join(path_root, 'semantic_token')
         self.use_cache = use_cache
-        
+        self.n_spk = n_spk
+
         self.paths = traverse_dir(
             self.path_utt_root,
             extensions=extensions,
@@ -106,20 +110,37 @@ class TextDataset(Dataset):
             self.paths = self.paths[accelerate.process_index::accelerate.num_processes]
         
         self.data_buffer = {}
+        self.spk_name_id_map = {}
 
         if use_cache:
             print('Load all the data from :', path_root)
         else:
             print('Load file list :', path_root)
+        self.spk_id = 1
         if use_cache:
             for name_ext in tqdm(self.paths, total=len(self.paths)):
+
                 path_utt = os.path.join(self.path_utt_root, name_ext)
                 path_semantic_token = os.path.join(self.path_semantic_token_root, name_ext)
                 
                 phones, tones, lang_ids, word2ph = np.load(path_utt, allow_pickle=True)
+
+                if n_spk is not None and n_spk > 1:
+                    dirname_split = re.split(r"_|\-", os.path.dirname(name_ext), 2)[0]
+                    if self.spk_name_id_map.get(dirname_split) is None:
+                        self.spk_name_id_map[dirname_split] = self.spk_id
+                        self.spk_id += 1
+                    spk_id_seq = np.ones_like(phones) * self.spk_id
+                    if self.spk_id < 1 or self.spk_id > n_spk:
+                        raise ValueError(
+                            ' [x] Muiti-speaker traing error : spk_id must be a positive integer from 1 to n_spk ')
+                else:
+                    spk_id_seq = None
+
                 semantic_tokens = np.load(path_semantic_token)
                 phones_length = len(phones)
                 semantic_length = len(semantic_tokens)
+
                 self.data_buffer[name_ext] = {
                     'phones': phones,
                     'tones': tones,
@@ -127,7 +148,8 @@ class TextDataset(Dataset):
                     'word2ph': word2ph,
                     'semantic_tokens': semantic_tokens,
                     'phones_length': phones_length,
-                    'semantic_length': semantic_length
+                    'semantic_length': semantic_length,
+                    'spk_id':spk_id_seq
                 }
 
     def __getitem__(self, file_idx):
@@ -137,8 +159,21 @@ class TextDataset(Dataset):
         else:
             path_utt = os.path.join(self.path_utt_root, name_ext)
             path_semantic_token = os.path.join(self.path_semantic_token_root, name_ext)
-            
+
             phones, tones, lang_ids, word2ph = np.load(path_utt, allow_pickle=True)
+
+            if self.n_spk is not None and self.n_spk > 1:
+                dirname_split = re.split(r"_|\-", os.path.dirname(name_ext), 2)[0]
+                if self.spk_name_id_map.get(dirname_split) is None:
+                    self.spk_name_id_map[dirname_split] = self.spk_id
+                    self.spk_id += 1
+                    spk_id = self.spk_id
+                else:
+                    spk_id = self.spk_name_id_map[dirname_split]
+                spk_id_seq =  torch.LongTensor(np.ones_like(phones)) * spk_id
+            else:
+                spk_id_seq = None    
+
             semantic_tokens = np.load(path_semantic_token)
             phones_length = len(phones)
             semantic_length = len(semantic_tokens)
@@ -149,7 +184,8 @@ class TextDataset(Dataset):
                 'word2ph': word2ph,
                 'semantic_tokens': semantic_tokens,
                 'phones_length': phones_length,
-                'semantic_length': semantic_length
+                'semantic_length': semantic_length,
+                'spk_id':spk_id_seq
             }
         # get item
         return self.get_data(data_buffer)
@@ -164,7 +200,8 @@ class TextDataset(Dataset):
             'semantic': torch.LongTensor(data_buffer['semantic_tokens']),
             'labels': torch.LongTensor(data_buffer['semantic_tokens']),
             'attention_mask': attention_mask,
-            'encoder_attention_mask': encoder_attention_mask
+            'encoder_attention_mask': encoder_attention_mask,
+            'spk_id': data_buffer['spk_id']
         }
 
         return rtn
@@ -184,6 +221,7 @@ def colle_fn(batch):
     labels = []
     attention_mask = []
     encoder_attention_mask = []
+    spk_id_seq = []
 
     for batch_item in batch:
         phone.append(batch_item['phone'])
@@ -192,14 +230,18 @@ def colle_fn(batch):
         labels.append(batch_item['labels'])
         attention_mask.append(batch_item['attention_mask'])
         encoder_attention_mask.append(batch_item['encoder_attention_mask'])
-
+        if batch_item['spk_id'] is not None:
+            spk_id_seq.append(batch_item['spk_id'])
+        else:
+            spk_id_seq = None
     rtn = {
             'phone': pad_sequence(phone, batch_first=True, padding_value=-100),
             'tone': pad_sequence(tone, batch_first=True, padding_value=-100),
             'semantic': pad_sequence(semantic, batch_first=True, padding_value=-100),
             'labels': pad_sequence(labels, batch_first=True, padding_value=-100),
             'attention_mask': pad_sequence(attention_mask, batch_first=True, padding_value=0),
-            'encoder_attention_mask': pad_sequence(encoder_attention_mask, batch_first=True, padding_value=0)
+            'encoder_attention_mask': pad_sequence(encoder_attention_mask, batch_first=True, padding_value=0),
+            'spk_id': pad_sequence(spk_id_seq, batch_first=True, padding_value=0) if spk_id_seq is not None else None
     }
     return rtn
 
