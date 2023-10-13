@@ -41,6 +41,11 @@ model:
       save_opt: false
       cache_all_data: false
       num_workers: 2
+      accumulate_grad_batches: 1
+      epochs: 100000
+      amp_dtype: fp32
+      generate_audio: False
+      expdir: exp/lm
     model:
       num_hidden_layers: 12
       hidden_size: 768

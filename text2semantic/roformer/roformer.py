@@ -8,6 +8,29 @@ from cluster import get_cluster_model, get_cluster_result, get_cluster_center_re
 from torch.nn.utils.rnn import pad_sequence, pack_sequence
 
 
+def get_model(mode = "phone", semantic_kmeans_num = 10000, codebook_path = "pretrain/semantic_codebook.pt", **kwargs):
+    config = RoFormerConfig(
+            hidden_size=kwargs["model"]["hidden_size"],
+            num_attention_heads=kwargs["model"]["num_attention_heads"],
+            num_hidden_layers=kwargs["model"]["num_hidden_layers"],
+            intermediate_size=kwargs["model"]["intermediate_size"],
+            hidden_act=kwargs["model"]["hidden_act"],
+            hidden_dropout_prob=kwargs["model"]["hidden_dropout_prob"],
+            attention_probs_dropout_prob=kwargs["model"]["attention_probs_dropout_prob"],
+            initializer_range=kwargs["model"]["initializer_range"],
+            layer_norm_eps=kwargs["model"]["layer_norm_eps"],
+        )
+    model = Roformer(
+        config = config,
+        mode = mode,
+        semantic_kmeans_num = semantic_kmeans_num,
+        codebook_path = codebook_path
+    )
+
+    return model
+    
+    
+
 class Roformer(nn.Module):
     def __init__(
         self,

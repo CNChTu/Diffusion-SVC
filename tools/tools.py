@@ -215,7 +215,7 @@ class F0_Extractor:
         else:
             self.hop_size_follow_input = False
 
-    def extract(self, audio, uv_interp=False, device=None, silence_front=0, sr=None):  # audio: 1d numpy array
+    def extract(self, audio, uv_interp=False, device=None, silence_front=0, sr=None, mel = None):  # audio: 1d numpy array
         if sr is not None:
             assert self.hop_size_follow_input
             self.hop_size = self.block_size * sr / self.model_sampling_rate
@@ -226,13 +226,14 @@ class F0_Extractor:
                 self.resample_kernel = CREPE_RESAMPLE_KERNEL[key_str]
             self.sample_rate = sr
 
-        # extractor start time
-        raw_audio = audio
-        n_frames = int(len(audio) // self.hop_size) + 1
+        if audio is not None:
+            # extractor start time
+            raw_audio = audio
+            n_frames = int(len(audio) // self.hop_size) + 1
 
-        start_frame = int(silence_front * self.sample_rate / self.hop_size)
-        real_silence_front = start_frame * self.hop_size / self.sample_rate
-        audio = audio[int(np.round(real_silence_front * self.sample_rate)):]
+            start_frame = int(silence_front * self.sample_rate / self.hop_size)
+            real_silence_front = start_frame * self.hop_size / self.sample_rate
+            audio = audio[int(np.round(real_silence_front * self.sample_rate)):]
 
         # extract f0 using parselmouth
         if self.f0_extractor == 'parselmouth':
@@ -292,7 +293,10 @@ class F0_Extractor:
                 self.transformer_f0 = FCPEInfer(model_path='pretrain/fcpe/fcpe.pt')
             if _JUMP_SAFE_PAD:
                 raw_audio = audio
-            f0 = self.transformer_f0(audio=raw_audio, sr=self.sample_rate)
+            if mel is None:
+                f0 = self.transformer_f0(audio=raw_audio, sr=self.sample_rate)
+            else:
+                f0 = self.transformer_f0.model(mel=mel, infer=True, return_hz_f0=True)
             f0 = f0.transpose(1, 2)
             if not _JUMP_SAFE_PAD:
                 f0 = torch.nn.functional.interpolate(f0, size=int(n_frames), mode='nearest')

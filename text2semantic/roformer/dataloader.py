@@ -101,6 +101,9 @@ class TextDataset(Dataset):
             is_sort=True,
             is_ext=True
         )
+
+        if accelerate is not None:
+            self.paths = self.paths[accelerate.process_index::accelerate.num_processes]
         
         self.data_buffer = {}
 
