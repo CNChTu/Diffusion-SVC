@@ -3,7 +3,7 @@ import time
 import numpy as np
 import torch
 import librosa
-from ..saver import Saver,Saver_empty
+from text2semantic.saver import Saver,Saver_empty
 from logger import utils
 from torch import autocast
 from torch.cuda.amp import GradScaler
@@ -75,9 +75,9 @@ def test(args, model, loader_test, diffusion_model, saver, accelerator):
 def train(args, initial_global_step, model, optimizer, scheduler, diffusion_model, loader_train, loader_valid, accelerator):
         # saver
     if accelerator.is_main_process:
-        saver = Saver(args, initial_global_step=initial_global_step, accelerator = accelerator)
+        saver = Saver(args, initial_global_step=initial_global_step)
     else:
-        saver = Saver_empty(args, initial_global_step=initial_global_step, accelerator = accelerator)
+        saver = Saver_empty(args, initial_global_step=initial_global_step)
     # model size
     params_count = utils.get_network_paras_amount({'model': model})
     saver.log_info('--- model size ---')
@@ -99,8 +99,14 @@ def train(args, initial_global_step, model, optimizer, scheduler, diffusion_mode
 
                 # unpack data
                 for k in data.keys():
-                    data[k] = data[k].to(accelerator.device)
-
+                    if data[k] is not None:
+                        data[k] = data[k].to(accelerator.device)
+                        if k == "phone":
+                            data[k][data[k] == -100] = model.PAD
+                        if k == "tone":
+                            data[k][data[k] == -100] = model.num_tones
+                        if k == "semantic":
+                            data[k][data[k] == -100] = model.semantic_pad_token_id
                 # forward
                 loss = model(**data).loss
                 

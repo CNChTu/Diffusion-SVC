@@ -29,7 +29,7 @@ if __name__ == '__main__':
     # load config
     args = utils.load_config(cmd.config)
     accelerator = accelerate.Accelerator(
-        accumulate_grad_batches = args.model.text2semantic.train.accumulate_grad_batches
+        gradient_accumulation_steps = args.model.text2semantic.train.gradient_accumulation_steps
     )
     device = accelerator.device
     print(' > config:', cmd.config)
@@ -70,7 +70,7 @@ if __name__ == '__main__':
                 state[k] = v.to(device)
                     
     # datas
-    loader_train, loader_valid = get_data_loaders(args, whole_audio=False)
+    loader_train, loader_valid = get_data_loaders(args,model = model, accelerate=accelerator)
     _, model, optim, scheduler = accelerator.prepare(
         loader_train, model, optimizer, scheduler
     )

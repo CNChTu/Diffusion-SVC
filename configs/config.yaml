@@ -33,7 +33,7 @@ model:
     semantic_kmeans_num: 10000
     codebook_path: 'pretrain/semantic_codebook.pt'
     train:
-      batch_size: 32
+      batch_size: 2
       lr: 0.0001
       decay_step: 100000
       gamma: 0.5
@@ -41,7 +41,7 @@ model:
       save_opt: true
       cache_all_data: false
       num_workers: 2
-      accumulate_grad_batches: 1
+      gradient_accumulation_steps: 1
       epochs: 100000
       generate_audio: False
       expdir: exp/lm

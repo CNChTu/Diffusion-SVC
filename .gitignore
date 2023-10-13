@@ -6,3 +6,5 @@ data/*
 __pycache__
 exp/*
 dataset_raw/*
+*.pyc
+__pycache__/*

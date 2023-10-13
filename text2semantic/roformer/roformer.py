@@ -18,8 +18,9 @@ def get_model(mode = "phone", semantic_kmeans_num = 10000, codebook_path = "pret
             hidden_dropout_prob=kwargs["model"]["hidden_dropout_prob"],
             attention_probs_dropout_prob=kwargs["model"]["attention_probs_dropout_prob"],
             initializer_range=kwargs["model"]["initializer_range"],
-            layer_norm_eps=kwargs["model"]["layer_norm_eps"],
+            layer_norm_eps=float(kwargs["model"]["layer_norm_eps"])
         )
+    
     model = Roformer(
         config = config,
         mode = mode,
@@ -51,16 +52,18 @@ class Roformer(nn.Module):
             self.BOS = token_size
             self.EOS = token_size + 1
             self.PAD = token_size + 2
+            self.num_tones = num_tones
             token_size += 3
             # self.tone_emb = nn.Embedding(num_tones, config.hidden_size)
             # self.phone_emb = nn.Embedding(token_size + 2, config.hidden_size)
         config.vocab_size = token_size
-        config.type_vocab_size = num_tones + 1
+        config.type_vocab_size = self.num_tones + 1
         config.pad_token_id = self.PAD
         config.bos_token_id = self.BOS
         config.eos_token_id = self.EOS
         self.text_encoder = RoFormerModel(config)
 
+        config = RoFormerConfig(config)
         config.bos_token_id = semantic_kmeans_num
         config.eos_token_id = semantic_kmeans_num + 1
         config.pad_token_id = semantic_kmeans_num + 2
@@ -106,12 +109,12 @@ class Roformer(nn.Module):
             spk_emb = 0
 
         phone_tone_emb = self.text_encoder.embeddings(phone,tone) + spk_emb
-            
+        
         encoder_hidden_states = self.text_encoder(
             inputs_embeds = phone_tone_emb,
             attention_mask = encoder_attention_mask,
             use_cache = use_cache
-        )[0]
+        ).last_hidden_state
 
         outputs = self.semantic_decoder(
             semantic,

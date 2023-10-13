@@ -49,26 +49,28 @@ def traverse_dir(
     return file_list
 
 
-def get_data_loaders(args, whole_audio=False, accelerate = None):
+def get_data_loaders(args,model, accelerate = None):
     data_train = TextDataset(
         path_root = args.data.train_path,
         use_cache = args.model.text2semantic.train.cache_all_data,
         n_spk = args.model.text2semantic.model.n_spk,
+        model = model,
         accelerate=accelerate
     )
     loader_train = torch.utils.data.DataLoader(
         data_train,
-        batch_size=args.model.text2semantic.train.batch_size if not whole_audio else 1,
+        batch_size=args.model.text2semantic.train.num_workers if not args.model.text2semantic.train.cache_all_data else 1,
         shuffle=True,
         num_workers=args.model.text2semantic.train.num_workers,
-        persistent_workers= (args.model.text2semantic.train.num_workers > 0),
-        pin_memory=True,
+        persistent_workers= (args.model.text2semantic.train.num_workers > 0) if not args.model.text2semantic.train.cache_all_data else False,
+        pin_memory=True if not args.model.text2semantic.train.cache_all_data else False,
         collate_fn=colle_fn
     )
     data_valid = TextDataset(
         path_root = args.data.valid_path,
         use_cache = args.model.text2semantic.train.cache_all_data,
         n_spk = args.model.text2semantic.model.n_spk,
+        model = model,
         accelerate = accelerate
     )
     loader_valid = torch.utils.data.DataLoader(
@@ -88,6 +90,7 @@ class TextDataset(Dataset):
             use_cache=True,
             extensions=['npy'],
             accelerate=None,
+            model = None,
             n_spk = None
     ):
         super().__init__()
@@ -97,6 +100,7 @@ class TextDataset(Dataset):
         self.path_semantic_token_root = os.path.join(path_root, 'semantic_token')
         self.use_cache = use_cache
         self.n_spk = n_spk
+        self.model = model
 
         self.paths = traverse_dir(
             self.path_utt_root,
@@ -138,6 +142,8 @@ class TextDataset(Dataset):
                     spk_id_seq = None
 
                 semantic_tokens = np.load(path_semantic_token)
+                semantic_tokens = np.concatenate([self.model.semantic_bos_token_id,semantic_tokens,self.model.semantic_eos_token_id])
+
                 phones_length = len(phones)
                 semantic_length = len(semantic_tokens)
 
@@ -175,6 +181,7 @@ class TextDataset(Dataset):
                 spk_id_seq = None    
 
             semantic_tokens = np.load(path_semantic_token)
+            semantic_tokens = np.concatenate([[self.model.semantic_bos_token_id],semantic_tokens,[self.model.semantic_eos_token_id]] ,axis=-1)
             phones_length = len(phones)
             semantic_length = len(semantic_tokens)
             data_buffer = {
