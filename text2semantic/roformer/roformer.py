@@ -19,7 +19,7 @@ def get_model(mode = "phone", semantic_kmeans_num = 10000, codebook_path = "pret
             attention_probs_dropout_prob=kwargs["model"]["attention_probs_dropout_prob"],
             initializer_range=kwargs["model"]["initializer_range"],
             layer_norm_eps=float(kwargs["model"]["layer_norm_eps"]),
-            max_position_embeddings = kwargs=["model"]["max_position_embeddings"]
+            max_position_embeddings = kwargs["model"]["max_position_embeddings"]
         )
     
     model = Roformer(
