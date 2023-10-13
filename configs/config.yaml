@@ -33,8 +33,8 @@ model:
     semantic_kmeans_num: 10000
     codebook_path: 'pretrain/semantic_codebook.pt'
     train:
-      batch_size: 2
-      lr: 0.0001
+      batch_size: 1
+      lr: 0.0002
       decay_step: 100000
       gamma: 0.5
       weight_decay: 0
@@ -75,7 +75,7 @@ train:
   cache_fp16: true
   epochs: 100000
   interval_log: 10
-  interval_val: 2000
+  interval_val: 20
   interval_force_save: 10000
   lr: 0.0001
   decay_step: 100000

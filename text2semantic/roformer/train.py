@@ -28,7 +28,7 @@ def test(args, model, loader_test, diffusion_model, saver, accelerator):
 
             # unpack data
             for k in data.keys():
-                if not k.startswith('name'):
+                if type(data[k]) is torch.Tensor:
                     data[k] = data[k].to(accelerator.device)
             print('>>', data['name'][0])
 
@@ -37,7 +37,7 @@ def test(args, model, loader_test, diffusion_model, saver, accelerator):
             semantic_token = model.generate(
                 phone = data["phone"],
                 tone = data["tone"],
-                attention_mask = data["attention_mask"],
+                attention_mask = data["encoder_attention_mask"],
             )
             if diffusion_model is not None:
                 signal = diffusion_model.infer(semantic_token, None, None)
@@ -89,7 +89,7 @@ def train(args, initial_global_step, model, optimizer, scheduler, diffusion_mode
     model.train()
     saver.log_info('======= start training =======')
 
-    for epoch in range(start_epoch, args.train.epochs):
+    for epoch in range(start_epoch, args.model.text2semantic.train.epochs):
         for batch_idx, data in enumerate(loader_train):
             with accelerator.accumulate(model):
                 if accelerator.sync_gradients:
@@ -99,7 +99,7 @@ def train(args, initial_global_step, model, optimizer, scheduler, diffusion_mode
 
                 # unpack data
                 for k in data.keys():
-                    if data[k] is not None:
+                    if type(data[k]) is torch.Tensor:
                         data[k] = data[k].to(accelerator.device)
                         if k == "phone":
                             data[k][data[k] == -100] = model.PAD
@@ -153,7 +153,7 @@ def train(args, initial_global_step, model, optimizer, scheduler, diffusion_mode
                 else:
                     saver.save_model(model, optimizer, postfix=f'{saver.global_step}')
 
-                last_val_step = saver.global_step - args.train.interval_val * args.last_save_model_num
+                last_val_step = saver.global_step - args.train.interval_val * args.train.last_save_model_num
                 saver.delete_model(postfix=f'{last_val_step}')
 
                 # run testing set

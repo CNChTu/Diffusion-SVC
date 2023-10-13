@@ -19,6 +19,11 @@ def parse_args(args=None, namespace=None):
         type=str,
         required=True,
         help="path to the config file")
+    parser.add_argument(
+        "-m",
+        "--model",
+        type=str,
+        help="path to the diffusion model")
     return parser.parse_args(args=args, namespace=namespace)
 
 

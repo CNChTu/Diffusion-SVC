@@ -40,7 +40,8 @@ class Roformer(nn.Module):
         mode = "phone",
         semantic_kmeans_num = 10000,
         codebook_path = "pretrain/semantic_codebook.pt",
-        n_spk = 1
+        n_spk = 1,
+        **kwargs
         ):
         super().__init__()
         self.mode = mode
@@ -144,9 +145,10 @@ class Roformer(nn.Module):
                  num_beams=1,
                  no_repeat_ngram_size = 0,
                  early_stopping = True,
+                **kwargs
                  ):
         phone_tone_emb = self.text_encoder.embeddings(phone,tone)
-
+        
         encoder_hidden_states = self.text_encoder(
             inputs_embeds = phone_tone_emb,
             attention_mask = attention_mask,
@@ -172,7 +174,7 @@ class Roformer(nn.Module):
         outputs = self.semantic_decoder.generate(
             encoder_hidden_states = encoder_hidden_states,
             encoder_attention_mask = attention_mask,
-            attention_mask = attention_mask,
+            attention_mask = None,
             use_cache = use_cache,
             generation_config=generation_config
         )

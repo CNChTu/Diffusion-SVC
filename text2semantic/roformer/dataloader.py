@@ -78,7 +78,8 @@ def get_data_loaders(args,model, accelerate = None):
         batch_size=1,
         shuffle=False,
         num_workers=0,
-        pin_memory=True
+        pin_memory=True,
+        collate_fn=colle_fn
     )
     return loader_train, loader_valid
 
@@ -155,7 +156,8 @@ class TextDataset(Dataset):
                     'semantic_tokens': semantic_tokens,
                     'phones_length': phones_length,
                     'semantic_length': semantic_length,
-                    'spk_id':spk_id_seq
+                    'spk_id':spk_id_seq,
+                    'name_ext':name_ext
                 }
 
     def __getitem__(self, file_idx):
@@ -192,7 +194,8 @@ class TextDataset(Dataset):
                 'semantic_tokens': semantic_tokens,
                 'phones_length': phones_length,
                 'semantic_length': semantic_length,
-                'spk_id':spk_id_seq
+                'spk_id':spk_id_seq,
+                'name_ext':name_ext
             }
         # get item
         return self.get_data(data_buffer)
@@ -208,7 +211,8 @@ class TextDataset(Dataset):
             'labels': torch.LongTensor(data_buffer['semantic_tokens']),
             'attention_mask': attention_mask,
             'encoder_attention_mask': encoder_attention_mask,
-            'spk_id': data_buffer['spk_id']
+            'spk_id': data_buffer['spk_id'],
+            'name':data_buffer['name_ext']
         }
 
         return rtn
@@ -229,7 +233,7 @@ def colle_fn(batch):
     attention_mask = []
     encoder_attention_mask = []
     spk_id_seq = []
-
+    name = []
     for batch_item in batch:
         phone.append(batch_item['phone'])
         tone.append(batch_item['tone'])
@@ -241,6 +245,7 @@ def colle_fn(batch):
             spk_id_seq.append(batch_item['spk_id'])
         else:
             spk_id_seq = None
+        name.append(batch_item['name'])
     rtn = {
             'phone': pad_sequence(phone, batch_first=True, padding_value=-100),
             'tone': pad_sequence(tone, batch_first=True, padding_value=-100),
@@ -248,7 +253,8 @@ def colle_fn(batch):
             'labels': pad_sequence(labels, batch_first=True, padding_value=-100),
             'attention_mask': pad_sequence(attention_mask, batch_first=True, padding_value=0),
             'encoder_attention_mask': pad_sequence(encoder_attention_mask, batch_first=True, padding_value=0),
-            'spk_id': pad_sequence(spk_id_seq, batch_first=True, padding_value=0) if spk_id_seq is not None else None
+            'spk_id': pad_sequence(spk_id_seq, batch_first=True, padding_value=0) if spk_id_seq is not None else None,
+            'name':name
     }
     return rtn
 
