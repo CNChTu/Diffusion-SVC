@@ -18,7 +18,8 @@ def get_model(mode = "phone", semantic_kmeans_num = 10000, codebook_path = "pret
             hidden_dropout_prob=kwargs["model"]["hidden_dropout_prob"],
             attention_probs_dropout_prob=kwargs["model"]["attention_probs_dropout_prob"],
             initializer_range=kwargs["model"]["initializer_range"],
-            layer_norm_eps=float(kwargs["model"]["layer_norm_eps"])
+            layer_norm_eps=float(kwargs["model"]["layer_norm_eps"]),
+            max_position_embeddings = kwargs=["model"]["max_position_embeddings"]
         )
     
     model = Roformer(
@@ -116,7 +117,8 @@ class Roformer(nn.Module):
             attention_mask = encoder_attention_mask,
             use_cache = use_cache
         ).last_hidden_state
-
+        
+        print(torch.max(encoder_hidden_states),torch.max(semantic),torch.max(encoder_attention_mask),torch.max(attention_mask), torch.max(labels))
         outputs = self.semantic_decoder(
             semantic,
             encoder_hidden_states = encoder_hidden_states,
