@@ -7,6 +7,7 @@ from cluster import get_cluster_model, get_cluster_result, get_cluster_center_re
 
 from torch.nn.utils.rnn import pad_sequence, pack_sequence
 
+from copy import deepcopy
 
 def get_model(mode = "phone", semantic_kmeans_num = 10000, codebook_path = "pretrain/semantic_codebook.pt", n_spk = 1, **kwargs):
     config = RoFormerConfig(
@@ -65,7 +66,8 @@ class Roformer(nn.Module):
         config.eos_token_id = self.EOS
         self.text_encoder = RoFormerModel(config)
 
-        config = RoFormerConfig(config)
+        config = deepcopy(config)
+        
         config.bos_token_id = semantic_kmeans_num
         config.eos_token_id = semantic_kmeans_num + 1
         config.pad_token_id = semantic_kmeans_num + 2
