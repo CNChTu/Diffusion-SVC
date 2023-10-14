@@ -8,9 +8,10 @@ from logger import utils
 from torch import autocast
 from torch.cuda.amp import GradScaler
 from torch.nn.parallel import DistributedDataParallel
+from cluster import get_cluster_model
 
 @torch.no_grad()
-def test(args, model, loader_test, diffusion_model, saver, accelerator):
+def test(args, model, loader_test, diffusion_model, saver,semantic_embedding, accelerator):
     print(' [*] testing...')
     model.eval()
 
@@ -40,8 +41,11 @@ def test(args, model, loader_test, diffusion_model, saver, accelerator):
                 tone = data["tone"],
                 attention_mask = data["encoder_attention_mask"],
             )
+
+            semantic_emb = semantic_embedding(semantic_token)
+            
             if diffusion_model is not None:
-                signal = diffusion_model.infer(semantic_token, None, None)
+                signal = diffusion_model.infer(semantic_emb, None, None)
             else:
                 signal = None
             ed_time = time.time()
@@ -83,7 +87,18 @@ def train(args, initial_global_step, model, optimizer, scheduler, diffusion_mode
     params_count = utils.get_network_paras_amount({'model': model})
     saver.log_info('--- model size ---')
     saver.log_info(params_count)
+    saver.log_info('load semantic codebook')
+    codebook = get_cluster_model(args.model.text2semantic.codebook_path)
+    codebook = codebook["cluster_centers_"]
 
+    semantic_embedding = torch.nn.Embedding(
+        codebook.shape[0],
+        codebook.shape[1],
+        _freeze = True
+        )
+    
+    semantic_embedding.weight.data = torch.from_numpy(semantic_embedding)
+    semantic_embedding.to(accelerator.device)
     # run
     num_batches = len(loader_train)
     start_epoch = initial_global_step // num_batches
@@ -162,7 +177,7 @@ def train(args, initial_global_step, model, optimizer, scheduler, diffusion_mode
                 saver.delete_model(postfix=f'{last_val_step}')
 
                 # run testing set
-                test_loss = test(args, model, loader_valid, diffusion_model, saver, accelerator)
+                test_loss = test(args, model, loader_valid, diffusion_model, saver,semantic_embedding, accelerator)
 
                 # log loss
                 saver.log_info(

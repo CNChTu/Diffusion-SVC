@@ -9,7 +9,6 @@ from diffusion.vocoder import Vocoder
 import accelerate
 from tools.infer_tools import DiffusionSVC
 
-
 def parse_args(args=None, namespace=None):
     """Parse command-line arguments."""
     parser = argparse.ArgumentParser()
@@ -58,7 +57,7 @@ if __name__ == '__main__':
         diffusion_svc.load_model(model_path=cmd.model, f0_model="fcpe", f0_max=cmd.f0_max, f0_min=cmd.f0_min)
     else:
         diffusion_model = None
-
+    
     # load parameters
     optimizer = torch.optim.AdamW(model.parameters())
     initial_global_step, model, optimizer = utils.load_model(args.model.text2semantic.train.expdir, model, optimizer, device=device)
