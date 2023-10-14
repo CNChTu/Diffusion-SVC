@@ -120,7 +120,6 @@ class Roformer(nn.Module):
             use_cache = use_cache
         ).last_hidden_state
         
-        print(torch.max(encoder_hidden_states),torch.max(semantic),torch.max(encoder_attention_mask),torch.max(attention_mask), torch.max(labels))
         outputs = self.semantic_decoder(
             semantic,
             encoder_hidden_states = encoder_hidden_states,
