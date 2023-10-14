@@ -69,7 +69,7 @@ def get_data_loaders(args, whole_audio=False):
         use_spk_encoder=args.model.use_speaker_encoder,
         spk_encoder_mode=args.data.speaker_encoder_mode,
         volume_noise=volume_noise,
-        is_tts = args.train.is_f0
+        is_tts = args.data.is_tts
     )
     loader_train = torch.utils.data.DataLoader(
         data_train,
@@ -91,7 +91,7 @@ def get_data_loaders(args, whole_audio=False):
         use_spk_encoder=args.model.use_speaker_encoder,
         spk_encoder_mode=args.data.speaker_encoder_mode,
         volume_noise=volume_noise,
-        is_tts = args.train.is_f0
+        is_tts = args.data.is_tts
     )
     loader_valid = torch.utils.data.DataLoader(
         data_valid,

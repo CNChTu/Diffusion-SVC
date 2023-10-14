@@ -15,7 +15,7 @@ data:
   volume_noise: 0 # if not 0 ,add noise for volume in train ;;;;EXPERIMENTAL FUNCTION, NOT RECOMMENDED FOR USE;;;;
   train_path: data/train # Create a folder named "audio" under this path and put the audio clip in it
   valid_path: data/val # Create a folder named "audio" under this path and put the audio clip in it
-  is_tts: true # If TTS or VC, it is false, if SVC, it is true
+  is_tts: true # If TTS or VC, it is true, if SVC, it is false
   extensions: # List of extension included in the data collection
     - wav
 model:
