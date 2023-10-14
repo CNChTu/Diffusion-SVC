@@ -13,15 +13,26 @@ from tqdm import tqdm
 #         out_path = out_dir / (wav_path.stem + ".npy")
 #         np.save(out_path, token)
 
-
+@torch.no_grad()
 def preprocess_utterance(rank, units_path, model,in_dir, out_dir, num_workers):
     units_path = units_path[rank::num_workers]
+    if args.train.units_quantize_type == "vq":
+        model = model.to(f"cuda:{rank%num_workers}")
     for unit_path in tqdm(units_path,position=rank):
-        unit = np.load(os.path.join(in_dir, "units" , unit_path))
-        token = cluster.get_cluster_result(model, unit)
-        out_path = os.path.join(out_dir, unit_path)
-        os.makedirs(os.path.dirname(out_path), exist_ok=True)
-        np.save(out_path, token)
+        if args.train.units_quantize_type == "kmeans":
+            unit = np.load(os.path.join(in_dir, "units" , unit_path))
+            token = cluster.get_cluster_result(model, unit)
+            out_path = os.path.join(out_dir, unit_path)
+            os.makedirs(os.path.dirname(out_path), exist_ok=True)
+            np.save(out_path, token)
+        elif args.train.units_quantize_type == "vq":
+            unit = torch.from_numpy(np.load(os.path.join(in_dir, "units" , unit_path))).to(f"cuda:{rank%num_workers}")[None,:]
+            _, token, _ = model(unit)
+            token = token[0].detach().cpu().numpy()
+            out_path = os.path.join(out_dir, unit_path)
+            os.makedirs(os.path.dirname(out_path), exist_ok=True)
+            np.save(out_path, token)
+            
 
 def preprocess(in_dir, model, num_workers=1):
     """Preprocess the training set."""
@@ -60,9 +71,20 @@ if __name__ == "__main__":
     cmd = parse_args()
     args = utils.load_config(cmd.config)
     num_workers = cmd.num_workers
-
-    model = cluster.get_cluster_model("pretrain/semantic_codebook.pt")
-    
+    if args.train.units_quantize_type == "kmeans":
+        model = cluster.get_cluster_model(args.model.text2semantic.codebook_path)
+    elif args.train.units_quantize_type == "vq":
+        from vector_quantize_pytorch import VectorQuantize
+        model = VectorQuantize(
+                dim = args.data.encoder_out_channels,
+                codebook_size = args.model.text2semantic.semantic_kmeans_num,
+                decay = 0.8,             
+                commitment_weight = 1. 
+            )
+        model_para = torch.load(args.model.text2semantic.codebook_path)
+        model.load_state_dict(model_para["model"])
+    else:
+        raise ValueError(' [x] Unknown quantize_type: ' + args.train.units_quantize_type)
     # preprocess training set
     preprocess(args.data.train_path, model, num_workers=num_workers)
     # preprocess validation set
