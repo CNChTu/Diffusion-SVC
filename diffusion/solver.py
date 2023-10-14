@@ -26,11 +26,19 @@ def test(args, model, vocoder, loader_test, saver):
             fn = data['name'][0]
             print('--------')
             print('{}/{} - {}'.format(bidx, num_batches, fn))
-
+            
+            if data['f0'][0] == -1:
+                data['f0'] = None
+            if data['volume'][0] == -1:
+                data['volume'] = None
+            if data['aug_shift'][0] == -1:
+                data['aug_shift'] = None
+                
             # unpack data
             for k in data.keys():
-                if not k.startswith('name'):
+                if type(data[k]) is torch.Tensor:
                     data[k] = data[k].to(args.device)
+
             print('>>', data['name'][0])
 
             # forward
