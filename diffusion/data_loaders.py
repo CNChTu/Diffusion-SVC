@@ -141,6 +141,8 @@ class AudioDataset(Dataset):
         self.use_aug = use_aug
         self.data_buffer = {}
         self.pitch_aug_dict = np.load(os.path.join(self.path_root, 'pitch_aug_dict.npy'), allow_pickle=True).item()
+        self.is_tts = is_tts
+
         if load_all_data:
             print('Load all the data from :', path_root)
         else:
@@ -325,24 +327,27 @@ class AudioDataset(Dataset):
                 spk_emb = spk_emb[start_frame: start_frame + units_frame_len]
         else:
             spk_emb = torch.rand(1, 1)
+        if not self.is_tts:
+            # load f0
+            f0 = data_buffer.get('f0')
+            aug_shift = 0
+            if aug_flag:
+                aug_shift = self.pitch_aug_dict[name_ext]
+            f0_frames = 2 ** (aug_shift / 12) * f0[start_frame: start_frame + units_frame_len]
 
-        # load f0
-        f0 = data_buffer.get('f0')
-        aug_shift = 0
-        if aug_flag:
-            aug_shift = self.pitch_aug_dict[name_ext]
-        f0_frames = 2 ** (aug_shift / 12) * f0[start_frame: start_frame + units_frame_len]
-
-        # load volume
-        vol_key = 'aug_vol' if aug_flag else 'volume'
-        volume = data_buffer.get(vol_key)
-        volume_frames = volume[start_frame: start_frame + units_frame_len]
-
+            # load volume
+            vol_key = 'aug_vol' if aug_flag else 'volume'
+            volume = data_buffer.get(vol_key)
+            volume_frames = volume[start_frame: start_frame + units_frame_len]
+            
+            # load shift
+            aug_shift = torch.from_numpy(np.array([[aug_shift]])).float()
+        else:
+            aug_shift = None
+            f0_frames = None
+            volume_frames = None
         # load spk_id
         spk_id = data_buffer.get('spk_id')
-
-        # load shift
-        aug_shift = torch.from_numpy(np.array([[aug_shift]])).float()
 
         return dict(mel=mel, f0=f0_frames, volume=volume_frames, units=units, spk_id=spk_id, aug_shift=aug_shift,
                     name=name, name_ext=name_ext, spk_emb=spk_emb)
