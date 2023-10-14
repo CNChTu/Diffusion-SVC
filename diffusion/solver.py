@@ -34,7 +34,15 @@ def test(args, model, vocoder, loader_test, f0_extractor, quantizer, saver):
                 data['aug_shift'] = None
 
             if quantizer is not None:
-                data['units'] = quantizer(data['units'])
+                if args.train.units_quantize_type == "kmeans":
+                    data['units'] = quantizer(data['units']).detach()
+                    commit_loss = 0
+                elif args.train.units_quantize_type == "vq":
+                    data['units'], indices, commit_loss = quantizer(data['units'])
+                else:
+                    raise ValueError(' [x] Unknown quantize_type: ' + args.train.units_quantize_type)
+            else:
+                commit_loss = 0
                 
             # unpack data
             for k in data.keys():
@@ -99,6 +107,7 @@ def test(args, model, vocoder, loader_test, f0_extractor, quantizer, saver):
     # report
     test_loss /= args.train.batch_size
     test_loss /= num_batches
+    test_loss += commit_loss
 
     # check
     print(' [test_loss] test_loss:', test_loss)
@@ -128,6 +137,17 @@ def train(args, initial_global_step, model, optimizer, scheduler, vocoder, loade
             from cluster import get_cluster_model
             codebook_weight = get_cluster_model(args.model.text2semantic.codebook_path).__dict__["cluster_centers_"]
             quantizer = EuclideanCodebook(codebook_weight).to(args.device)
+        elif args.train.units_quantize_type == "vq":
+            from vector_quantize_pytorch import VectorQuantize
+            quantizer = VectorQuantize(
+                dim = args.data.encoder_out_channels,
+                codebook_size = args.model.text2semantic.semantic_kmeans_num,
+                decay = 0.8,             
+                commitment_weight = 1. 
+            ).to(args.device)
+            for param_group in optimizer.param_groups:
+                for params in quantizer.parameters():
+                    param_group['params'].append(params)
         else:
             raise ValueError(' [x] Unknown quantize_type: ' + args.train.units_quantize_type)
     else:
@@ -166,18 +186,26 @@ def train(args, initial_global_step, model, optimizer, scheduler, vocoder, loade
                     data[k] = data[k].to(args.device)
 
             if quantizer is not None:
-                data['units'] = quantizer(data['units'])
+                if args.train.units_quantize_type == "kmeans":
+                    data['units'] = quantizer(data['units']).detach()
+                    commit_loss = 0
+                elif args.train.units_quantize_type == "vq":
+                    data['units'], indices, commit_loss = quantizer(data['units'])
+                else:
+                    raise ValueError(' [x] Unknown quantize_type: ' + args.train.units_quantize_type)
+            else:
+                commit_loss = 0
 
             # forward
             if dtype == torch.float32:
                 loss = model(data['units'].float(), data['f0'], data['volume'], data['spk_id'],
                              aug_shift=data['aug_shift'], gt_spec=data['mel'].float(), infer=False, k_step=args.model.k_step_max,
-                             spk_emb=data['spk_emb'])
+                             spk_emb=data['spk_emb']) + commit_loss
             else:
                 with autocast(device_type=args.device, dtype=dtype):
                     loss = model(data['units'], data['f0'], data['volume'], data['spk_id'],
                                  aug_shift=data['aug_shift'], gt_spec=data['mel'], infer=False, k_step=args.model.k_step_max,
-                                 spk_emb=data['spk_emb'])
+                                 spk_emb=data['spk_emb']) + commit_loss
 
             # handle nan loss
             if torch.isnan(loss):
@@ -197,7 +225,7 @@ def train(args, initial_global_step, model, optimizer, scheduler, vocoder, loade
             if saver.global_step % args.train.interval_log == 0:
                 current_lr = optimizer.param_groups[0]['lr']
                 saver.log_info(
-                    'epoch: {} | {:3d}/{:3d} | {} | batch/s: {:.2f} | lr: {:.6} | loss: {:.3f} | time: {} | step: {}'.format(
+                    'epoch: {} | {:3d}/{:3d} | {} | batch/s: {:.2f} | lr: {:.6} | loss: {:.3f} | vq_loss: {:3f} | time: {} | step: {}'.format(
                         epoch,
                         batch_idx,
                         num_batches,
@@ -205,6 +233,7 @@ def train(args, initial_global_step, model, optimizer, scheduler, vocoder, loade
                         args.train.interval_log / saver.get_interval_time(),
                         current_lr,
                         loss.item(),
+                        commit_loss.item() if type(commit_loss) is torch.Tensor else 0,
                         saver.get_total_time(),
                         saver.global_step
                     )
@@ -212,6 +241,10 @@ def train(args, initial_global_step, model, optimizer, scheduler, vocoder, loade
 
                 saver.log_value({
                     'train/loss': loss.item()
+                })
+
+                saver.log_value({
+                    'train/vq_loss': commit_loss.item() if type(commit_loss) is torch.Tensor else 0
                 })
 
                 saver.log_value({
@@ -227,6 +260,13 @@ def train(args, initial_global_step, model, optimizer, scheduler, vocoder, loade
                 last_val_step = saver.global_step - args.train.interval_val
                 if last_val_step % args.train.interval_force_save != 0:
                     saver.delete_model(postfix=f'{last_val_step}')
+
+                if args.train.units_quantize_type == "vq":
+                    # save latest
+                    saver.save_model(quantizer, None, postfix=f'{saver.global_step}_semantic_codebook')
+                    last_val_step = saver.global_step - args.train.interval_val
+                    if last_val_step % args.train.interval_force_save != 0:
+                       saver.delete_model(postfix=f'{last_val_step}_semantic_codebook')
 
                 # run testing set
                 test_loss = test(args, model, vocoder, loader_test, f0_extractor, quantizer, saver)
