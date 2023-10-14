@@ -8,7 +8,7 @@ from logger import utils
 from torch import autocast
 from torch.cuda.amp import GradScaler
 
-def test(args, model, vocoder, loader_test, f0_extractor, saver):
+def test(args, model, vocoder, loader_test, f0_extractor, quantizer, saver):
     print(' [*] testing...')
     model.eval()
 
@@ -32,6 +32,9 @@ def test(args, model, vocoder, loader_test, f0_extractor, saver):
                 data['volume'] = None
             if data['aug_shift'][0] == -1:
                 data['aug_shift'] = None
+
+            if quantizer is not None:
+                data['units'] = quantizer(data['units'])
                 
             # unpack data
             for k in data.keys():
@@ -117,7 +120,19 @@ def train(args, initial_global_step, model, optimizer, scheduler, vocoder, loade
         f0_extractor = FCPEInfer(model_path='pretrain/fcpe/fcpe.pt')
     else:
         f0_extractor = None
-        
+    
+    if args.train.use_units_quantize:
+        saver.log_info("load quantizer")
+        if args.train.units_quantize_type == "kmeans":
+            from quantize.kmeans_codebook import EuclideanCodebook
+            from cluster import get_cluster_model
+            codebook_weight = get_cluster_model(args.model.text2semantic.codebook_path).__dict__["cluster_centers_"]
+            quantizer = EuclideanCodebook(codebook_weight).to(args.device)
+        else:
+            raise ValueError(' [x] Unknown quantize_type: ' + args.train.units_quantize_type)
+    else:
+        quantizer = None
+
     # run
     num_batches = len(loader_train)
     start_epoch = initial_global_step // num_batches
@@ -149,6 +164,9 @@ def train(args, initial_global_step, model, optimizer, scheduler, vocoder, loade
             for k in data.keys():
                 if type(data[k]) is torch.Tensor:
                     data[k] = data[k].to(args.device)
+
+            if quantizer is not None:
+                data['units'] = quantizer(data['units'])
 
             # forward
             if dtype == torch.float32:
@@ -211,8 +229,8 @@ def train(args, initial_global_step, model, optimizer, scheduler, vocoder, loade
                     saver.delete_model(postfix=f'{last_val_step}')
 
                 # run testing set
-                test_loss = test(args, model, vocoder, loader_test, f0_extractor, saver)
-
+                test_loss = test(args, model, vocoder, loader_test, f0_extractor, quantizer, saver)
+                
                 # log loss
                 saver.log_info(
                     ' --- <validation> --- \nloss: {:.3f}. '.format(

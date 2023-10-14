@@ -84,3 +84,5 @@ train:
   weight_decay: 0
   save_opt: false
   last_save_model_num: 3
+  use_units_quantize: true # If you want to use your own quantization, set to true
+  units_quantize_type: kmeans # 'kmean' or 'vq'
