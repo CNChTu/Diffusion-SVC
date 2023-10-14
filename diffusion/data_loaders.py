@@ -343,9 +343,9 @@ class AudioDataset(Dataset):
             # load shift
             aug_shift = torch.from_numpy(np.array([[aug_shift]])).float()
         else:
-            aug_shift = None
-            f0_frames = None
-            volume_frames = None
+            aug_shift = np.array([-1])
+            f0_frames = np.array([-1])
+            volume_frames = np.array([-1])
         # load spk_id
         spk_id = data_buffer.get('spk_id')
 

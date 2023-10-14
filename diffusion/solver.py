@@ -115,12 +115,20 @@ def train(args, initial_global_step, model, optimizer, scheduler, vocoder, loade
         raise ValueError(' [x] Unknown amp_dtype: ' + args.train.amp_dtype)
     for epoch in range(start_epoch, args.train.epochs):
         for batch_idx, data in enumerate(loader_train):
+            if data['f0'][0] == -1:
+                data['f0'] = None
+            if data['volume'][0] == -1:
+                data['volume'] = None
+            if data['aug_shift'][0] == -1:
+                data['aug_shift'] = None
+
+
             saver.global_step_increment()
             optimizer.zero_grad()
 
             # unpack data
             for k in data.keys():
-                if not k.startswith('name'):
+                if type(data[k]) is torch.Tensor:
                     data[k] = data[k].to(args.device)
 
             # forward
