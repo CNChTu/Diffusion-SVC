@@ -8,8 +8,7 @@ from logger import utils
 from torch import autocast
 from torch.cuda.amp import GradScaler
 
-
-def test(args, model, vocoder, loader_test, saver):
+def test(args, model, vocoder, loader_test, f0_extractor, saver):
     print(' [*] testing...')
     model.eval()
 
@@ -54,7 +53,13 @@ def test(args, model, vocoder, loader_test, saver):
                 method=args.infer.method,
                 k_step=args.model.k_step_max,
                 spk_emb=data['spk_emb'])
-            signal = vocoder.infer(mel, data['f0'])
+            
+            if data['f0'] is None:
+                f0 = f0_extractor.model(mel=mel, infer=True, return_hz_f0=True)
+            else:
+                f0 = data['f0']
+
+            signal = vocoder.infer(mel, f0)
             ed_time = time.time()
 
             # RTF
@@ -107,6 +112,12 @@ def train(args, initial_global_step, model, optimizer, scheduler, vocoder, loade
     saver.log_info('--- model size ---')
     saver.log_info(params_count)
 
+    if args.data.is_tts:
+        from encoder.fcpe.model import FCPEInfer
+        f0_extractor = FCPEInfer(model_path='pretrain/fcpe/fcpe.pt')
+    else:
+        f0_extractor = None
+        
     # run
     num_batches = len(loader_train)
     start_epoch = initial_global_step // num_batches
@@ -200,7 +211,7 @@ def train(args, initial_global_step, model, optimizer, scheduler, vocoder, loade
                     saver.delete_model(postfix=f'{last_val_step}')
 
                 # run testing set
-                test_loss = test(args, model, vocoder, loader_test, saver)
+                test_loss = test(args, model, vocoder, loader_test, f0_extractor, saver)
 
                 # log loss
                 saver.log_info(
