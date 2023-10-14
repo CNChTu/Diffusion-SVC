@@ -123,7 +123,7 @@ class TextDataset(Dataset):
             print('Load file list :', path_root)
         self.spk_id = 1
         if use_cache:
-            for name_ext in tqdm(self.paths, total=len(self.paths)):
+            for name_ext in tqdm(self.paths, total=len(self.paths), position=accelerate.process_index if accelerate is not None else 0):
 
                 path_utt = os.path.join(self.path_utt_root, name_ext)
                 path_semantic_token = os.path.join(self.path_semantic_token_root, name_ext)
