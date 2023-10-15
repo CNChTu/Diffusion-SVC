@@ -109,6 +109,8 @@ if __name__ == '__main__':
 
     
     initial_global_step, model, optimizer = utils.load_model(args.env.expdir, model, optimizer, device=args.device)
+    if quantizer is not None:
+        _, quantizer, _ = utils.load_model(args.env.expdir, quantizer, optimizer, device=args.device, postfix=f'{initial_global_step}_semantic_codebook')
     for param_group in optimizer.param_groups:
         param_group['initial_lr'] = args.train.lr
         param_group['lr'] = args.train.lr * args.train.gamma ** max((initial_global_step - 2) // args.train.decay_step, 0)
