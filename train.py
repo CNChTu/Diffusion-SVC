@@ -50,7 +50,9 @@ if __name__ == '__main__':
                     args.model.n_heads,
                     args.model.n_hidden,
                     use_speaker_encoder=args.model.use_speaker_encoder,
-                    speaker_encoder_out_channels=args.data.speaker_encoder_out_channels)
+                    speaker_encoder_out_channels=args.data.speaker_encoder_out_channels,
+                    is_tts=args.model.is_tts
+                    )
     
     elif args.model.type == 'Naive':
         model = Unit2MelNaive(
