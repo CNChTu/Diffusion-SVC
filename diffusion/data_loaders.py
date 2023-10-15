@@ -145,6 +145,8 @@ class AudioDataset(Dataset):
         self.data_buffer = {}
         self.pitch_aug_dict = np.load(os.path.join(self.path_root, 'pitch_aug_dict.npy'), allow_pickle=True).item()
         self.is_tts = is_tts
+        self.n_spk = n_spk
+        self.spk_name_id_map = {}
         
         if accelerator is not None:
             self.paths = self.paths[accelerator.process_index::accelerator.num_processes]
@@ -153,6 +155,8 @@ class AudioDataset(Dataset):
             print('Load all the data from :', path_root)
         else:
             print('Load the f0, volume data from :', path_root)
+
+        spk_id = 1
         for name_ext in tqdm(self.paths, total=len(self.paths), position=accelerator.process_index if accelerator is not None else 0):
             path_audio = os.path.join(self.path_root, 'audio', name_ext)
             duration = librosa.get_duration(filename=path_audio, sr=self.sample_rate)
@@ -180,10 +184,12 @@ class AudioDataset(Dataset):
                 aug_vol = None
                 volume = None
 
-
             if n_spk is not None and n_spk > 1:
                 dirname_split = re.split(r"_|\-", os.path.dirname(name_ext), 2)[0]
-                t_spk_id = spk_id = int(dirname_split) if str.isdigit(dirname_split) else 0
+                if self.spk_name_id_map.get(dirname_split) is None:
+                    self.spk_name_id_map[dirname_split] = spk_id
+                    spk_id += 1
+                    t_spk_id = spk_id
                 if spk_id < 1 or spk_id > n_spk:
                     raise ValueError(
                         ' [x] Muiti-speaker traing error : spk_id must be a positive integer from 1 to n_spk ')
