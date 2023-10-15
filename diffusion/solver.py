@@ -127,7 +127,7 @@ def train(args, initial_global_step, model, optimizer, scheduler, vocoder, loade
     saver.log_info('--- model size ---')
     saver.log_info(params_count)
 
-    if args.data.is_tts:
+    if args.model.is_tts:
         from encoder.fcpe.model import FCPEInfer
         f0_extractor = FCPEInfer(model_path='pretrain/fcpe/fcpe.pt')
     else:
