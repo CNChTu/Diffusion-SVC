@@ -80,7 +80,9 @@ def load_svc_model(args, vocoder_dimension):
                     args.model.n_heads,
                     args.model.n_hidden,
                     use_speaker_encoder=args.model.use_speaker_encoder,
-                    speaker_encoder_out_channels=args.data.speaker_encoder_out_channels)
+                    speaker_encoder_out_channels=args.data.speaker_encoder_out_channels,
+                    is_tts = args.model.is_tts
+                    )
 
     elif args.model.type == 'Naive':
         model = Unit2MelNaive(
@@ -122,11 +124,14 @@ class Unit2Mel(nn.Module):
             n_heads=8,
             n_hidden=256,
             use_speaker_encoder=False,
-            speaker_encoder_out_channels=256):
+            speaker_encoder_out_channels=256,
+            is_tts: bool = False
+            ):
         super().__init__()
         self.unit_embed = nn.Linear(input_channel, n_hidden)
-        self.f0_embed = nn.Linear(1, n_hidden)
-        self.volume_embed = nn.Linear(1, n_hidden)
+        if not is_tts:
+            self.f0_embed = nn.Linear(1, n_hidden)
+            self.volume_embed = nn.Linear(1, n_hidden)
         if use_pitch_aug:
             self.aug_shift_embed = nn.Linear(1, n_hidden, bias=False)
         else:
