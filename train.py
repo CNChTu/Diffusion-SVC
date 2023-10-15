@@ -30,8 +30,9 @@ if __name__ == '__main__':
 
     # load config
     args = utils.load_config(cmd.config)
-    print(' > config:', cmd.config)
-    print(' >    exp:', args.env.expdir)
+    if accelerator.is_main_process:
+        print(' > config:', cmd.config)
+        print(' >    exp:', args.env.expdir)
     
     # load vocoder
     vocoder = Vocoder(args.vocoder.type, args.vocoder.ckpt, device=device)

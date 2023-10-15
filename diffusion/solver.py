@@ -153,6 +153,7 @@ def train(args, initial_global_step, model, optimizer, scheduler, vocoder, loade
                     param_group['params'].append(params)
         else:
             raise ValueError(' [x] Unknown quantize_type: ' + args.train.units_quantize_type)
+        quantizer = accelerator.prepare(quantizer)
     else:
         quantizer = None
 
