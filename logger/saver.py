@@ -122,7 +122,9 @@ class Saver(object):
 
         # check
         print(' [*] model checkpoint saved: {}'.format(path_pt))
-
+        if type(model) == torch.nn.DataParallel:
+            model = model.module
+            
         # save
         if optimizer is not None:
             torch.save({
