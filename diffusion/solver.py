@@ -114,7 +114,7 @@ def test(args, model, vocoder, loader_test, f0_extractor, quantizer, saver, acce
     return test_loss
 
 
-def train(args, initial_global_step, model, optimizer, scheduler, vocoder, loader_train, loader_test, accelerator):
+def train(args, initial_global_step, model, optimizer, scheduler, vocoder, loader_train, loader_test,quantizer, accelerator):
     if accelerator.is_main_process:
         saver = Saver(args, initial_global_step=initial_global_step)
     else:
@@ -132,30 +132,6 @@ def train(args, initial_global_step, model, optimizer, scheduler, vocoder, loade
         f0_extractor = FCPEInfer(model_path='pretrain/fcpe/fcpe.pt')
     else:
         f0_extractor = None
-    
-    if args.train.use_units_quantize:
-        saver.log_info("load quantizer")
-        if args.train.units_quantize_type == "kmeans":
-            from quantize.kmeans_codebook import EuclideanCodebook
-            from cluster import get_cluster_model
-            codebook_weight = get_cluster_model(args.model.text2semantic.codebook_path).__dict__["cluster_centers_"]
-            quantizer = EuclideanCodebook(codebook_weight).to(device)
-        elif args.train.units_quantize_type == "vq":
-            from vector_quantize_pytorch import VectorQuantize
-            quantizer = VectorQuantize(
-                dim = args.data.encoder_out_channels,
-                codebook_size = args.model.text2semantic.semantic_kmeans_num,
-                decay = 0.8,             
-                commitment_weight = 1. 
-            ).to(device)
-            for param_group in optimizer.param_groups:
-                for params in quantizer.parameters():
-                    param_group['params'].append(params)
-        else:
-            raise ValueError(' [x] Unknown quantize_type: ' + args.train.units_quantize_type)
-        quantizer = accelerator.prepare(quantizer)
-    else:
-        quantizer = None
 
     # run
     num_batches = len(loader_train)

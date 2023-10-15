@@ -8,6 +8,7 @@ from diffusion.solver import train
 from diffusion.unit2mel import Unit2Mel, Unit2MelNaive
 from diffusion.vocoder import Vocoder
 import accelerate
+import itertools
 
 def parse_args(args=None, namespace=None):
     """Parse command-line arguments."""
@@ -78,8 +79,34 @@ if __name__ == '__main__':
     else:
         raise ValueError(f" [x] Unknown Model: {args.model.type}")
     
-    # load parameters
-    optimizer = torch.optim.AdamW(model.parameters())
+
+    if args.train.use_units_quantize:
+        if accelerator.is_main_process:
+            print("load quantizer")
+        if args.train.units_quantize_type == "kmeans":
+            from quantize.kmeans_codebook import EuclideanCodebook
+            from cluster import get_cluster_model
+            codebook_weight = get_cluster_model(args.model.text2semantic.codebook_path).__dict__["cluster_centers_"]
+            quantizer = EuclideanCodebook(codebook_weight).to(device)
+        elif args.train.units_quantize_type == "vq":
+            from vector_quantize_pytorch import VectorQuantize
+            quantizer = VectorQuantize(
+                dim = args.data.encoder_out_channels,
+                codebook_size = args.model.text2semantic.semantic_kmeans_num,
+                decay = 0.8,             
+                commitment_weight = 1. 
+            ).to(device)
+        else:
+            raise ValueError(' [x] Unknown quantize_type: ' + args.train.units_quantize_type)
+        quantizer = accelerator.prepare(quantizer)
+        # load parameters
+        optimizer = torch.optim.AdamW(itertools.chain(model.parameters(),quantizer.parameters()))
+    else:
+        quantizer = None
+        # load parameters
+        optimizer = torch.optim.AdamW(model.parameters())
+
+    
     initial_global_step, model, optimizer = utils.load_model(args.env.expdir, model, optimizer, device=args.device)
     for param_group in optimizer.param_groups:
         param_group['initial_lr'] = args.train.lr
@@ -106,5 +133,5 @@ if __name__ == '__main__':
 
     
     # run
-    train(args, initial_global_step, model, optimizer, scheduler, vocoder, loader_train, loader_valid, accelerator)
+    train(args, initial_global_step, model, optimizer, scheduler, vocoder, loader_train, loader_valid, quantizer, accelerator)
     
