@@ -32,6 +32,11 @@ def test(args, model, vocoder, loader_test, f0_extractor, quantizer, saver, acce
             if data['aug_shift'][0] == -1:
                 data['aug_shift'] = None
 
+            # unpack data
+            for k in data.keys():
+                if type(data[k]) is torch.Tensor:
+                    data[k] = data[k].to(accelerator.device)
+
             if quantizer is not None:
                 if args.train.units_quantize_type == "kmeans":
                     data['units'] = quantizer(data['units']).detach()
@@ -42,11 +47,6 @@ def test(args, model, vocoder, loader_test, f0_extractor, quantizer, saver, acce
                     raise ValueError(' [x] Unknown quantize_type: ' + args.train.units_quantize_type)
             else:
                 commit_loss = 0
-                
-            # unpack data
-            for k in data.keys():
-                if type(data[k]) is torch.Tensor:
-                    data[k] = data[k].to(accelerator.device)
 
             print('>>', data['name'][0])
 
