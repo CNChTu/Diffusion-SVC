@@ -132,10 +132,10 @@ class Unit2Mel(nn.Module):
         if not is_tts:
             self.f0_embed = nn.Linear(1, n_hidden)
             self.volume_embed = nn.Linear(1, n_hidden)
-        if use_pitch_aug:
-            self.aug_shift_embed = nn.Linear(1, n_hidden, bias=False)
-        else:
-            self.aug_shift_embed = None
+            if use_pitch_aug:
+                self.aug_shift_embed = nn.Linear(1, n_hidden, bias=False)
+            else:
+                self.aug_shift_embed = None
         self.n_spk = n_spk
         self.use_speaker_encoder = use_speaker_encoder
         if use_speaker_encoder:
