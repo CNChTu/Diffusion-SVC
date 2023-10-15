@@ -11,9 +11,6 @@ def test(args, model, vocoder, loader_test, f0_extractor, quantizer, saver, acce
     print(' [*] testing...')
     model.eval()
 
-    # losses
-    test_loss = 0.
-
     # intialization
     num_batches = len(loader_test)
     rtf_all = []
@@ -80,17 +77,16 @@ def test(args, model, vocoder, loader_test, f0_extractor, quantizer, saver, acce
             rtf_all.append(rtf)
 
             # loss
-            for i in range(args.train.batch_size):
-                loss = model(
-                    data['units'],
-                    data['f0'],
-                    data['volume'],
-                    data['spk_id'],
-                    gt_spec=data['mel'],
-                    infer=False,
-                    k_step=args.model.k_step_max,
-                    spk_emb=data['spk_emb'])
-                test_loss += loss.item()
+            loss = model(
+                data['units'],
+                data['f0'],
+                data['volume'],
+                data['spk_id'],
+                gt_spec=data['mel'],
+                infer=False,
+                k_step=args.model.k_step_max,
+                spk_emb=data['spk_emb'])
+            test_loss = loss.item()
 
             # log mel
             saver.log_spec(data['name'][0], data['mel'], mel)
@@ -104,8 +100,6 @@ def test(args, model, vocoder, loader_test, f0_extractor, quantizer, saver, acce
             saver.log_audio({fn + '/gt.wav': audio, fn + '/pred.wav': signal})
 
     # report
-    test_loss /= args.train.batch_size
-    test_loss /= num_batches
     test_loss += commit_loss
 
     # check
