@@ -26,3 +26,4 @@ gradio
 faiss-cpu
 pynvml
 vector-quantize-pytorch
+accelerate

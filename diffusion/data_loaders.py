@@ -49,7 +49,7 @@ def traverse_dir(
     return file_list
 
 
-def get_data_loaders(args, whole_audio=False):
+def get_data_loaders(args, whole_audio=False, accelerator=None):
     if args.data.volume_noise == 0:
         volume_noise = None
     else:
@@ -69,7 +69,8 @@ def get_data_loaders(args, whole_audio=False):
         use_spk_encoder=args.model.use_speaker_encoder,
         spk_encoder_mode=args.data.speaker_encoder_mode,
         volume_noise=volume_noise,
-        is_tts = args.data.is_tts
+        is_tts = args.data.is_tts,
+        accelerator=accelerator
     )
     loader_train = torch.utils.data.DataLoader(
         data_train,
@@ -91,7 +92,8 @@ def get_data_loaders(args, whole_audio=False):
         use_spk_encoder=args.model.use_speaker_encoder,
         spk_encoder_mode=args.data.speaker_encoder_mode,
         volume_noise=volume_noise,
-        is_tts = args.data.is_tts
+        is_tts = args.data.is_tts,
+        accelerator=None
     )
     loader_valid = torch.utils.data.DataLoader(
         data_valid,
@@ -121,6 +123,7 @@ class AudioDataset(Dataset):
             spk_encoder_mode='each_spk',
             volume_noise=None,
             is_tts=True,
+            accelerator=None
     ):
         super().__init__()
 
@@ -142,12 +145,15 @@ class AudioDataset(Dataset):
         self.data_buffer = {}
         self.pitch_aug_dict = np.load(os.path.join(self.path_root, 'pitch_aug_dict.npy'), allow_pickle=True).item()
         self.is_tts = is_tts
-
+        
+        if accelerator is not None:
+            self.paths = self.paths[accelerator.process_index::accelerator.num_processes]
+        
         if load_all_data:
             print('Load all the data from :', path_root)
         else:
             print('Load the f0, volume data from :', path_root)
-        for name_ext in tqdm(self.paths, total=len(self.paths)):
+        for name_ext in tqdm(self.paths, total=len(self.paths), position=accelerator.process_index if accelerator is not None else 0):
             path_audio = os.path.join(self.path_root, 'audio', name_ext)
             duration = librosa.get_duration(filename=path_audio, sr=self.sample_rate)
 

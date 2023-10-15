@@ -7,7 +7,7 @@ from diffusion.data_loaders import get_data_loaders
 from diffusion.solver import train
 from diffusion.unit2mel import Unit2Mel, Unit2MelNaive
 from diffusion.vocoder import Vocoder
-
+import accelerate
 
 def parse_args(args=None, namespace=None):
     """Parse command-line arguments."""
@@ -25,13 +25,16 @@ if __name__ == '__main__':
     # parse commands
     cmd = parse_args()
     
+    accelerator = accelerate.Accelerator()
+    device = accelerator.device
+
     # load config
     args = utils.load_config(cmd.config)
     print(' > config:', cmd.config)
     print(' >    exp:', args.env.expdir)
     
     # load vocoder
-    vocoder = Vocoder(args.vocoder.type, args.vocoder.ckpt, device=args.device)
+    vocoder = Vocoder(args.vocoder.type, args.vocoder.ckpt, device=device)
     
     # load model
     if args.model.type == 'Diffusion':
@@ -84,18 +87,23 @@ if __name__ == '__main__':
     scheduler = lr_scheduler.StepLR(optimizer, step_size=args.train.decay_step, gamma=args.train.gamma, last_epoch=initial_global_step-2)
     
     # device
-    if args.device == 'cuda':
-        torch.cuda.set_device(args.env.gpu_id)
-    model.to(args.device)
+    # if args.device == 'cuda':
+    #     torch.cuda.set_device(args.env.gpu_id)
+    model.to(device)
     
     for state in optimizer.state.values():
         for k, v in state.items():
             if torch.is_tensor(v):
-                state[k] = v.to(args.device)
+                state[k] = v.to(device)
                     
     # datas
-    loader_train, loader_valid = get_data_loaders(args, whole_audio=False)
+    loader_train, loader_valid = get_data_loaders(args, whole_audio=False,accelerator=accelerator)
+
+    _, model, optim, scheduler = accelerator.prepare(
+        loader_train, model, optimizer, scheduler
+    )
+
     
     # run
-    train(args, initial_global_step, model, optimizer, scheduler, vocoder, loader_train, loader_valid)
+    train(args, initial_global_step, model, optimizer, scheduler, vocoder, loader_train, loader_valid, accelerator)
     

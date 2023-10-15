@@ -3,12 +3,11 @@ import time
 import numpy as np
 import torch
 import librosa
-from logger.saver import Saver
+from logger.saver import Saver, Saver_empty
 from logger import utils
-from torch import autocast
 from torch.cuda.amp import GradScaler
 
-def test(args, model, vocoder, loader_test, f0_extractor, quantizer, saver):
+def test(args, model, vocoder, loader_test, f0_extractor, quantizer, saver, accelerator):
     print(' [*] testing...')
     model.eval()
 
@@ -47,7 +46,7 @@ def test(args, model, vocoder, loader_test, f0_extractor, quantizer, saver):
             # unpack data
             for k in data.keys():
                 if type(data[k]) is torch.Tensor:
-                    data[k] = data[k].to(args.device)
+                    data[k] = data[k].to(accelerator.device)
 
             print('>>', data['name'][0])
 
@@ -115,9 +114,13 @@ def test(args, model, vocoder, loader_test, f0_extractor, quantizer, saver):
     return test_loss
 
 
-def train(args, initial_global_step, model, optimizer, scheduler, vocoder, loader_train, loader_test):
-    # saver
-    saver = Saver(args, initial_global_step=initial_global_step)
+def train(args, initial_global_step, model, optimizer, scheduler, vocoder, loader_train, loader_test, accelerator):
+    if accelerator.is_main_process:
+        saver = Saver(args, initial_global_step=initial_global_step)
+    else:
+        saver = Saver_empty(args, initial_global_step=initial_global_step)
+
+    device = accelerator.device
 
     # model size
     params_count = utils.get_network_paras_amount({'model': model})
@@ -136,7 +139,7 @@ def train(args, initial_global_step, model, optimizer, scheduler, vocoder, loade
             from quantize.kmeans_codebook import EuclideanCodebook
             from cluster import get_cluster_model
             codebook_weight = get_cluster_model(args.model.text2semantic.codebook_path).__dict__["cluster_centers_"]
-            quantizer = EuclideanCodebook(codebook_weight).to(args.device)
+            quantizer = EuclideanCodebook(codebook_weight).to(device)
         elif args.train.units_quantize_type == "vq":
             from vector_quantize_pytorch import VectorQuantize
             quantizer = VectorQuantize(
@@ -144,7 +147,7 @@ def train(args, initial_global_step, model, optimizer, scheduler, vocoder, loade
                 codebook_size = args.model.text2semantic.semantic_kmeans_num,
                 decay = 0.8,             
                 commitment_weight = 1. 
-            ).to(args.device)
+            ).to(device)
             for param_group in optimizer.param_groups:
                 for params in quantizer.parameters():
                     param_group['params'].append(params)
@@ -158,72 +161,53 @@ def train(args, initial_global_step, model, optimizer, scheduler, vocoder, loade
     start_epoch = initial_global_step // num_batches
     model.train()
     saver.log_info('======= start training =======')
-    scaler = GradScaler()
-    if args.train.amp_dtype == 'fp32':
-        dtype = torch.float32
-    elif args.train.amp_dtype == 'fp16':
-        dtype = torch.float16
-    elif args.train.amp_dtype == 'bf16':
-        dtype = torch.bfloat16
-    else:
-        raise ValueError(' [x] Unknown amp_dtype: ' + args.train.amp_dtype)
+    
     for epoch in range(start_epoch, args.train.epochs):
         for batch_idx, data in enumerate(loader_train):
-            if data['f0'][0] == -1:
-                data['f0'] = None
-            if data['volume'][0] == -1:
-                data['volume'] = None
-            if data['aug_shift'][0] == -1:
-                data['aug_shift'] = None
+            with accelerator.accumulate(model):
+                if data['f0'][0] == -1:
+                    data['f0'] = None
+                if data['volume'][0] == -1:
+                    data['volume'] = None
+                if data['aug_shift'][0] == -1:
+                    data['aug_shift'] = None
 
 
-            saver.global_step_increment()
-            optimizer.zero_grad()
+                saver.global_step_increment()
+                optimizer.zero_grad()
 
-            # unpack data
-            for k in data.keys():
-                if type(data[k]) is torch.Tensor:
-                    data[k] = data[k].to(args.device)
+                # unpack data
+                for k in data.keys():
+                    if type(data[k]) is torch.Tensor:
+                        data[k] = data[k].to(device)
 
-            if quantizer is not None:
-                if args.train.units_quantize_type == "kmeans":
-                    data['units'] = quantizer(data['units']).detach()
+                if quantizer is not None:
+                    if args.train.units_quantize_type == "kmeans":
+                        data['units'] = quantizer(data['units']).detach()
+                        commit_loss = 0
+                    elif args.train.units_quantize_type == "vq":
+                        data['units'], indices, commit_loss = quantizer(data['units'])
+                        data['units'] = data['units'].detach()
+                    else:
+                        raise ValueError(' [x] Unknown quantize_type: ' + args.train.units_quantize_type)
+                else:
                     commit_loss = 0
-                elif args.train.units_quantize_type == "vq":
-                    data['units'], indices, commit_loss = quantizer(data['units'])
-                    data['units'] = data['units'].detach()
-                else:
-                    raise ValueError(' [x] Unknown quantize_type: ' + args.train.units_quantize_type)
-            else:
-                commit_loss = 0
 
-            # forward
-            if dtype == torch.float32:
+                # forward
                 loss = model(data['units'].float(), data['f0'], data['volume'], data['spk_id'],
-                             aug_shift=data['aug_shift'], gt_spec=data['mel'].float(), infer=False, k_step=args.model.k_step_max,
-                             spk_emb=data['spk_emb']) + commit_loss
-            else:
-                with autocast(device_type=args.device, dtype=dtype):
-                    loss = model(data['units'], data['f0'], data['volume'], data['spk_id'],
-                                 aug_shift=data['aug_shift'], gt_spec=data['mel'], infer=False, k_step=args.model.k_step_max,
-                                 spk_emb=data['spk_emb']) + commit_loss
+                            aug_shift=data['aug_shift'], gt_spec=data['mel'].float(), infer=False, k_step=args.model.k_step_max,
+                            spk_emb=data['spk_emb']) + commit_loss
 
-            # handle nan loss
-            if torch.isnan(loss):
-                raise ValueError(' [x] nan loss ')
-            else:
-                # backpropagate
-                if dtype == torch.float32:
-                    loss.backward()
-                    optimizer.step()
+                # handle nan loss
+                if torch.isnan(loss):
+                    raise ValueError(' [x] nan loss ')
                 else:
-                    scaler.scale(loss).backward()
-                    scaler.step(optimizer)
-                    scaler.update()
-                scheduler.step()
+                    accelerator.backward(loss)
+                    optimizer.step()
+                    scheduler.step()
 
             # log loss
-            if saver.global_step % args.train.interval_log == 0:
+            if accelerator.is_main_process and saver.global_step % args.train.interval_log == 0:
                 current_lr = optimizer.param_groups[0]['lr']
                 saver.log_info(
                     'epoch: {} | {:3d}/{:3d} | {} | batch/s: {:.2f} | lr: {:.6} | loss: {:.3f} | vq_loss: {:3f} | time: {} | step: {}'.format(
@@ -253,14 +237,17 @@ def train(args, initial_global_step, model, optimizer, scheduler, vocoder, loade
                 })
 
             # validation
-            if saver.global_step % args.train.interval_val == 0:
-                optimizer_save = optimizer if args.train.save_opt else None
+            if accelerator.is_main_process and saver.global_step % args.train.interval_val == 0:
+                optimizer_save = optimizer if args.model.text2semantic.train.save_opt else None
 
                 # save latest
-                saver.save_model(model, optimizer_save, postfix=f'{saver.global_step}')
-                last_val_step = saver.global_step - args.train.interval_val
-                if last_val_step % args.train.interval_force_save != 0:
-                    saver.delete_model(postfix=f'{last_val_step}')
+                if saver.global_step % args.train.interval_force_save == 0:
+                    saver.save_model(model, optimizer_save, postfix=f'{saver.global_step}_Force')
+                else:
+                    saver.save_model(model, optimizer, postfix=f'{saver.global_step}')
+
+                last_val_step = saver.global_step - args.train.interval_val * args.train.last_save_model_num
+                saver.delete_model(postfix=f'{last_val_step}')
 
                 if args.train.units_quantize_type == "vq":
                     # save latest
@@ -270,7 +257,7 @@ def train(args, initial_global_step, model, optimizer, scheduler, vocoder, loade
                        saver.delete_model(postfix=f'{last_val_step}_semantic_codebook')
 
                 # run testing set
-                test_loss = test(args, model, vocoder, loader_test, f0_extractor, quantizer, saver)
+                test_loss = test(args, model, vocoder, loader_test, f0_extractor, quantizer, saver, accelerator)
                 
                 # log loss
                 saver.log_info(

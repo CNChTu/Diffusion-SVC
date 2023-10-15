@@ -71,7 +71,7 @@ def get_data_loaders(args,model, accelerate = None):
         use_cache = args.model.text2semantic.train.cache_all_data,
         n_spk = args.model.text2semantic.model.n_spk,
         model = model,
-        accelerate = accelerate
+        accelerate = None
     )
     loader_valid = torch.utils.data.DataLoader(
         data_valid,

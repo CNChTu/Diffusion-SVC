@@ -154,3 +154,46 @@ class Saver(object):
 
     def global_step_increment(self):
         self.global_step += 1
+
+
+class Saver_empty(object):
+    def __init__(
+            self,
+            args,
+            initial_global_step=-1
+            ):
+
+        pass
+
+    def log_info(self, msg):
+        pass
+
+    def log_value(self, dict):
+        pass
+
+    def log_spec(self, name, spec, spec_out, vmin=-14, vmax=3.5):
+        pass
+
+    def log_audio(self, dict):
+        pass
+
+    def get_interval_time(self, update=True):
+        pass
+
+    def get_total_time(self, to_str=True):
+        pass
+
+    def save_model(
+            self,
+            model,
+            optimizer,
+            name='model',
+            postfix='',
+            to_json=False):
+        pass
+
+    def delete_model(self, name='model', postfix=''):
+        pass
+
+    def global_step_increment(self):
+        pass
