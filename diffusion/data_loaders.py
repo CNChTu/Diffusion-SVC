@@ -232,12 +232,6 @@ class AudioDataset(Dataset):
                     spk_emb = np.load(path_spk_emb)
                     spk_emb = torch.from_numpy(spk_emb).to(device)
 
-                if fp16:
-                    mel = mel.half()
-                    aug_mel = aug_mel.half()
-                    units = units.half()
-                    spk_emb = spk_emb.half()
-
                 self.data_buffer[name_ext] = {
                     'duration': duration,
                     'mel': mel,
