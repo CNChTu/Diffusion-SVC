@@ -231,7 +231,7 @@ def train(args, initial_global_step, model, optimizer, scheduler, vocoder, loade
                         saver.save_model(quantizer, None, postfix=f'{saver.global_step}_semantic_codebook')
                         last_val_step = saver.global_step - args.train.interval_val
                         if last_val_step % args.train.interval_force_save != 0:
-                        saver.delete_model(postfix=f'{last_val_step}_semantic_codebook')
+                            saver.delete_model(postfix=f'{last_val_step}_semantic_codebook')
 
                     # run testing set
                     test_loss = test(args, model, vocoder, loader_test, f0_extractor, quantizer, saver, accelerator)
