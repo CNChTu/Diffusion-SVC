@@ -183,68 +183,73 @@ def train(args, initial_global_step, model, optimizer, scheduler, vocoder, loade
                     optimizer.step()
                     scheduler.step()
 
-                # log loss
-                if accelerator.is_main_process and saver.global_step % args.train.interval_log == 0:
-                    current_lr = optimizer.param_groups[0]['lr']
-                    saver.log_info(
-                        'epoch: {} | {:3d}/{:3d} | {} | batch/s: {:.2f} | lr: {:.6} | loss: {:.3f} | vq_loss: {:3f} | time: {} | step: {}'.format(
-                            epoch,
-                            batch_idx,
-                            num_batches,
-                            args.env.expdir,
-                            args.train.interval_log / saver.get_interval_time(),
-                            current_lr,
-                            loss.item(),
-                            commit_loss.item() if type(commit_loss) is torch.Tensor else 0,
-                            saver.get_total_time(),
-                            saver.global_step
-                        )
+            # log loss
+            if accelerator.is_main_process and saver.global_step % args.train.interval_log == 0:
+                current_lr = optimizer.param_groups[0]['lr']
+                saver.log_info(
+                    'epoch: {} | {:3d}/{:3d} | {} | batch/s: {:.2f} | lr: {:.6} | loss: {:.3f} | vq_loss: {:3f} | time: {} | step: {}'.format(
+                        epoch,
+                        batch_idx,
+                        num_batches,
+                        args.env.expdir,
+                        args.train.interval_log / saver.get_interval_time(),
+                        current_lr,
+                        loss.item(),
+                        commit_loss.item() if type(commit_loss) is torch.Tensor else 0,
+                        saver.get_total_time(),
+                        saver.global_step
                     )
+                )
 
-                    saver.log_value({
-                        'train/loss': loss.item()
-                    })
+                saver.log_value({
+                    'train/loss': loss.item()
+                })
 
-                    saver.log_value({
-                        'train/vq_loss': commit_loss.item() if type(commit_loss) is torch.Tensor else 0
-                    })
+                saver.log_value({
+                    'train/vq_loss': commit_loss.item() if type(commit_loss) is torch.Tensor else 0
+                })
 
-                    saver.log_value({
-                        'train/lr': current_lr
-                    })
+                saver.log_value({
+                    'train/lr': current_lr
+                })
 
-                # validation
-                if accelerator.is_main_process and saver.global_step % args.train.interval_val == 0:
-                    optimizer_save = optimizer if args.model.text2semantic.train.save_opt else None
+            # validation
+            if accelerator.is_main_process and saver.global_step % args.train.interval_val == 0:
+                optimizer_save = optimizer if args.model.text2semantic.train.save_opt else None
 
+                # save latest
+                if saver.global_step % args.train.interval_force_save == 0:
+                    saver.save_model(model, optimizer_save, postfix=f'{saver.global_step}_Force')
+                else:
+                    saver.save_model(model, optimizer, postfix=f'{saver.global_step}')
+
+                last_val_step = saver.global_step - args.train.interval_val * args.train.last_save_model_num
+                saver.delete_model(postfix=f'{last_val_step}')
+
+                if args.train.units_quantize_type == "vq":
                     # save latest
-                    if saver.global_step % args.train.interval_force_save == 0:
-                        saver.save_model(model, optimizer_save, postfix=f'{saver.global_step}_Force')
-                    else:
-                        saver.save_model(model, optimizer, postfix=f'{saver.global_step}')
+                    saver.save_model(quantizer, None, postfix=f'{saver.global_step}_semantic_codebook')
+                    last_val_step = saver.global_step - args.train.interval_val
+                    if last_val_step % args.train.interval_force_save != 0:
+                       saver.delete_model(postfix=f'{last_val_step}_semantic_codebook')
 
-                    last_val_step = saver.global_step - args.train.interval_val * args.train.last_save_model_num
-                    saver.delete_model(postfix=f'{last_val_step}')
-
-                    if args.train.units_quantize_type == "vq":
-                        # save latest
-                        saver.save_model(quantizer, None, postfix=f'{saver.global_step}_semantic_codebook')
-                        last_val_step = saver.global_step - args.train.interval_val
-                        if last_val_step % args.train.interval_force_save != 0:
-                            saver.delete_model(postfix=f'{last_val_step}_semantic_codebook')
-
-                    # run testing set
-                    test_loss = test(args, model, vocoder, loader_test, f0_extractor, quantizer, saver, accelerator)
+                # run testing set
+                if type(model) is torch.nn.parallel.DistributedDataParallel:
+                    raw_model = model.module
+                else:
+                    raw_model = model
                     
-                    # log loss
-                    saver.log_info(
-                        ' --- <validation> --- \nloss: {:.3f}. '.format(
-                            test_loss,
-                        )
+                test_loss = test(args, raw_model, vocoder, loader_test, f0_extractor, quantizer, saver, accelerator)
+                
+                # log loss
+                saver.log_info(
+                    ' --- <validation> --- \nloss: {:.3f}. '.format(
+                        test_loss,
                     )
+                )
 
-                    saver.log_value({
-                        'validation/loss': test_loss
-                    })
+                saver.log_value({
+                    'validation/loss': test_loss
+                })
 
-                    model.train()
+                model.train()
