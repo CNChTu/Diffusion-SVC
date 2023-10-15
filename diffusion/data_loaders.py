@@ -274,7 +274,7 @@ class AudioDataset(Dataset):
         idx_from = 0 if self.whole_audio else random.uniform(0, duration - waveform_sec - 0.1)
         start_frame = int(idx_from / frame_resolution)
         units_frame_len = int(waveform_sec / frame_resolution)
-        aug_flag = random.choice([True, False]) and self.use_aug
+        aug_flag = random.choice([True, False]) and self.use_aug and not self.is_tts
         '''
         audio = data_buffer.get('audio')
         if audio is None:
