@@ -57,11 +57,10 @@ def test(args, model, loader_test, diffusion_model, saver,semantic_embedding, ac
             print('Run time: {}'.format(run_time))
 
             # loss
-            for i in range(args.train.batch_size):
-                loss = model(
-                    **data
-                    ).loss
-                test_loss += loss.item()
+            loss = model(
+                **data
+                ).loss
+            test_loss += loss.item()
 
             # log audio
             if signal is not None:
@@ -73,7 +72,6 @@ def test(args, model, loader_test, diffusion_model, saver,semantic_embedding, ac
                 saver.log_audio({fn + '/gt.wav': audio, fn + '/pred.wav': signal})
 
     # report
-    test_loss /= args.train.batch_size
     test_loss /= num_batches
 
     # check
