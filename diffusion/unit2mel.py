@@ -129,6 +129,7 @@ class Unit2Mel(nn.Module):
             ):
         super().__init__()
         self.unit_embed = nn.Linear(input_channel, n_hidden)
+        self.is_tts = is_tts
         if not is_tts:
             self.f0_embed = nn.Linear(1, n_hidden)
             self.volume_embed = nn.Linear(1, n_hidden)
@@ -136,6 +137,11 @@ class Unit2Mel(nn.Module):
                 self.aug_shift_embed = nn.Linear(1, n_hidden, bias=False)
             else:
                 self.aug_shift_embed = None
+        else:
+            self.aug_shift_embed = None
+            self.f0_embed = None
+            self.volume_embed = None
+
         self.n_spk = n_spk
         self.use_speaker_encoder = use_speaker_encoder
         if use_speaker_encoder:
