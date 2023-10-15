@@ -41,9 +41,12 @@ def test(args, model, loader_test, diffusion_model, saver,semantic_embedding, ac
                 tone = data["tone"],
                 attention_mask = data["encoder_attention_mask"],
             )
-
-            semantic_emb = semantic_embedding(semantic_token)
             
+            if args.train.units_quantize_type == "kmeans":
+                semantic_emb = semantic_embedding(semantic_token)
+            elif args.train.units_quantize_type == "vq":
+                semantic_emb = semantic_embedding.get_codes_from_indices(semantic_token)
+
             if diffusion_model is not None:
                 signal = diffusion_model.infer(semantic_emb, None, None)
             else:
@@ -88,17 +91,34 @@ def train(args, initial_global_step, model, optimizer, scheduler, diffusion_mode
     saver.log_info('--- model size ---')
     saver.log_info(params_count)
     saver.log_info('load semantic codebook')
-    codebook = get_cluster_model(args.model.text2semantic.codebook_path)
-    codebook = codebook["cluster_centers_"]
 
-    semantic_embedding = torch.nn.Embedding(
-        codebook.shape[0],
-        codebook.shape[1],
-        _freeze = True
-        )
-    
-    semantic_embedding.weight.data = torch.from_numpy(semantic_embedding)
-    semantic_embedding.to(accelerator.device)
+    if args.train.units_quantize_type == "kmeans":
+        codebook = get_cluster_model(args.model.text2semantic.codebook_path)
+        codebook = codebook["cluster_centers_"]
+        
+        semantic_embedding = torch.nn.Embedding(
+            codebook.shape[0],
+            codebook.shape[1],
+            _freeze = True
+            )
+        
+        semantic_embedding.weight.data = torch.from_numpy(semantic_embedding)
+        semantic_embedding.to(accelerator.device)
+    elif args.train.units_quantize_type == "vq":
+        from vector_quantize_pytorch import VectorQuantize
+        model = VectorQuantize(
+                dim = args.data.encoder_out_channels,
+                codebook_size = args.model.text2semantic.semantic_kmeans_num,
+                decay = 0.8,             
+                commitment_weight = 1.,
+                freeze_codebook=True
+            )
+        model_para = torch.load(args.model.text2semantic.codebook_path)
+        model.load_state_dict(model_para["model"])
+        semantic_embedding = model.to(accelerator.device)
+    else:
+        raise ValueError(' [x] Unknown quantize_type: ' + args.train.units_quantize_type)
+
     # run
     num_batches = len(loader_train)
     start_epoch = initial_global_step // num_batches

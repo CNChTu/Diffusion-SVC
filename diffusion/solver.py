@@ -191,6 +191,7 @@ def train(args, initial_global_step, model, optimizer, scheduler, vocoder, loade
                     commit_loss = 0
                 elif args.train.units_quantize_type == "vq":
                     data['units'], indices, commit_loss = quantizer(data['units'])
+                    data['units'] = data['units'].detach()
                 else:
                     raise ValueError(' [x] Unknown quantize_type: ' + args.train.units_quantize_type)
             else:
