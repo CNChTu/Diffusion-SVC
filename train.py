@@ -98,7 +98,6 @@ if __name__ == '__main__':
             ).to(device)
         else:
             raise ValueError(' [x] Unknown quantize_type: ' + args.train.units_quantize_type)
-        quantizer = accelerator.prepare(quantizer)
         # load parameters
         optimizer = torch.optim.AdamW(itertools.chain(model.parameters(),quantizer.parameters()))
     else:
@@ -127,8 +126,8 @@ if __name__ == '__main__':
     # datas
     loader_train, loader_valid = get_data_loaders(args, whole_audio=False,accelerator=accelerator)
 
-    _, model, optim, scheduler = accelerator.prepare(
-        loader_train, model, optimizer, scheduler
+    _, model, quantizer, optim, scheduler = accelerator.prepare(
+        loader_train, model, quantizer, optimizer, scheduler
     )
 
     
