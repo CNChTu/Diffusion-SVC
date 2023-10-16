@@ -231,12 +231,7 @@ def train(args, initial_global_step, model, optimizer, scheduler, vocoder, loade
                        saver.delete_model(postfix=f'{last_val_step}_semantic_codebook')
 
                 # run testing set
-                if type(model) is torch.nn.parallel.DistributedDataParallel:
-                    raw_model = model.module
-                else:
-                    raw_model = model
-                    
-                test_loss = test(args, raw_model, vocoder, loader_test, f0_extractor, quantizer, saver, accelerator)
+                test_loss = test(args, model, vocoder, loader_test, f0_extractor, quantizer, saver, accelerator)
                 
                 # log loss
                 saver.log_info(

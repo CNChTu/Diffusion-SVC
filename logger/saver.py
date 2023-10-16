@@ -122,7 +122,8 @@ class Saver(object):
 
         # check
         print(' [*] model checkpoint saved: {}'.format(path_pt))
-        if type(model) == torch.nn.DataParallel:
+
+        if type(model) is torch.nn.parallel.distributed.DistributedDataParallel or type(model) is torch.nn.parallel.DistributedDataParallel:
             model = model.module
             
         # save
