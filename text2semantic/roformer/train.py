@@ -42,6 +42,9 @@ def test(args, model, loader_test, diffusion_model, saver,semantic_embedding, ac
                 attention_mask = data["encoder_attention_mask"],
             )
             
+            if semantic_token[:,-1] == model.semantic_eos_token_id:
+                semantic_token = semantic_token[:,1:-1]
+
             if args.train.units_quantize_type == "kmeans":
                 semantic_emb = semantic_embedding(semantic_token)
             elif args.train.units_quantize_type == "vq":
@@ -184,18 +187,19 @@ def train(args, initial_global_step, model, optimizer, scheduler, diffusion_mode
             # validation
             if accelerator.is_main_process and saver.global_step % args.train.interval_val == 0:
                 optimizer_save = optimizer if args.model.text2semantic.train.save_opt else None
+                unwrap_model = accelerator.unwrap_model(model)
 
                 # save latest
                 if saver.global_step % args.train.interval_force_save == 0:
-                    saver.save_model(model, optimizer_save, postfix=f'{saver.global_step}_Force')
+                    saver.save_model(unwrap_model, optimizer_save, postfix=f'{saver.global_step}_Force')
                 else:
-                    saver.save_model(model, optimizer, postfix=f'{saver.global_step}')
+                    saver.save_model(unwrap_model, optimizer, postfix=f'{saver.global_step}')
 
-                last_val_step = saver.global_step - args.train.interval_val * args.train.last_save_model_num
+                last_val_step = saver.global_step - args.train.interval_val * (args.train.last_save_model_num + 1)
                 saver.delete_model(postfix=f'{last_val_step}')
 
                 # run testing set
-                test_loss = test(args, model, loader_valid, diffusion_model, saver,semantic_embedding, accelerator)
+                test_loss = test(args, unwrap_model, loader_valid, diffusion_model, saver,semantic_embedding, accelerator)
 
                 # log loss
                 saver.log_info(
@@ -209,3 +213,4 @@ def train(args, initial_global_step, model, optimizer, scheduler, diffusion_mode
                 })
 
                 model.train()
+            accelerator.wait_for_everyone()

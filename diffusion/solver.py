@@ -213,14 +213,15 @@ def train(args, initial_global_step, model, optimizer, scheduler, vocoder, loade
             # validation
             if accelerator.is_main_process and saver.global_step % args.train.interval_val == 0:
                 optimizer_save = optimizer if args.model.text2semantic.train.save_opt else None
+                unwrap_model = accelerator.unwrap_model(model)
 
                 # save latest
                 if saver.global_step % args.train.interval_force_save == 0:
-                    saver.save_model(model, optimizer_save, postfix=f'{saver.global_step}_Force')
+                    saver.save_model(unwrap_model, optimizer_save, postfix=f'{saver.global_step}_Force')
                 else:
-                    saver.save_model(model, optimizer, postfix=f'{saver.global_step}')
+                    saver.save_model(unwrap_model, optimizer, postfix=f'{saver.global_step}')
 
-                last_val_step = saver.global_step - args.train.interval_val * args.train.last_save_model_num
+                last_val_step = saver.global_step - args.train.interval_val * (args.train.last_save_model_num + 1)
                 saver.delete_model(postfix=f'{last_val_step}')
 
                 if args.train.units_quantize_type == "vq":
@@ -231,12 +232,7 @@ def train(args, initial_global_step, model, optimizer, scheduler, vocoder, loade
                        saver.delete_model(postfix=f'{last_val_step}_semantic_codebook')
 
                 # run testing set
-                if type(model) is torch.nn.parallel.DistributedDataParallel:
-                    raw_model = model.module
-                else:
-                    raw_model = model
-                    
-                test_loss = test(args, raw_model, vocoder, loader_test, f0_extractor, quantizer, saver, accelerator)
+                test_loss = test(args, unwrap_model, vocoder, loader_test, f0_extractor, quantizer, saver, accelerator)
                 
                 # log loss
                 saver.log_info(
@@ -250,3 +246,4 @@ def train(args, initial_global_step, model, optimizer, scheduler, vocoder, loade
                 })
 
                 model.train()
+            accelerator.wait_for_everyone()
