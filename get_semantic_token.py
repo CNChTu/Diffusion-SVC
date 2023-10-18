@@ -14,18 +14,18 @@ from tqdm import tqdm
 #         np.save(out_path, token)
 
 @torch.no_grad()
-def preprocess_utterance(rank, units_path, model,in_dir, out_dir, num_workers):
+def preprocess_utterance(rank, units_path, model,in_dir, out_dir, num_workers, units_quantize_type = "kmeans"):
     units_path = units_path[rank::num_workers]
-    if args.train.units_quantize_type == "vq":
+    if units_quantize_type == "vq":
         model = model.to(f"cuda:{rank%num_workers}")
     for unit_path in tqdm(units_path,position=rank):
-        if args.train.units_quantize_type == "kmeans":
+        if units_quantize_type == "kmeans":
             unit = np.load(os.path.join(in_dir, "units" , unit_path))
             token = cluster.get_cluster_result(model, unit)
             out_path = os.path.join(out_dir, unit_path)
             os.makedirs(os.path.dirname(out_path), exist_ok=True)
             np.save(out_path, token)
-        elif args.train.units_quantize_type == "vq":
+        elif units_quantize_type == "vq":
             unit = torch.from_numpy(np.load(os.path.join(in_dir, "units" , unit_path))).to(f"cuda:{rank%num_workers}")[None,:]
             _, token, _ = model(unit)
             token = token[0].detach().cpu().numpy()
@@ -34,7 +34,7 @@ def preprocess_utterance(rank, units_path, model,in_dir, out_dir, num_workers):
             np.save(out_path, token)
             
 
-def preprocess(in_dir, model, num_workers=1):
+def preprocess(in_dir, units_quantize_type, model, num_workers=1):
     """Preprocess the training set."""
     out_dir = os.path.join(in_dir, "semantic_token")
     os.makedirs(out_dir, exist_ok=True)
@@ -48,7 +48,7 @@ def preprocess(in_dir, model, num_workers=1):
         is_sort=True,
         is_ext=True)
     
-    mp.spawn(preprocess_utterance, args=(filelist, model,in_dir, out_dir, num_workers), nprocs=num_workers, join=True)
+    mp.spawn(preprocess_utterance, args=(filelist, model,in_dir, out_dir, num_workers, units_quantize_type), nprocs=num_workers, join=True)
     
 def parse_args(args=None, namespace=None):
     """Parse command-line arguments."""
@@ -86,6 +86,6 @@ if __name__ == "__main__":
     else:
         raise ValueError(' [x] Unknown quantize_type: ' + args.train.units_quantize_type)
     # preprocess training set
-    preprocess(args.data.train_path, model, num_workers=num_workers)
+    preprocess(args.data.train_path,args.train.units_quantize_type, model, num_workers=num_workers)
     # preprocess validation set
-    preprocess(args.data.valid_path, model, num_workers=num_workers)
+    preprocess(args.data.valid_path,args.train.units_quantize_type, model, num_workers=num_workers)
