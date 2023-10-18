@@ -59,9 +59,9 @@ def get_data_loaders(args,model, accelerate = None):
     )
     loader_train = torch.utils.data.DataLoader(
         data_train,
-        batch_size=args.model.text2semantic.train.num_workers if not args.model.text2semantic.train.cache_all_data else 1,
+        batch_size=args.model.text2semantic.train.batch_size,
         shuffle=True,
-        num_workers=args.model.text2semantic.train.num_workers,
+        num_workers=args.model.text2semantic.train.num_workers if not args.model.text2semantic.train.cache_all_data else 1,
         persistent_workers= (args.model.text2semantic.train.num_workers > 0) if not args.model.text2semantic.train.cache_all_data else False,
         pin_memory=True if not args.model.text2semantic.train.cache_all_data else False,
         collate_fn=colle_fn
