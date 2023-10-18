@@ -95,19 +95,18 @@ def train(args, initial_global_step, model, optimizer, scheduler, diffusion_mode
 
     if args.train.units_quantize_type == "kmeans":
         codebook = get_cluster_model(args.model.text2semantic.codebook_path)
-        codebook = codebook["cluster_centers_"]
+        codebook = codebook.__dict__["cluster_centers_"]
         
         semantic_embedding = torch.nn.Embedding(
             codebook.shape[0],
             codebook.shape[1],
             _freeze = True
             )
-        
-        semantic_embedding.weight.data = torch.from_numpy(semantic_embedding)
+        semantic_embedding.weight.data = torch.from_numpy(codebook)
         semantic_embedding.to(accelerator.device)
     elif args.train.units_quantize_type == "vq":
         from vector_quantize_pytorch import VectorQuantize
-        model = VectorQuantize(
+        semantic_embedding = VectorQuantize(
                 dim = args.data.encoder_out_channels,
                 codebook_size = args.model.text2semantic.semantic_kmeans_num,
                 decay = 0.8,             
@@ -115,8 +114,8 @@ def train(args, initial_global_step, model, optimizer, scheduler, diffusion_mode
                 freeze_codebook=True
             )
         model_para = torch.load(args.model.text2semantic.codebook_path)
-        model.load_state_dict(model_para["model"])
-        semantic_embedding = model.to(accelerator.device)
+        semantic_embedding.load_state_dict(model_para["model"])
+        semantic_embedding = semantic_embedding.to(accelerator.device)
     else:
         raise ValueError(' [x] Unknown quantize_type: ' + args.train.units_quantize_type)
 
@@ -139,11 +138,11 @@ def train(args, initial_global_step, model, optimizer, scheduler, diffusion_mode
                     if type(data[k]) is torch.Tensor:
                         data[k] = data[k].to(accelerator.device)
                         if k == "phone":
-                            data[k][data[k] == -100] = model.PAD
+                            data[k][data[k] == -100] = accelerator.unwrap_model(model).PAD
                         if k == "tone":
-                            data[k][data[k] == -100] = model.num_tones
+                            data[k][data[k] == -100] = accelerator.unwrap_model(model).num_tones
                         if k == "semantic":
-                            data[k][data[k] == -100] = model.semantic_pad_token_id
+                            data[k][data[k] == -100] = accelerator.unwrap_model(model).semantic_pad_token_id
                 # forward
                 loss = model(**data).loss
                 

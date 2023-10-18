@@ -124,31 +124,74 @@ class TextDataset(Dataset):
         self.spk_id = 1
         if use_cache:
             for name_ext in tqdm(self.paths, total=len(self.paths), position=accelerate.process_index if accelerate is not None else 0):
+                try:
+                    path_utt = os.path.join(self.path_utt_root, name_ext)
+                    path_semantic_token = os.path.join(self.path_semantic_token_root, name_ext)
+                    
+                    phones, tones, lang_ids, word2ph = np.load(path_utt, allow_pickle=True)
+                    
+                    if n_spk is not None and n_spk > 1:
+                        dirname_split = re.split(r"_|\-", os.path.dirname(name_ext), 2)[0]
+                        if self.spk_name_id_map.get(dirname_split) is None:
+                            self.spk_name_id_map[dirname_split] = self.spk_id
+                            self.spk_id += 1
+                        spk_id_seq = np.ones_like(phones) * self.spk_id
+                        if self.spk_id < 1 or self.spk_id > n_spk:
+                            raise ValueError(
+                                ' [x] Muiti-speaker traing error : spk_id must be a positive integer from 1 to n_spk ')
+                    else:
+                        spk_id_seq = None
 
+                    semantic_tokens = np.load(path_semantic_token)
+                    semantic_tokens = np.concatenate([self.model.semantic_bos_token_id,semantic_tokens,self.model.semantic_eos_token_id])
+
+                    phones_length = len(phones)
+                    semantic_length = len(semantic_tokens)
+
+                    self.data_buffer[name_ext] = {
+                        'phones': phones,
+                        'tones': tones,
+                        'lang_ids': lang_ids,
+                        'word2ph': word2ph,
+                        'semantic_tokens': semantic_tokens,
+                        'phones_length': phones_length,
+                        'semantic_length': semantic_length,
+                        'spk_id':spk_id_seq,
+                        'name_ext':name_ext
+                    }
+                except Exception as e:
+                    print(' [!] error :', name_ext)
+                    self.paths.remove(name_ext)
+                    continue
+
+    def __getitem__(self, file_idx):
+        name_ext = self.paths[file_idx]
+        if self.use_cache:
+            data_buffer = self.data_buffer[name_ext]
+        else:
+            try:
                 path_utt = os.path.join(self.path_utt_root, name_ext)
                 path_semantic_token = os.path.join(self.path_semantic_token_root, name_ext)
-                
+
                 phones, tones, lang_ids, word2ph = np.load(path_utt, allow_pickle=True)
 
-                if n_spk is not None and n_spk > 1:
+                if self.n_spk is not None and self.n_spk > 1:
                     dirname_split = re.split(r"_|\-", os.path.dirname(name_ext), 2)[0]
                     if self.spk_name_id_map.get(dirname_split) is None:
                         self.spk_name_id_map[dirname_split] = self.spk_id
                         self.spk_id += 1
-                    spk_id_seq = np.ones_like(phones) * self.spk_id
-                    if self.spk_id < 1 or self.spk_id > n_spk:
-                        raise ValueError(
-                            ' [x] Muiti-speaker traing error : spk_id must be a positive integer from 1 to n_spk ')
+                        spk_id = self.spk_id
+                    else:
+                        spk_id = self.spk_name_id_map[dirname_split]
+                    spk_id_seq =  torch.LongTensor(np.ones_like(phones)) * spk_id
                 else:
-                    spk_id_seq = None
+                    spk_id_seq = None    
 
                 semantic_tokens = np.load(path_semantic_token)
-                semantic_tokens = np.concatenate([self.model.semantic_bos_token_id,semantic_tokens,self.model.semantic_eos_token_id])
-
+                semantic_tokens = np.concatenate([[self.model.semantic_bos_token_id],semantic_tokens,[self.model.semantic_eos_token_id]] ,axis=-1)
                 phones_length = len(phones)
                 semantic_length = len(semantic_tokens)
-
-                self.data_buffer[name_ext] = {
+                data_buffer = {
                     'phones': phones,
                     'tones': tones,
                     'lang_ids': lang_ids,
@@ -159,56 +202,20 @@ class TextDataset(Dataset):
                     'spk_id':spk_id_seq,
                     'name_ext':name_ext
                 }
-
-    def __getitem__(self, file_idx):
-        name_ext = self.paths[file_idx]
-        if self.use_cache:
-            data_buffer = self.data_buffer[name_ext]
-        else:
-            path_utt = os.path.join(self.path_utt_root, name_ext)
-            path_semantic_token = os.path.join(self.path_semantic_token_root, name_ext)
-
-            phones, tones, lang_ids, word2ph = np.load(path_utt, allow_pickle=True)
-
-            if self.n_spk is not None and self.n_spk > 1:
-                dirname_split = re.split(r"_|\-", os.path.dirname(name_ext), 2)[0]
-                if self.spk_name_id_map.get(dirname_split) is None:
-                    self.spk_name_id_map[dirname_split] = self.spk_id
-                    self.spk_id += 1
-                    spk_id = self.spk_id
-                else:
-                    spk_id = self.spk_name_id_map[dirname_split]
-                spk_id_seq =  torch.LongTensor(np.ones_like(phones)) * spk_id
-            else:
-                spk_id_seq = None    
-
-            semantic_tokens = np.load(path_semantic_token)
-            semantic_tokens = np.concatenate([[self.model.semantic_bos_token_id],semantic_tokens,[self.model.semantic_eos_token_id]] ,axis=-1)
-            phones_length = len(phones)
-            semantic_length = len(semantic_tokens)
-            data_buffer = {
-                'phones': phones,
-                'tones': tones,
-                'lang_ids': lang_ids,
-                'word2ph': word2ph,
-                'semantic_tokens': semantic_tokens,
-                'phones_length': phones_length,
-                'semantic_length': semantic_length,
-                'spk_id':spk_id_seq,
-                'name_ext':name_ext
-            }
-        # get item
-        return self.get_data(data_buffer)
+                # get item
+                return self.get_data(data_buffer)
+            except Exception as e:
+                self.__getitem__(file_idx+1)
 
     def get_data(self, data_buffer):
         attention_mask = self.get_attention_mask(data_buffer['semantic_length'])
         encoder_attention_mask = self.get_attention_mask(data_buffer['phones_length'])
         
         rtn = {
-            'phone': torch.LongTensor(data_buffer['phones']),
-            'tone': torch.LongTensor(data_buffer['tones']),
-            'semantic': torch.LongTensor(data_buffer['semantic_tokens']),
-            'labels': torch.LongTensor(data_buffer['semantic_tokens']),
+            'phone': torch.LongTensor(data_buffer['phones'].astype(np.int64)),
+            'tone': torch.LongTensor(data_buffer['tones'].astype(np.int64)),
+            'semantic': torch.LongTensor(data_buffer['semantic_tokens'].astype(np.int64)),
+            'labels': torch.LongTensor(data_buffer['semantic_tokens'].astype(np.int64)),
             'attention_mask': attention_mask,
             'encoder_attention_mask': encoder_attention_mask,
             'spk_id': data_buffer['spk_id'],

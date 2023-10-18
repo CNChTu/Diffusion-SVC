@@ -38,7 +38,7 @@ if __name__ == '__main__':
     device = accelerator.device
     if accelerator.is_main_process:
         print(' > config:', cmd.config)
-        print(' >    exp:', args.env.expdir)
+        print(' >    exp:', args.model.text2semantic.train.expdir)
     
     # load vocoder
     # vocoder = Vocoder(args.vocoder.type, args.vocoder.ckpt, device=args.device)
@@ -76,7 +76,7 @@ if __name__ == '__main__':
                     
     # datas
     loader_train, loader_valid = get_data_loaders(args,model = model, accelerate=accelerator)
-    _, model, optim, scheduler = accelerator.prepare(
+    _, model, optimizer, scheduler = accelerator.prepare(
         loader_train, model, optimizer, scheduler
     )
 
