@@ -44,6 +44,8 @@ def test(args, model, loader_test, diffusion_model, saver,semantic_embedding, ac
             
             if semantic_token[:,-1] == model.semantic_eos_token_id:
                 semantic_token = semantic_token[:,1:-1]
+            else:
+                semantic_token = semantic_token[:,1:]
 
             if args.train.units_quantize_type == "kmeans":
                 semantic_emb = semantic_embedding(semantic_token)
@@ -67,7 +69,7 @@ def test(args, model, loader_test, diffusion_model, saver,semantic_embedding, ac
 
             # log audio
             if signal is not None:
-                path_audio = os.path.join(args.data.valid_path, 'audio', data['name_ext'][0])
+                path_audio = os.path.join(args.data.valid_path, 'audio', data['name'][0].replace(".npy",""))
                 audio, sr = librosa.load(path_audio, sr=args.data.sampling_rate)
                 if len(audio.shape) > 1:
                     audio = librosa.to_mono(audio)

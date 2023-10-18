@@ -296,6 +296,8 @@ class F0_Extractor:
             if mel is None:
                 f0 = self.transformer_f0(audio=raw_audio, sr=self.sample_rate)
             else:
+                if audio is None:
+                    n_frames = mel.shape[1]
                 f0 = self.transformer_f0.model(mel=mel, infer=True, return_hz_f0=True)
             f0 = f0.transpose(1, 2)
             if not _JUMP_SAFE_PAD:
