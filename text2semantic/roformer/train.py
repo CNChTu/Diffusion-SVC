@@ -9,6 +9,7 @@ from torch import autocast
 from torch.cuda.amp import GradScaler
 from torch.nn.parallel import DistributedDataParallel
 from cluster import get_cluster_model
+from ..utils import get_topk_acc
 
 @torch.no_grad()
 def test(args, model, loader_test, diffusion_model, saver,semantic_embedding, accelerator):
@@ -17,7 +18,7 @@ def test(args, model, loader_test, diffusion_model, saver,semantic_embedding, ac
 
     # losses
     test_loss = 0.
-
+    topk_acc = 0
     # intialization
     num_batches = len(loader_test)
 
@@ -62,10 +63,12 @@ def test(args, model, loader_test, diffusion_model, saver,semantic_embedding, ac
             print('Run time: {}'.format(run_time))
 
             # loss
-            loss = model(
+            result = model(
                 **data
                 ).loss
-            test_loss += loss.item()
+            test_loss += result.loss.item()
+            topk_acc += get_topk_acc(data["semantic"][0], result.logits[0], k = 5)
+            
 
             # log audio
             if signal is not None:
@@ -78,10 +81,11 @@ def test(args, model, loader_test, diffusion_model, saver,semantic_embedding, ac
 
     # report
     test_loss /= num_batches
+    topk_acc /= topk_acc
 
     # check
     print(' [test_loss] test_loss:', test_loss)
-    return test_loss
+    return test_loss, topk_acc
 
 def train(args, initial_global_step, model, optimizer, scheduler, diffusion_model, loader_train, loader_valid, accelerator):
         # saver
@@ -196,17 +200,21 @@ def train(args, initial_global_step, model, optimizer, scheduler, diffusion_mode
                 saver.delete_model(postfix=f'{last_val_step}')
 
                 # run testing set
-                test_loss = test(args, unwrap_model, loader_valid, diffusion_model, saver,semantic_embedding, accelerator)
+                test_loss, topk_acc = test(args, unwrap_model, loader_valid, diffusion_model, saver,semantic_embedding, accelerator)
 
                 # log loss
                 saver.log_info(
-                    ' --- <validation> --- \nloss: {:.3f}. '.format(
-                        test_loss,
+                    ' --- <validation> --- \nloss: {:.3f}. \ntop_acc@5: {:.3f}.'.format(
+                        test_loss, topk_acc
                     )
                 )
 
                 saver.log_value({
                     'validation/loss': test_loss
+                })
+
+                saver.log_value({
+                    'validation/top_acc@5': topk_acc
                 })
 
                 model.train()
