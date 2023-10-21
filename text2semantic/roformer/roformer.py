@@ -172,7 +172,9 @@ class Roformer(nn.Module):
             num_beams=num_beams,
             no_repeat_ngram_size = no_repeat_ngram_size,
             early_stopping = early_stopping,
-            bos_token_id = self.semantic_bos_token_id
+            bos_token_id = self.semantic_bos_token_id,
+            eos_token_id = self.semantic_eos_token_id,
+            pad_token_id = self.semantic_pad_token_id
         )
 
         outputs = self.semantic_decoder.generate(
