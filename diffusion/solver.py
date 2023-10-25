@@ -201,7 +201,7 @@ def train(args, initial_global_step, model, optimizer, scheduler, vocoder, loade
                         current_lr,
                         loss.item(),
                         commit_loss.item() if type(commit_loss) is torch.Tensor else 0,
-                        grad_norm.item(),
+                        grad_norm,
                         saver.get_total_time(),
                         saver.global_step
                     )

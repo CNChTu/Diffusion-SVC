@@ -179,7 +179,7 @@ def train(args, initial_global_step, model, optimizer, scheduler, diffusion_mode
                         args.train.interval_log / saver.get_interval_time(),
                         current_lr,
                         loss.item(),
-                        grad_norm.item(),
+                        grad_norm,
                         saver.get_total_time(),
                         saver.global_step
                     )
