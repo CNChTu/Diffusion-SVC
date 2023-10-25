@@ -851,7 +851,7 @@ def clip_grad_value_(parameters, clip_value, norm_type=2):
         param_norm = p.grad.data.norm(norm_type)
         total_norm += param_norm.item() ** norm_type
         if clip_value is not None:
-        p.grad.data.clamp_(min=-clip_value, max=clip_value)
+            p.grad.data.clamp_(min=-clip_value, max=clip_value)
     total_norm = total_norm ** (1. / norm_type)
     return total_norm
 
