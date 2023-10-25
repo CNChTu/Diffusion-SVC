@@ -857,8 +857,8 @@ def clip_grad_value_(parameters, clip_value, norm_type=2):
 
 class StepLRWithWarmUp(StepLR):
     def __init__(self, optimizer, step_size, gamma=0.1, last_epoch=-1, warm_up_steps=1000 ,verbose=False):
-        super().__init__(optimizer,step_size, gamma, last_epoch, verbose)
         self.warm_up_steps = warm_up_steps
+        super().__init__(optimizer,step_size, gamma, last_epoch, verbose)
 
     def get_lr(self):
         if self.last_epoch < self.warm_up_steps:
