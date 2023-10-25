@@ -15,6 +15,8 @@ from encoder.speaker_encoder.model import SpeakerEncoder as TTSSpeakerEncoder
 import scipy.signal
 from torch.nn.modules.utils import consume_prefix_in_state_dict_if_present
 from torchaudio.transforms import Resample
+import warnings
+from torch.optim.lr_scheduler import StepLR
 
 CREPE_RESAMPLE_KERNEL = {}
 
@@ -835,3 +837,39 @@ def cross_fade(a: np.ndarray, b: np.ndarray, idx: int):
     result[idx: a.shape[0]] = (1 - k) * a[idx:] + k * b[: fade_len]
     np.copyto(dst=result[a.shape[0]:], src=b[fade_len:])
     return result
+
+def clip_grad_value_(parameters, clip_value, norm_type=2):
+  if isinstance(parameters, torch.Tensor):
+    parameters = [parameters]
+  parameters = list(filter(lambda p: p.grad is not None, parameters))
+  norm_type = float(norm_type)
+  if clip_value is not None:
+    clip_value = float(clip_value)
+
+  total_norm = 0
+  for p in parameters:
+    param_norm = p.grad.data.norm(norm_type)
+    total_norm += param_norm.item() ** norm_type
+    if clip_value is not None:
+      p.grad.data.clamp_(min=-clip_value, max=clip_value)
+  total_norm = total_norm ** (1. / norm_type)
+  return total_norm
+
+class StepLRWithWarmUp(StepLR):
+    def __init__(self, optimizer, step_size, gamma=0.1, last_epoch=-1, warm_up_steps=1000 ,verbose=False):
+        super().__init__(optimizer,step_size, gamma, last_epoch, verbose)
+        self.warm_up_steps = warm_up_steps
+
+    def get_lr(self):
+        if self.last_epoch < self.warm_up_steps:
+            return [base_lr * self.last_epoch / self.warm_up_steps
+                    for base_lr in self.base_lrs]
+        else:
+            return super().get_lr()
+
+    def _get_closed_form_lr(self):
+        if self.last_epoch < self.warm_up_steps:
+            return [base_lr * self.last_epoch / self.warm_up_steps
+                    for base_lr in self.base_lrs]
+        else:
+            return super()._get_closed_form_lr()

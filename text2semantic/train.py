@@ -4,10 +4,9 @@ import torch
 from torch.optim import lr_scheduler
 from logger import utils
 from .utils import get_data_loaders
-from diffusion.unit2mel import Unit2Mel, Unit2MelNaive
-from diffusion.vocoder import Vocoder
 import accelerate
 from tools.infer_tools import DiffusionSVC
+from tools.tools import StepLRWithWarmUp
 
 def parse_args(args=None, namespace=None):
     """Parse command-line arguments."""
@@ -65,8 +64,8 @@ if __name__ == '__main__':
         param_group['initial_lr'] = args.model.text2semantic.train.lr
         param_group['lr'] = args.model.text2semantic.train.lr * args.model.text2semantic.train.gamma ** max((initial_global_step - 2) // args.model.text2semantic.train.decay_step, 0)
         param_group['weight_decay'] = args.train.weight_decay
-    scheduler = lr_scheduler.StepLR(optimizer, step_size=args.model.text2semantic.train.decay_step, gamma=args.model.text2semantic.train.gamma, last_epoch=initial_global_step-2)
-
+    scheduler = StepLRWithWarmUp(optimizer, step_size=args.model.text2semantic.train.decay_step, gamma=args.model.text2semantic.train.gamma, last_epoch=initial_global_step-2, warm_up_steps=args.model.text2semantic.train.warm_up_steps)
+    
     model = model.to(device)
     
     for state in optimizer.state.values():

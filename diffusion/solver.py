@@ -5,7 +5,7 @@ import torch
 import librosa
 from logger.saver import Saver, Saver_empty
 from logger import utils
-from torch.cuda.amp import GradScaler
+from tools.tools import clip_grad_value_
 
 def test(args, model, vocoder, loader_test, f0_extractor, quantizer, saver, accelerator):
     print(' [*] testing...')
@@ -117,6 +117,9 @@ def train(args, initial_global_step, model, optimizer, scheduler, vocoder, loade
     else:
         saver = Saver_empty(args, initial_global_step=initial_global_step)
 
+    grad_norm_weight = float(args.train.grad_norm_weight)
+    clip_grad_norm = float(args.train.clip_grad_norm) if args.train.clip_grad_norm is not -1 else None
+
     device = accelerator.device
 
     # model size
@@ -146,8 +149,9 @@ def train(args, initial_global_step, model, optimizer, scheduler, vocoder, loade
                 if data['aug_shift'][0] is -1:
                     data['aug_shift'] = None
 
-
-                saver.global_step_increment()
+                if accelerator.sync_gradients:
+                    saver.global_step_increment()
+                
                 optimizer.zero_grad()
 
                 # unpack data
@@ -171,6 +175,10 @@ def train(args, initial_global_step, model, optimizer, scheduler, vocoder, loade
                 loss = model(data['units'].float(), data['f0'], data['volume'], data['spk_id'],
                             aug_shift=data['aug_shift'], gt_spec=data['mel'].float(), infer=False, k_step=args.model.k_step_max,
                             spk_emb=data['spk_emb']) + commit_loss
+                
+                grad_norm = clip_grad_value_(model.parameters(), clip_grad_norm) * grad_norm_weight
+
+                loss += grad_norm
 
                 # handle nan loss
                 if torch.isnan(loss):
@@ -184,7 +192,7 @@ def train(args, initial_global_step, model, optimizer, scheduler, vocoder, loade
             if accelerator.is_main_process and saver.global_step % args.train.interval_log == 0:
                 current_lr = optimizer.param_groups[0]['lr']
                 saver.log_info(
-                    'epoch: {} | {:3d}/{:3d} | {} | batch/s: {:.2f} | lr: {:.6} | loss: {:.3f} | vq_loss: {:3f} | time: {} | step: {}'.format(
+                    'epoch: {} | {:3d}/{:3d} | {} | batch/s: {:.2f} | lr: {:.6} | loss: {:.3f} | vq_loss: {:.3f} | grad_norm: {:.3f} | time: {} | step: {}'.format(
                         epoch,
                         batch_idx,
                         num_batches,
@@ -193,6 +201,7 @@ def train(args, initial_global_step, model, optimizer, scheduler, vocoder, loade
                         current_lr,
                         loss.item(),
                         commit_loss.item() if type(commit_loss) is torch.Tensor else 0,
+                        grad_norm.item(),
                         saver.get_total_time(),
                         saver.global_step
                     )

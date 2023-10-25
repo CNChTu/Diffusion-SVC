@@ -9,6 +9,7 @@ from diffusion.unit2mel import Unit2Mel, Unit2MelNaive
 from diffusion.vocoder import Vocoder
 import accelerate
 import itertools
+from tools.tools import StepLRWithWarmUp
 
 def parse_args(args=None, namespace=None):
     """Parse command-line arguments."""
@@ -118,7 +119,7 @@ if __name__ == '__main__':
         param_group['initial_lr'] = args.train.lr
         param_group['lr'] = args.train.lr * args.train.gamma ** max((initial_global_step - 2) // args.train.decay_step, 0)
         param_group['weight_decay'] = args.train.weight_decay
-    scheduler = lr_scheduler.StepLR(optimizer, step_size=args.train.decay_step, gamma=args.train.gamma, last_epoch=initial_global_step-2)
+    scheduler = StepLRWithWarmUp(optimizer, step_size=args.train.decay_step, gamma=args.train.gamma, last_epoch=initial_global_step-2, warm_up_steps=args.train.warm_up_steps)
     
     # device
     # if args.device == 'cuda':

@@ -10,6 +10,7 @@ from torch.cuda.amp import GradScaler
 from torch.nn.parallel import DistributedDataParallel
 from cluster import get_cluster_model
 from ..utils import get_topk_acc
+from tools.tools import clip_grad_value_
 
 @torch.no_grad()
 def test(args, model, loader_test, diffusion_model, saver,semantic_embedding, accelerator):
@@ -98,6 +99,9 @@ def train(args, initial_global_step, model, optimizer, scheduler, diffusion_mode
     saver.log_info('--- model size ---')
     saver.log_info(params_count)
     saver.log_info('load semantic codebook')
+    
+    grad_norm_weight = float(args.model.text2semantic.train.grad_norm_weight)
+    clip_grad_norm = float(args.model.text2semantic.train.clip_grad_norm) if args.model.text2semantic.train.clip_grad_norm is not -1 else None
 
     if args.train.units_quantize_type == "kmeans":
         codebook = get_cluster_model(args.model.text2semantic.codebook_path)
@@ -151,7 +155,10 @@ def train(args, initial_global_step, model, optimizer, scheduler, diffusion_mode
                             data[k][data[k] == -100] = accelerator.unwrap_model(model).semantic_pad_token_id
                 # forward
                 loss = model(**data).loss
-                
+                grad_norm = clip_grad_value_(model.parameters(), clip_grad_norm) * grad_norm_weight
+
+                loss += grad_norm
+
                 # handle nan loss
                 if torch.isnan(loss):
                     raise ValueError(' [x] nan loss ')
@@ -164,7 +171,7 @@ def train(args, initial_global_step, model, optimizer, scheduler, diffusion_mode
             if accelerator.is_main_process and saver.global_step % args.train.interval_log == 0:
                 current_lr = optimizer.param_groups[0]['lr']
                 saver.log_info(
-                    'epoch: {} | {:3d}/{:3d} | {} | batch/s: {:.2f} | lr: {:.6} | loss: {:.3f} | time: {} | step: {}'.format(
+                    'epoch: {} | {:3d}/{:3d} | {} | batch/s: {:.2f} | lr: {:.6} | grad_norm: {:.3f} | loss: {:.3f} | time: {} | step: {}'.format(
                         epoch,
                         batch_idx,
                         num_batches,
@@ -172,6 +179,7 @@ def train(args, initial_global_step, model, optimizer, scheduler, diffusion_mode
                         args.train.interval_log / saver.get_interval_time(),
                         current_lr,
                         loss.item(),
+                        grad_norm.item(),
                         saver.get_total_time(),
                         saver.global_step
                     )
