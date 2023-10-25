@@ -285,7 +285,7 @@ class DiffusionSVC:
             gt_spec = gt_spec
         else:
             gt_spec = None
-
+        
         out_mel = self.__call__(units, f0, volume, spk_id=spk_id, spk_mix_dict=spk_mix_dict, aug_shift=aug_shift,
                                 gt_spec=gt_spec, infer_speedup=infer_speedup, method=method, k_step=k_step,
                                 use_tqdm=use_tqdm, spk_emb=spk_emb)
