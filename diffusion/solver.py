@@ -176,15 +176,14 @@ def train(args, initial_global_step, model, optimizer, scheduler, vocoder, loade
                             aug_shift=data['aug_shift'], gt_spec=data['mel'].float(), infer=False, k_step=args.model.k_step_max,
                             spk_emb=data['spk_emb']) + commit_loss
                 
-                grad_norm = clip_grad_value_(model.parameters(), clip_grad_norm) * grad_norm_weight
 
-                loss += grad_norm
 
                 # handle nan loss
                 if torch.isnan(loss):
                     raise ValueError(' [x] nan loss ')
                 else:
                     accelerator.backward(loss)
+                    grad_norm = clip_grad_value_(model.parameters(), clip_grad_norm) * grad_norm_weight
                     optimizer.step()
                     scheduler.step()
 
