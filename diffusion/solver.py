@@ -24,12 +24,13 @@ def test(args, model, vocoder, loader_test, f0_extractor, quantizer, saver, acce
             print('--------')
             print('{}/{} - {}'.format(bidx, num_batches, fn))
             
-            if data['f0'][0] == -1:
+            if isinstance(data['f0'][0], list) and data['f0'][0] == -1:
                 data['f0'] = None
-            if data['volume'][0] == -1:
+            if isinstance(data['volume'][0], list) and data['volume'][0] == -1:
                 data['volume'] = None
-            if data['aug_shift'][0] == -1:
+            if isinstance(data['aug_shift'][0], list) and data['aug_shift'][0] == -1:
                 data['aug_shift'] = None
+
 
             # unpack data
             for k in data.keys():
