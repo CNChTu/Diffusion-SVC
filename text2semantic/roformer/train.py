@@ -100,7 +100,6 @@ def train(args, initial_global_step, model, optimizer, scheduler, diffusion_mode
     saver.log_info(params_count)
     saver.log_info('load semantic codebook')
     
-    grad_norm_weight = float(args.model.text2semantic.train.grad_norm_weight)
     clip_grad_norm = float(args.model.text2semantic.train.clip_grad_norm) if args.model.text2semantic.train.clip_grad_norm is not -1 else None
 
     if args.train.units_quantize_type == "kmeans":
@@ -155,7 +154,7 @@ def train(args, initial_global_step, model, optimizer, scheduler, diffusion_mode
                             data[k][data[k] == -100] = accelerator.unwrap_model(model).semantic_pad_token_id
                 # forward
                 loss = model(**data).loss
-                grad_norm = clip_grad_value_(model.parameters(), clip_grad_norm) * grad_norm_weight
+                grad_norm = clip_grad_value_(model.parameters(), clip_grad_norm)
 
                 loss += grad_norm
 

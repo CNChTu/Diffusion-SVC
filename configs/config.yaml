@@ -46,7 +46,6 @@ model:
       generate_audio: False
       expdir: exp/lm
       warm_up_steps: 1000
-      grad_norm_weight: 1.0
       clip_grad_norm: -1 # -1 means no clip
     model:
       num_hidden_layers: 6
@@ -90,5 +89,4 @@ train:
   use_units_quantize: true # If you want to use your own quantization, set to true
   units_quantize_type: kmeans # 'kmean' or 'vq'
   warm_up_steps: 1000
-  grad_norm_weight: 1.0
   clip_grad_norm: -1 # -1 means no clip

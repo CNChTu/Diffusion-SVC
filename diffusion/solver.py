@@ -118,7 +118,6 @@ def train(args, initial_global_step, model, optimizer, scheduler, vocoder, loade
     else:
         saver = Saver_empty(args, initial_global_step=initial_global_step)
 
-    grad_norm_weight = float(args.train.grad_norm_weight)
     clip_grad_norm = float(args.train.clip_grad_norm) if args.train.clip_grad_norm is not -1 else None
 
     device = accelerator.device
@@ -184,7 +183,7 @@ def train(args, initial_global_step, model, optimizer, scheduler, vocoder, loade
                     raise ValueError(' [x] nan loss ')
                 else:
                     accelerator.backward(loss)
-                    grad_norm = clip_grad_value_(model.parameters(), clip_grad_norm) * grad_norm_weight
+                    grad_norm = clip_grad_value_(model.parameters(), clip_grad_norm)
                     optimizer.step()
                     scheduler.step()
 
