@@ -142,11 +142,11 @@ def train(args, initial_global_step, model, optimizer, scheduler, vocoder, loade
     for epoch in range(start_epoch, args.train.epochs):
         for batch_idx, data in enumerate(loader_train):
             with accelerator.accumulate(model):
-                if data['f0'][0] is -1:
+                if isinstance(data['f0'][0], list) and data['f0'][0] == -1:
                     data['f0'] = None
-                if data['volume'][0] is -1:
+                if isinstance(data['volume'][0], list) and data['volume'][0] == -1:
                     data['volume'] = None
-                if data['aug_shift'][0] is -1:
+                if isinstance(data['aug_shift'][0], list) and data['aug_shift'][0] == -1:
                     data['aug_shift'] = None
 
                 if accelerator.sync_gradients:
