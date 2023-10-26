@@ -165,7 +165,7 @@ class Unit2Mel(nn.Module):
         def initital_network_weights(element):
             if hasattr(element, 'weight'):
                 if len(element.weight.shape) < 2:
-                    torch.nn.init.kaiming_normal_(element.weight.data.unsqueeze(0))
+                    torch.nn.init.constant_(element.weight.data, 1)
                 else:
                     torch.nn.init.kaiming_normal_(element.weight.data)
             elif hasattr(element, 'bias'):
