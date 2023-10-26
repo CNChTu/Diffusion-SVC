@@ -159,6 +159,19 @@ class Unit2Mel(nn.Module):
         only_cross_attention = True,
         layers_per_block = n_layers,
         resnet_time_scale_shift='scale_shift'), out_dims=out_dims)
+        self.post_init()
+        
+    def post_init(self):
+        def initital_network_weights(element):
+            if hasattr(element, 'weight'):
+                if len(element.weight.shape) < 2:
+                    torch.nn.init.kaiming_normal_(element.weight.data.unsqueeze(0))
+                else:
+                    torch.nn.init.xavier_uniform_(element.weight.data)
+            elif hasattr(element, 'bias'):
+                torch.nn.init.constant_(element.bias.data, 0)
+        self.apply(initital_network_weights)
+
 
     def forward(self, units, f0, volume, spk_id=None, spk_mix_dict=None, aug_shift=None,
                 gt_spec=None, infer=True, infer_speedup=10, method='dpm-solver', k_step=None, use_tqdm=True,
