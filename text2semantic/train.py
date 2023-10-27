@@ -64,7 +64,7 @@ if __name__ == '__main__':
         param_group['initial_lr'] = args.model.text2semantic.train.lr
         param_group['lr'] = args.model.text2semantic.train.lr * args.model.text2semantic.train.gamma ** max((initial_global_step - 2) // args.model.text2semantic.train.decay_step, 0)
         param_group['weight_decay'] = args.train.weight_decay
-    scheduler = StepLRWithWarmUp(optimizer, step_size=args.model.text2semantic.train.decay_step, gamma=args.model.text2semantic.train.gamma, last_epoch=initial_global_step-2, warm_up_steps=args.model.text2semantic.train.warm_up_steps, start_lr=args.model.text2semantic.train.start_lr)
+    scheduler = StepLRWithWarmUp(optimizer, step_size=args.model.text2semantic.train.decay_step, gamma=args.model.text2semantic.train.gamma, last_epoch=initial_global_step-2, warm_up_steps=args.model.text2semantic.train.warm_up_steps, start_lr=float(args.model.text2semantic.train.start_lr))
     
     model = model.to(device)
     
