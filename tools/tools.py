@@ -856,20 +856,21 @@ def clip_grad_value_(parameters, clip_value, norm_type=2):
     return total_norm
 
 class StepLRWithWarmUp(StepLR):
-    def __init__(self, optimizer, step_size, gamma=0.1, last_epoch=-1, warm_up_steps=1000 ,verbose=False):
+    def __init__(self, optimizer, step_size, gamma=0.1, last_epoch=-1, warm_up_steps=1000, start_lr = 1e-6, verbose=False):
         self.warm_up_steps = warm_up_steps
+        self.start_lr = start_lr
         super().__init__(optimizer,step_size, gamma, last_epoch, verbose)
 
     def get_lr(self):
         if self.last_epoch < self.warm_up_steps:
-            return [base_lr * self.last_epoch / self.warm_up_steps
+            return [self.start_lr + (base_lr - self.start_lr) * self.last_epoch / self.warm_up_steps
                     for base_lr in self.base_lrs]
         else:
             return super().get_lr()
 
     def _get_closed_form_lr(self):
         if self.last_epoch < self.warm_up_steps:
-            return [base_lr * self.last_epoch / self.warm_up_steps
+            return [self.start_lr + (base_lr - self.start_lr) * self.last_epoch / self.warm_up_steps
                     for base_lr in self.base_lrs]
         else:
             return super()._get_closed_form_lr()
