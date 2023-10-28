@@ -149,9 +149,15 @@ class Roformer(nn.Module):
                  num_beams=1,
                  no_repeat_ngram_size = 0,
                  early_stopping = True,
-                **kwargs
+                 spk_id = None,
+                 **kwargs
                  ):
-        phone_tone_emb = self.text_encoder.embeddings(phone,tone)
+        if self.spk_emb is not None and spk_id is not None:
+            spk_emb = self.spk_emb(spk_id)
+        else:
+            spk_emb = 0
+
+        phone_tone_emb = self.text_encoder.embeddings(phone,tone) + spk_emb
         
         encoder_hidden_states = self.text_encoder(
             inputs_embeds = phone_tone_emb,

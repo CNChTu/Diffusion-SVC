@@ -183,7 +183,7 @@ class TextDataset(Dataset):
                         spk_id = self.spk_id
                     else:
                         spk_id = self.spk_name_id_map[dirname_split]
-                    spk_id_seq =  torch.LongTensor(np.ones_like(phones)) * spk_id
+                    spk_id_seq = torch.LongTensor(np.ones_like(phones)) * spk_id
                 else:
                     spk_id_seq = None    
 
