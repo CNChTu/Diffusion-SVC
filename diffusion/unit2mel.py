@@ -181,11 +181,11 @@ class Unit2Mel(nn.Module):
             dict of B x n_frames x feat
         '''
         
-        if f0 is None:
+        if f0 is None or self.is_tts:
             f0 = 0
         else:
             f0 = self.f0_embed((1 + f0 / 700).log())
-        if volume is None:
+        if volume is None or self.is_tts:
             volume = 0
         else:
             volume = self.volume_embed(volume)
