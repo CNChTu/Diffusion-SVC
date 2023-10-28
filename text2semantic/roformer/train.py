@@ -42,6 +42,7 @@ def test(args, model, loader_test, diffusion_model, saver,semantic_embedding, ac
                 phone = data["phone"],
                 tone = data["tone"],
                 attention_mask = data["encoder_attention_mask"],
+                spk_id = data["spk_id"],
             )
             
             if semantic_token[:,-1] == model.semantic_eos_token_id:
