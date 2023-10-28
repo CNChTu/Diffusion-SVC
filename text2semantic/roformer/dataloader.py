@@ -170,40 +170,40 @@ class TextDataset(Dataset):
             if self.use_cache:
                 data_buffer = self.data_buffer[name_ext]
             else:
-                    path_utt = os.path.join(self.path_utt_root, name_ext)
-                    path_semantic_token = os.path.join(self.path_semantic_token_root, name_ext)
+                path_utt = os.path.join(self.path_utt_root, name_ext)
+                path_semantic_token = os.path.join(self.path_semantic_token_root, name_ext)
 
-                    phones, tones, lang_ids, word2ph = np.load(path_utt, allow_pickle=True)
+                phones, tones, lang_ids, word2ph = np.load(path_utt, allow_pickle=True)
 
-                    if self.n_spk is not None and self.n_spk > 1:
-                        dirname_split = re.split(r"_|\-", os.path.dirname(name_ext), 2)[0]
-                        if self.spk_name_id_map.get(dirname_split) is None:
-                            self.spk_name_id_map[dirname_split] = self.spk_id
-                            self.spk_id += 1
-                            spk_id = self.spk_id
-                        else:
-                            spk_id = self.spk_name_id_map[dirname_split]
-                        spk_id_seq =  torch.LongTensor(np.ones_like(phones)) * spk_id
+                if self.n_spk is not None and self.n_spk > 1:
+                    dirname_split = re.split(r"_|\-", os.path.dirname(name_ext), 2)[0]
+                    if self.spk_name_id_map.get(dirname_split) is None:
+                        self.spk_name_id_map[dirname_split] = self.spk_id
+                        self.spk_id += 1
+                        spk_id = self.spk_id
                     else:
-                        spk_id_seq = None    
+                        spk_id = self.spk_name_id_map[dirname_split]
+                    spk_id_seq =  torch.LongTensor(np.ones_like(phones)) * spk_id
+                else:
+                    spk_id_seq = None    
 
-                    semantic_tokens = np.load(path_semantic_token)
-                    semantic_tokens = np.concatenate([[self.model.semantic_bos_token_id],semantic_tokens,[self.model.semantic_eos_token_id]] ,axis=-1)
-                    phones_length = len(phones)
-                    semantic_length = len(semantic_tokens)
-                    data_buffer = {
-                        'phones': phones,
-                        'tones': tones,
-                        'lang_ids': lang_ids,
-                        'word2ph': word2ph,
-                        'semantic_tokens': semantic_tokens,
-                        'phones_length': phones_length,
-                        'semantic_length': semantic_length,
-                        'spk_id':spk_id_seq,
-                        'name_ext':name_ext
-                    }
-                    # get item
-                    return self.get_data(data_buffer)
+                semantic_tokens = np.load(path_semantic_token)
+                semantic_tokens = np.concatenate([[self.model.semantic_bos_token_id],semantic_tokens,[self.model.semantic_eos_token_id]] ,axis=-1)
+                phones_length = len(phones)
+                semantic_length = len(semantic_tokens)
+                data_buffer = {
+                    'phones': phones,
+                    'tones': tones,
+                    'lang_ids': lang_ids,
+                    'word2ph': word2ph,
+                    'semantic_tokens': semantic_tokens,
+                    'phones_length': phones_length,
+                    'semantic_length': semantic_length,
+                    'spk_id':spk_id_seq,
+                    'name_ext':name_ext
+                }
+                # get item
+            return self.get_data(data_buffer)
         except Exception as e:
             return self.__getitem__((file_idx+1)%len(self.paths))
 
