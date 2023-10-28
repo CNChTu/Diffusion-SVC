@@ -1,11 +1,11 @@
 from transformers import RoFormerForCausalLM, RoFormerModel, RoFormerConfig, GenerationConfig
+from transformers.generation.logits_process import LogitsProcessor, LogitsProcessorList
 import torch
 from torch import nn
 from text.symbols import *
 
 from cluster import get_cluster_model, get_cluster_result, get_cluster_center_result, get_center
 
-from torch.nn.utils.rnn import pad_sequence, pack_sequence
 
 from copy import deepcopy
 
@@ -33,7 +33,18 @@ def get_model(mode = "phone", semantic_kmeans_num = 10000, codebook_path = "pret
 
     return model
     
-    
+class EndGateLogitsProcessor(LogitsProcessor):
+    def __init__(self, end_gate_threshold: float, eos_token_id: int):
+        
+        self.end_gate_threshold = end_gate_threshold
+        self.eos_token_id = eos_token_id
+
+    def __call__(self, input_ids: torch.LongTensor, scores: torch.FloatTensor) -> torch.FloatTensor:
+        gate = torch.softmax(scores,dim=-1)[:, self.eos_token_id] > self.end_gate_threshold
+        scores[gate] = float("inf")
+        return scores
+
+
 
 class Roformer(nn.Module):
     def __init__(
@@ -150,13 +161,22 @@ class Roformer(nn.Module):
                  no_repeat_ngram_size = 0,
                  early_stopping = True,
                  spk_id = None,
+                 end_gate_threshold = None,
                  **kwargs
                  ):
+        
+        logits_processor = LogitsProcessorList()
+        if end_gate_threshold is not None:
+            logits_processor.append(EndGateLogitsProcessor(end_gate_threshold = end_gate_threshold, eos_token_id = self.semantic_eos_token_id))
+
+        if len(logits_processor) == 0:
+            logits_processor = None
+
         if self.spk_emb is not None and spk_id is not None:
             spk_emb = self.spk_emb(spk_id)
         else:
             spk_emb = 0
-
+        
         phone_tone_emb = self.text_encoder.embeddings(phone,tone) + spk_emb
         
         encoder_hidden_states = self.text_encoder(
@@ -188,7 +208,8 @@ class Roformer(nn.Module):
             encoder_attention_mask = attention_mask,
             attention_mask = None,
             use_cache = use_cache,
-            generation_config=generation_config
+            generation_config=generation_config,
+            logits_processor = logits_processor
         )
 
         return outputs
