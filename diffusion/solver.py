@@ -24,11 +24,11 @@ def test(args, model, vocoder, loader_test, f0_extractor, quantizer, saver, acce
             print('--------')
             print('{}/{} - {}'.format(bidx, num_batches, fn))
             
-            if isinstance(data['f0'][0], list) and data['f0'][0] == -1:
+            if isinstance(data['f0'][0], np.ndarray) and data['f0'][0] == -1:
                 data['f0'] = None
-            if isinstance(data['volume'][0], list) and data['volume'][0] == -1:
+            if isinstance(data['volume'][0], np.ndarray) and data['volume'][0] == -1:
                 data['volume'] = None
-            if isinstance(data['aug_shift'][0], list) and data['aug_shift'][0] == -1:
+            if isinstance(data['aug_shift'][0], np.ndarray) and data['aug_shift'][0] == -1:
                 data['aug_shift'] = None
 
 
@@ -142,11 +142,11 @@ def train(args, initial_global_step, model, optimizer, scheduler, vocoder, loade
     for epoch in range(start_epoch, args.train.epochs):
         for batch_idx, data in enumerate(loader_train):
             with accelerator.accumulate(model):
-                if isinstance(data['f0'][0], list) and data['f0'][0] == -1:
+                if isinstance(data['f0'][0], np.ndarray) and data['f0'][0] == -1:
                     data['f0'] = None
-                if isinstance(data['volume'][0], list) and data['volume'][0] == -1:
+                if isinstance(data['volume'][0], np.ndarray) and data['volume'][0] == -1:
                     data['volume'] = None
-                if isinstance(data['aug_shift'][0], list) and data['aug_shift'][0] == -1:
+                if isinstance(data['aug_shift'][0], np.ndarray) and data['aug_shift'][0] == -1:
                     data['aug_shift'] = None
 
                 if accelerator.sync_gradients:
