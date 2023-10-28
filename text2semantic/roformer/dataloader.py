@@ -205,7 +205,7 @@ class TextDataset(Dataset):
                     # get item
                     return self.get_data(data_buffer)
         except Exception as e:
-            self.__getitem__((file_idx+1)%len(self.paths))
+            return self.__getitem__((file_idx+1)%len(self.paths))
 
     def get_data(self, data_buffer):
         attention_mask = self.get_attention_mask(data_buffer['semantic_length'])
