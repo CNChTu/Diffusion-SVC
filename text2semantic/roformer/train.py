@@ -171,7 +171,7 @@ def train(args, initial_global_step, model, optimizer, scheduler, diffusion_mode
             if accelerator.is_main_process and saver.global_step % args.train.interval_log == 0:
                 current_lr = optimizer.param_groups[0]['lr']
                 saver.log_info(
-                    'epoch: {} | {:3d}/{:3d} | {} | batch/s: {:.2f} | lr: {:.6} | grad_norm: {:.3f} | loss: {:.3f} | time: {} | step: {}'.format(
+                    'epoch: {} | {:3d}/{:3d} | {} | batch/s: {:.2f} | lr: {:.6} | loss: {:.3f} | grad_norm: {:.3f} | time: {} | step: {}'.format(
                         epoch,
                         batch_idx,
                         num_batches,
