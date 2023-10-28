@@ -255,14 +255,17 @@ class AudioDataset(Dataset):
                 }
 
     def __getitem__(self, file_idx):
-        name_ext = self.paths[file_idx]
-        data_buffer = self.data_buffer[name_ext]
-        # check duration. if too short, then skip
-        if data_buffer['duration'] < (self.waveform_sec + 0.1):
-            return self.__getitem__((file_idx + 1) % len(self.paths))
+        try:
+            name_ext = self.paths[file_idx]
+            data_buffer = self.data_buffer[name_ext]
+            # check duration. if too short, then skip
+            if data_buffer['duration'] < (self.waveform_sec + 0.1):
+                return self.__getitem__((file_idx + 1) % len(self.paths))
 
-        # get item
-        return self.get_data(name_ext, data_buffer)
+            # get item
+            return self.get_data(name_ext, data_buffer)
+        except Exception as e:
+            return self.__getitem__((file_idx + 1) % len(self.paths))
 
     def get_data(self, name_ext, data_buffer):
         name = os.path.splitext(name_ext)[0]
