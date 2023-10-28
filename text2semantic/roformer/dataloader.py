@@ -143,7 +143,7 @@ class TextDataset(Dataset):
                         spk_id_seq = None
 
                     semantic_tokens = np.load(path_semantic_token)
-                    semantic_tokens = np.concatenate([self.model.semantic_bos_token_id,semantic_tokens,self.model.semantic_eos_token_id])
+                    semantic_tokens = np.concatenate([[self.model.semantic_bos_token_id],semantic_tokens,[self.model.semantic_eos_token_id]] ,axis=-1)
 
                     phones_length = len(phones)
                     semantic_length = len(semantic_tokens)
