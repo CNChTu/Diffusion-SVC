@@ -69,7 +69,7 @@ def test(args, model, vocoder, loader_test, f0_extractor, quantizer, saver, acce
             else:
                 f0 = data['f0']
 
-            signal = vocoder.infer(mel, f0)
+            signal = vocoder.infer(mel, f0[:,:,None])
             ed_time = time.time()
 
             # RTF
