@@ -57,7 +57,7 @@ if __name__ == "__main__":
                         help='path of model output directory')
     parser.add_argument('--gpu',action='store_true', default=False ,
                         help='to use GPU')
-    parser.add_argument('--n_clusters', type=int, default=10000 ,
+    parser.add_argument('--n_clusters', type=int, default=2048 ,
                         help='clusters number')
 
     args = parser.parse_args()

@@ -242,6 +242,6 @@ if __name__ == '__main__':
     labels = torch.LongTensor([[1,2,3,4,5,6,7,8,9,10,11,12,13,14,15]])
     outputs = b(phone=phone, tone=tone, semantic=semantic,labels=labels)
     print(outputs)
-    generate = b.generate(phone=phone, tone=tone, attention_mask=None)
+    generate = b.generate(phone=phone, tone=tone, attention_mask=None,end_gate_threshold=0.9)
     print(generate)
 
