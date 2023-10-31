@@ -156,7 +156,7 @@ class AudioDataset(Dataset):
         else:
             print('Load the f0, volume data from :', path_root)
 
-        spk_id = 1
+        t_spk_id = 1
         for name_ext in tqdm(self.paths, total=len(self.paths), position=accelerator.process_index if accelerator is not None else 0):
             path_audio = os.path.join(self.path_root, 'audio', name_ext)
             duration = librosa.get_duration(filename=path_audio, sr=self.sample_rate)
@@ -183,20 +183,18 @@ class AudioDataset(Dataset):
                 f0 = None
                 aug_vol = None
                 volume = None
-
+ 
             if n_spk is not None and n_spk > 1:
                 dirname_split = re.split(r"_|\-", os.path.dirname(name_ext), 2)[0]
                 if self.spk_name_id_map.get(dirname_split) is None:
-                    self.spk_name_id_map[dirname_split] = spk_id
-                    spk_id += 1
-                    t_spk_id = spk_id
-                if spk_id < 1 or spk_id > n_spk:
+                    self.spk_name_id_map[dirname_split] = t_spk_id
+                    t_spk_id += 1
+                if t_spk_id < 1 or t_spk_id > n_spk:
                     raise ValueError(
                         ' [x] Muiti-speaker traing error : spk_id must be a positive integer from 1 to n_spk ')
             else:
-                spk_id = 1
-                t_spk_id = spk_id
-            spk_id = torch.LongTensor(np.array([spk_id])).to(device)
+                t_spk_id = 1
+            spk_id = torch.LongTensor(np.array([t_spk_id])).to(device)
 
             if load_all_data:
                 '''
