@@ -15,7 +15,6 @@ from encoder.speaker_encoder.model import SpeakerEncoder as TTSSpeakerEncoder
 import scipy.signal
 from torch.nn.modules.utils import consume_prefix_in_state_dict_if_present
 from torchaudio.transforms import Resample
-import warnings
 from torch.optim.lr_scheduler import StepLR
 
 CREPE_RESAMPLE_KERNEL = {}

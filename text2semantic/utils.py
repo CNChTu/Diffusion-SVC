@@ -18,3 +18,13 @@ def get_topk_acc(gt_token, logist, k = 5):
     topk = topk.cpu().numpy()
     gt_token = gt_token.cpu().numpy()
     return sum([1 if gt_token[i] in topk[i] else 0 for i in range(len(gt_token))]) / len(gt_token)
+
+def get_language_model(**args):
+    model_type = args["type"]
+    if model_type == "roformer":
+        from text2semantic.roformer.roformer import get_model
+    else:
+        raise ValueError(f" [x] Unknown Model: {model_type}")
+    
+    model = get_model(**args)
+    return model
