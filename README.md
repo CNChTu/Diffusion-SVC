@@ -1,5 +1,7 @@
 Language: [English](./README_en.md) **简体中文**
 
+# 对于[MaxMax2016](https://github.com/MaxMax2016)碰瓷各大开源语音合成模型以及开盒开发者行为的谴责：https://www.bilibili.com/read/cv27101514/?spm_id_from=333.1007.0.0
+
 # Diffusion-SVC-V2
 [![Colab_CN](https://img.shields.io/static/v1?label=Colab&message=Notebook&color=F9AB00&logo=googlecolab&style=flat-square)](https://colab.research.google.com/github/CNChTu/Diffusion-SVC/blob/main/Diffusion_SVC_CN.ipynb)
 [![madewithlove](https://forthebadge.com/images/badges/built-with-love.svg)](https://github.com/CNChTu/Diffusion-SVC/)
