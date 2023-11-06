@@ -131,7 +131,7 @@ class TextDataset(Dataset):
                     phones, tones, lang_ids, word2ph = np.load(path_utt, allow_pickle=True)
                     
                     if n_spk is not None and n_spk > 1:
-                        dirname_split = re.split(r"_|\-", os.path.dirname(name_ext), 2)[0]
+                        dirname_split = os.path.dirname(name_ext)
                         if self.spk_name_id_map.get(dirname_split) is None:
                             self.spk_name_id_map[dirname_split] = self.spk_id
                             self.spk_id += 1

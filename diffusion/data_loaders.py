@@ -185,7 +185,7 @@ class AudioDataset(Dataset):
                 volume = None
  
             if n_spk is not None and n_spk > 1:
-                dirname_split = re.split(r"_|\-", os.path.dirname(name_ext), 2)[0]
+                dirname_split = os.path.dirname(name_ext)
                 if self.spk_name_id_map.get(dirname_split) is None:
                     self.spk_name_id_map[dirname_split] = t_spk_id
                     t_spk_id += 1

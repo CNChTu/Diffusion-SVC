@@ -4,7 +4,7 @@ import torch
 from torch import nn
 from text.symbols import *
 
-from cluster import get_cluster_model, get_cluster_result, get_cluster_center_result, get_center
+from cluster import get_cluster_model
 
 
 from copy import deepcopy
