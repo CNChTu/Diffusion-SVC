@@ -9,6 +9,7 @@ from tools.infer_tools import DiffusionSVC
 from text2semantic.utils import get_language_model
 import yaml
 from tools.tools import DotDict
+from text.cleaner import text_to_sequence
 
 def parse_args(args=None, namespace=None):
     """Parse command-line arguments."""
@@ -101,4 +102,7 @@ if __name__ == '__main__':
     spk_id = cmd.spk_id
     speedup = cmd.speedup
     method = cmd.method
+    
+    (phones, tones, lang_ids), (norm_text, word2ph) = text_to_sequence(text, 'ZH')
+
     
