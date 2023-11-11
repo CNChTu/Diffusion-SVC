@@ -205,6 +205,8 @@ class TextDataset(Dataset):
                 # get item
             return self.get_data(data_buffer)
         except Exception as e:
+            import traceback
+            traceback.print_exc()
             return self.__getitem__((file_idx+1)%len(self.paths))
 
     def get_data(self, data_buffer):
