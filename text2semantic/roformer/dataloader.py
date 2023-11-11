@@ -135,7 +135,7 @@ class TextDataset(Dataset):
                         if self.spk_name_id_map.get(dirname_split) is None:
                             self.spk_name_id_map[dirname_split] = self.spk_id
                             self.spk_id += 1
-                        spk_id_seq = np.ones_like(phones) * self.spk_id
+                        spk_id_seq = torch.LongTensor(np.ones_like(phones)) * self.spk_id
                         if self.spk_id < 1 or self.spk_id > n_spk:
                             raise ValueError(
                                 ' [x] Muiti-speaker traing error : spk_id must be a positive integer from 1 to n_spk ')
@@ -176,7 +176,7 @@ class TextDataset(Dataset):
                 phones, tones, lang_ids, word2ph = np.load(path_utt, allow_pickle=True)
 
                 if self.n_spk is not None and self.n_spk > 1:
-                    dirname_split = re.split(r"_|\-", os.path.dirname(name_ext), 2)[0]
+                    dirname_split = os.path.dirname(name_ext)
                     if self.spk_name_id_map.get(dirname_split) is None:
                         self.spk_name_id_map[dirname_split] = self.spk_id
                         self.spk_id += 1
