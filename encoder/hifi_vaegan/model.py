@@ -6,6 +6,7 @@ from torch.nn import AvgPool1d, Conv1d, Conv2d, ConvTranspose1d
 from torch.nn import functional as F
 from torch.nn.utils import remove_weight_norm, spectral_norm, weight_norm
 import os
+from vector_quantize_pytorch import VectorQuantize
 
 LRELU_SLOPE = 0.1
 
@@ -181,7 +182,21 @@ class Generator(torch.nn.Module):
         self.conv_post.apply(init_weights)
         self.upp = np.prod(h["upsample_rates"])
 
+        if h["use_vq"]:
+            self.quantizer = VectorQuantize(
+                dim=h["inter_channels"],
+                codebook_size=h["codebook_size"],
+                decay=0.8,
+                commitment_weight=1.)
+        else:
+            self.quantizer = None
+
     def forward(self, x):
+
+        #if self.quantizer is not None:
+        #    x, _, _ = self.quantizer(x.transpose(1, 2))
+        #    x = x.transpose(1, 2)
+
         x = self.conv_pre(x)
         for i in range(self.num_upsamples):
             x = F.leaky_relu(x, LRELU_SLOPE)
@@ -323,6 +338,8 @@ class InferModel:
         self.device = device
         self.fp16 = fp16
         self.sr = hps.data.sampling_rate
+        self.use_vq = hps.model.use_vq if (hps.model.use_vq is not None) else False
+        self.codebook_size = int(hps.model.codebook_size) if (hps.model.codebook_size is not None) else 4096
 
         self.hps_ = {
             "sampling_rate": hps.data.sampling_rate,
@@ -332,7 +349,9 @@ class InferModel:
             "resblock_dilation_sizes": hps.model.resblock_dilation_sizes,
             "upsample_rates": hps.model.upsample_rates,
             "upsample_initial_channel": hps.model.upsample_initial_channel,
-            "upsample_kernel_sizes": hps.model.upsample_kernel_sizes
+            "upsample_kernel_sizes": hps.model.upsample_kernel_sizes,
+            "use_vq": self.use_vq,
+            "codebook_size": self.codebook_size
         }
 
         if load_all:
@@ -384,28 +403,31 @@ class InferModel:
         load_dict = {}
         for k, v in model_dict.items():
             if k[:len(model_type)] == model_type:
-                load_dict[k[len(model_type)+1:]] = v
+                load_dict[k[len(model_type) + 1:]] = v
         return load_dict
 
 
 if __name__ == '__main__':
-    UNIT_TEST = False
+    UNIT_TEST = True
     if UNIT_TEST:
         import soundfile
         import librosa
+
         model = InferModel(
-            r"E:\AUFSe04BPyProgram\AUFSd04BPyProgram\AudioGAN\AudioGAN\logs\44k\config.json",
-            r"E:\AUFSe04BPyProgram\AUFSd04BPyProgram\AudioGAN\AudioGAN\logs\44k\G_224800.pth"
+            r"E:\AUFSe04BPyProgram\AUFSd04BPyProgram\ddsp-svc\20230308\diffusion-svc\pretrain/vqvae\1115/config.json",
+            r"E:\AUFSe04BPyProgram\AUFSd04BPyProgram\ddsp-svc\20230308\diffusion-svc\pretrain\vqvae\1115/G_1145600.pth"
         )
-        in_wav, in_sr = librosa.load(r"E:\AUFSe04BPyProgram\AUFSd04BPyProgram\AudioGAN\AudioGAN\raw\ELECT.wav", sr=int(model.sr))
+        in_wav, in_sr = librosa.load(r"E:\AUFSe04BPyProgram\AUFSd04BPyProgram\AudioGAN\AudioGAN\raw\ELECT.wav",
+                                     sr=int(model.sr))
         print(in_wav.shape)
         in_wav = torch.from_numpy(in_wav).float().unsqueeze(0).to(model.device)
         _z, m, logs = model.encode(in_wav)
         z = m + torch.randn_like(m) * torch.exp(logs)
         print(z.max(), z.min(), z.mean(), z.std())
-        #for i in z[0][0]:
+        # for i in z[0][0]:
         #    print(i)
         out_wav = model.decode(z).squeeze().cpu().numpy()
+        print(out_wav.max(), out_wav.min(), out_wav.mean(), out_wav.std())
         print(out_wav.shape)
-        soundfile.write(r"E:\AUFSe04BPyProgram\AUFSd04BPyProgram\AudioGAN\AudioGAN\results\r.wav", out_wav, int(model.sr))
-
+        soundfile.write(r"E:\AUFSe04BPyProgram\AUFSd04BPyProgram\AudioGAN\AudioGAN\results\vq1.wav", out_wav,
+                        int(model.sr))
