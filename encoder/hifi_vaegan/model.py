@@ -408,14 +408,14 @@ class InferModel:
 
 
 if __name__ == '__main__':
-    UNIT_TEST = True
+    UNIT_TEST = False
     if UNIT_TEST:
         import soundfile
         import librosa
 
         model = InferModel(
-            r"E:\AUFSe04BPyProgram\AUFSd04BPyProgram\ddsp-svc\20230308\diffusion-svc\pretrain/vqvae\1115/config.json",
-            r"E:\AUFSe04BPyProgram\AUFSd04BPyProgram\ddsp-svc\20230308\diffusion-svc\pretrain\vqvae\1115/G_1145600.pth"
+            r"E:\AUFSe04BPyProgram\AUFSd04BPyProgram\ddsp-svc\20230308\diffusion-svc\pretrain/vqvae\1123/config.json",
+            r"E:\AUFSe04BPyProgram\AUFSd04BPyProgram\ddsp-svc\20230308\diffusion-svc\pretrain\vqvae\1123/G_3540000.pth"
         )
         in_wav, in_sr = librosa.load(r"E:\AUFSe04BPyProgram\AUFSd04BPyProgram\AudioGAN\AudioGAN\raw\ELECT.wav",
                                      sr=int(model.sr))
@@ -429,5 +429,5 @@ if __name__ == '__main__':
         out_wav = model.decode(z).squeeze().cpu().numpy()
         print(out_wav.max(), out_wav.min(), out_wav.mean(), out_wav.std())
         print(out_wav.shape)
-        soundfile.write(r"E:\AUFSe04BPyProgram\AUFSd04BPyProgram\AudioGAN\AudioGAN\results\vq1.wav", out_wav,
+        soundfile.write(r"E:\AUFSe04BPyProgram\AUFSd04BPyProgram\AudioGAN\AudioGAN\results\vqvae.wav", out_wav,
                         int(model.sr))
