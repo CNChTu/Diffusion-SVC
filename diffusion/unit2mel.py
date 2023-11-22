@@ -156,7 +156,6 @@ class Unit2Mel(nn.Module):
         norm_num_groups=8,
         cross_attention_dim = block_out_channels,
         attention_head_dim = n_heads,
-        only_cross_attention = True,
         layers_per_block = n_layers,
         resnet_time_scale_shift='scale_shift'), out_dims=out_dims)
 
