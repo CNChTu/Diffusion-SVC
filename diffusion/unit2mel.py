@@ -25,7 +25,7 @@ def get_z(stack_tensor, mean_only=False):
     # stack_tensor: [B x N x D x 2]
     # sample z, or mean only
     m = stack_tensor.transpose(-1, 0)[:1].transpose(-1, 0).squeeze(-1)
-    logs = stack_tensor.transpose(-1, 0)[:1].transpose(-1, 0).squeeze(-1)
+    logs = stack_tensor.transpose(-1, 0)[1:].transpose(-1, 0).squeeze(-1)
     if mean_only:
         z = m  # mean only
     else:
