@@ -9,3 +9,4 @@ dataset_raw/*
 *.pyc
 __pycache__/*
 fcpe
+pretrain/*

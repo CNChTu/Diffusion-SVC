@@ -16,7 +16,7 @@ import scipy.signal
 from torch.nn.modules.utils import consume_prefix_in_state_dict_if_present
 from torchaudio.transforms import Resample
 from torch.optim.lr_scheduler import StepLR
-
+from encoder.funasr.model import SpeechEncoder
 CREPE_RESAMPLE_KERNEL = {}
 
 
@@ -427,6 +427,9 @@ class Units_Encoder:
         if encoder == 'cnhubertsoftfish':
             self.model = CNHubertSoftFish(encoder_ckpt, device=device, gate_size=cnhubertsoft_gate)
             is_loaded_encoder = True
+        if encoder == 'funasr':
+            self.model = FunASR(encoder_ckpt, device=device)
+            is_loaded_encoder = True
         if encoder in ('wav2vec2', 'wav2vec2-xlsr-53-espeak-cv-ft'):
             self.model = Wav2Vec2(encoder_ckpt, device=device)
             is_loaded_encoder = True
@@ -512,6 +515,26 @@ class Audio2HubertSoft(torch.nn.Module):
             units = self.hubert.units(audio.unsqueeze(1))
             return units
 
+class FunASR(torch.nn.Module):
+    def __init__(self, path, device='cpu'):
+        super().__init__()
+        print(' [Encoder Model] ASR')
+        print(' [Loading] ' + path)
+        model_path = path
+        config_path = path.replace('model.pb', 'config.yaml')
+        cmvn_path = path.replace('model.pb', 'am.mvn')
+        self.model = SpeechEncoder(model_path, config_path, cmvn_path, device=device)
+
+    @torch.inference_mode()
+    def forward(self, audio, padding_mask=None):  # B, T
+        audio = audio.view(1,-1)
+        if padding_mask is None:
+            # 得到每个batch的mask的True的个数
+            padding_mask = torch.tensor([audio.shape[-1]]).to(audio.device)
+        else:
+            padding_mask = padding_mask.sum(1)
+        units = self.model(audio, padding_mask)
+        return units[0]
 
 class Audio2ContentVec():
     def __init__(self, path, h_sample_rate=16000, h_hop_size=320, device='cpu'):
