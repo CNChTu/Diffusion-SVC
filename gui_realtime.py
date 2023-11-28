@@ -294,7 +294,12 @@ class GUI:
             np.pi * torch.arange(0, 1, 1 / self.crossfade_frame, device=self.device) / 2) ** 2
         self.fade_out_window = 1 - self.fade_in_window
         pe_ = self.config.select_pitch_extractor if (CMD.pe is None) else CMD.pe
-        self.svc_model.flush(model_path=self.config.checkpoint_path, f0_model=pe_)
+        if CMD.vocoder_type is not None:
+            assert CMD.vocoder_path is not None, "If use vocoder_type, please set vocoder_path"
+            other_vocoder_dict = {'type': CMD.vocoder_type, 'path': CMD.vocoder_path}
+        else:
+            other_vocoder_dict = None
+        self.svc_model.flush(model_path=self.config.checkpoint_path, f0_model=pe_, other_vocoder_dict=other_vocoder_dict)
         thread_vc = threading.Thread(target=self.soundinput)
         thread_vc.start()
 
@@ -429,6 +434,22 @@ if __name__ == "__main__":
             required=False,
             default=None,
             help="test f0")
+        parser.add_argument(
+            "-votype",
+            "--vocoder_type",
+            type=str,
+            required=False,
+            default=None,
+            help="If not None, will use designated vocoder replace the default one | default: None",
+        )
+        parser.add_argument(
+            "-vopath",
+            "--vocoder_path",
+            type=str,
+            required=False,
+            default=None,
+            help="If use vocoder_type, please set vocoder_path; else nothing to do | default: None",
+        )
         return parser.parse_args(args=args, namespace=namespace)
     CMD = parse_args()
     i18n = I18nAuto(model='gui_realtime.py', language=None)

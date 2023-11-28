@@ -159,6 +159,22 @@ def parse_args(args=None, namespace=None):
         default=0,
         help="index_ratio, if > 0 will use index | default: 0",
     )
+    parser.add_argument(
+        "-votype",
+        "--vocoder_type",
+        type=str,
+        required=False,
+        default=None,
+        help="If not None, will use designated vocoder replace the default one | default: None",
+    )
+    parser.add_argument(
+        "-vopath",
+        "--vocoder_path",
+        type=str,
+        required=False,
+        default=None,
+        help="If use vocoder_type, please set vocoder_path; else nothing to do | default: None",
+    )
     return parser.parse_args(args=args, namespace=namespace)
 
 
@@ -170,8 +186,15 @@ if __name__ == '__main__':
     if device is None:
         device = 'cuda' if torch.cuda.is_available() else 'cpu'
 
+    if cmd.vocoder_type is not None:
+        assert cmd.vocoder_path is not None, "If use vocoder_type, please set vocoder_path"
+        other_vocoder_dict = {'type': cmd.vocoder_type, 'path': cmd.vocoder_path}
+    else:
+        other_vocoder_dict = None
+
     diffusion_svc = DiffusionSVC(device=device)  # 加载模型
-    diffusion_svc.load_model(model_path=cmd.model, f0_model=cmd.pitch_extractor, f0_max=cmd.f0_max, f0_min=cmd.f0_min)
+    diffusion_svc.load_model(model_path=cmd.model, f0_model=cmd.pitch_extractor, f0_max=cmd.f0_max, f0_min=cmd.f0_min,
+                             other_vocoder_dict=other_vocoder_dict)
 
     spk_mix_dict = literal_eval(cmd.spk_mix_dict)
 
