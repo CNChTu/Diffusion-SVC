@@ -38,14 +38,24 @@ class DiffusionSVC:
         self.use_combo_model = False
         self.enable_gt_mel = False
 
-    def load_model(self, model_path, f0_model=None, f0_min=None, f0_max=None):
+    def load_model(self, model_path, f0_model=None, f0_min=None, f0_max=None, other_vocoder_dict=None):
+        if other_vocoder_dict is not None:
+            from diffusion.vocoder import Vocoder
+            vocoder = Vocoder(other_vocoder_dict['type'], other_vocoder_dict['path'], device=self.device)
+            print(f" [INFO] Successfully get votype and vopath, use {other_vocoder_dict['type']} vocoder")
+            print(f" [INFO]     >>> Load vocoder from {other_vocoder_dict['path']}")
+        else:
+            vocoder = None
 
         if ('1234' + model_path)[-4:] == '.ptc':
             self.use_combo_model = True
             self.model_path = model_path
             self.naive_model_path = model_path
-            diff_model, diff_args, naive_model, naive_args, vocoder = load_model_vocoder_from_combo(model_path,
-                                                                                                    device=self.device)
+            diff_model, diff_args, naive_model, naive_args, vocoder = load_model_vocoder_from_combo(
+                model_path,
+                device=self.device,
+                loaded_vocoder=vocoder
+            )
             self.model = diff_model
             self.args = diff_args
             self.naive_model = naive_model
@@ -53,7 +63,13 @@ class DiffusionSVC:
             self.vocoder = vocoder
         else:
             self.model_path = model_path
-            self.model, self.vocoder, self.args = load_model_vocoder(model_path, device=self.device)
+            self.model, self.vocoder, self.args = load_model_vocoder(
+                model_path,
+                device=self.device,
+                loaded_vocoder=vocoder
+            )
+        if other_vocoder_dict['type'] != self.args.vocoder.type:
+            raise ValueError(" 选定的外部声码器必须和模型所用声码器的类型一致。")
 
         self.units_encoder = Units_Encoder(
             self.args.data.encoder,
@@ -86,12 +102,14 @@ class DiffusionSVC:
 
         self.units_indexer = UnitsIndexer(os.path.split(model_path)[0])
 
-    def flush(self, model_path=None, f0_model=None, f0_min=None, f0_max=None, naive_model_path=None):
+    def flush(self, model_path=None, f0_model=None, f0_min=None, f0_max=None, naive_model_path=None,
+              other_vocoder_dict=None):
         assert (model_path is not None) or (naive_model_path is not None)
         # flush model if changed
         if ((self.model_path != model_path) or (self.f0_model != f0_model)
                 or (self.f0_min != f0_min) or (self.f0_max != f0_max)):
-            self.load_model(model_path, f0_model=f0_model, f0_min=f0_min, f0_max=f0_max)
+            self.load_model(model_path, f0_model=f0_model, f0_min=f0_min, f0_max=f0_max,
+                            other_vocoder_dict=other_vocoder_dict)
         if (self.naive_model_path != naive_model_path) and (naive_model_path is not None):
             self.load_naive_model(naive_model_path)
         # check args if use naive
@@ -466,8 +484,8 @@ class DiffusionSVC:
                 if k_step > k_step_max:
                     print(f" [WARN] k_step must <= k_step_max={k_step_max}, not k_step set to{k_step_max}.")
                     k_step = k_step_max
-            if int(k_step/infer_speedup) < 3:
-                infer_speedup = int(k_step/4)
+            if int(k_step / infer_speedup) < 3:
+                infer_speedup = int(k_step / 4)
                 print(f" [WARN] diffusion step must > 4 (3 when qndm), not set to{infer_speedup}")
             if self.naive_model is not None:
                 gt_spec = self.naive_model_call(units, f0, volume, spk_id=spk_id, spk_mix_dict=spk_mix_dict,
