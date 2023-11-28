@@ -59,13 +59,16 @@ def load_model_vocoder(
     return model, vocoder, args
 
 
-def load_model_vocoder_from_combo(combo_model_path, device='cpu'):
+def load_model_vocoder_from_combo(combo_model_path, device='cpu', loaded_vocoder=None):
     read_dict = torch.load(combo_model_path, map_location=torch.device(device))
     # args
     diff_args = DotDict(read_dict["diff_config_dict"])
     naive_args = DotDict(read_dict["naive_config_dict"])
     # vocoder
-    vocoder = Vocoder(diff_args.vocoder.type, diff_args.vocoder.ckpt, device=device)
+    if loaded_vocoder is None:
+        vocoder = Vocoder(diff_args.vocoder.type, diff_args.vocoder.ckpt, device=device)
+    else:
+        vocoder = loaded_vocoder
 
     # diff_model
     print(' [Loading] ' + combo_model_path)
