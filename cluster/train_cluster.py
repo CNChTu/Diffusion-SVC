@@ -7,7 +7,7 @@ from pathlib import Path
 import numpy as np
 import torch
 import tqdm
-from kmeans import KMeansGPU
+from .kmeans import KMeansGPU
 from sklearn.cluster import KMeans, MiniBatchKMeans
 
 logging.basicConfig(level=logging.INFO)
