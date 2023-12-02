@@ -65,7 +65,7 @@ def test(args, model, vocoder, loader_test, f0_extractor, quantizer, saver, acce
                 spk_emb=data['spk_emb'])
             
             if data['f0'] is None:
-                f0 = f0_extractor.model(mel=mel, infer=True, return_hz_f0=True)
+                f0 = f0_extractor.model(mel=mel, infer=True, return_hz_f0=True)[:,:,0]
             else:
                 f0 = data['f0']
 
