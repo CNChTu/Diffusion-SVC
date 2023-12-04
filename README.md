@@ -1,29 +1,24 @@
+![logo](doc/logo.png)
+
 Language: [English](./README_en.md) **简体中文**
 
-# Diffusion-SVC-V2
+# Latent Diffusion Speech
 [![Colab_CN](https://img.shields.io/static/v1?label=Colab&message=Notebook&color=F9AB00&logo=googlecolab&style=flat-square)](https://colab.research.google.com/github/CNChTu/Diffusion-SVC/blob/main/Diffusion_SVC_CN.ipynb)
 [![madewithlove](https://forthebadge.com/images/badges/built-with-love.svg)](https://github.com/CNChTu/Diffusion-SVC/)
 [![Discord](https://img.shields.io/discord/1044927142900809739?color=%23738ADB&label=Discord&style=for-the-badge)](https://discord.gg/jvA5c2xzSE)
 
-此仓库是[DDSP-SVC](https://github.com/yxlllc/DDSP-SVC)仓库的扩散部分的单独存放。可单独训练和推理。
+本仓库为基于Latent Diffusion的TTS(虽然现在暂时没有Latent)
 ***
-**本分支的Diffusion-SVC更换为了[Stable Diffusion](https://github.com/AUTOMATIC1111/stable-diffusion-webui)的同款网络UNetConditionModel，特别鸣谢[NS2VC](https://github.com/adelacvg/NS2VC)**
+**本分支的Diffusion为[Stable Diffusion](https://github.com/AUTOMATIC1111/stable-diffusion-webui)的同款网络UNetConditionModel，特别鸣谢[NS2VC](https://github.com/adelacvg/NS2VC)**
 
 <br>效果和介绍见[[介绍视频(暂未完成)]]()
 **欢迎加群交流讨论：882426004**
-![Diagram](doc/diagram.jpg)
 ## 0.简介
-Diffusion-SVC 是[DDSP-SVC](https://github.com/yxlllc/DDSP-SVC)仓库的扩散部分的单独存放。可单独训练和推理。
+Latent Diffusion Speech是一个基于Language Model与Diffusion的TTS项目
 
-相比于比较著名的 [Diff-SVC](https://github.com/prophesier/diff-svc), 本项目的显存占用少得多，训练和推理速度更快，并针对浅扩散和实时用途有专门优化。可以在较强的GPU上实时推理。配合本项目的naive模型进行浅扩散，即使是较弱的GPU也可以实时生成质量优秀的音频。
+与其他的三段式TTS一样，本模型也是三段式生成Text - Language Model - Semantic - Diifusion - Acoustic - hifi-vaegan - wav
 
-如果训练数据和输入源的质量都非常高，Diffusion-SVC可能拥有最好的转换效果。
-
-本项目可以很容易的级联在别的声学模型之后进行浅扩散，以改善最终的输出效果或降低性能占用。例如在[DDSP-SVC](https://github.com/yxlllc/DDSP-SVC)和本项目的**naive模型**后级联Diffusion-SVC，可进一步减少需要的扩散步数并得到高质量的输出。
-
-除此之外，本项目还可以单独训练浅扩散所需的降噪步数而不训练完整的从高斯噪声开始的降噪过程，这可以提高训练速度并改善质量，更多信息见下文。
-
-免责声明：请确保仅使用**合法获得的授权数据**训练 Diffusion-SVC 模型，不要将这些模型及其合成的任何音频用于非法目的。 本库作者不对因使用这些模型检查点和音频而造成的任何侵权，诈骗等违法行为负责。
+免责声明：请确保仅使用**合法获得的授权数据**训练 Diffusion 模型，不要将这些模型及其合成的任何音频用于非法目的。 本库作者不对因使用这些模型检查点和音频而造成的任何侵权，诈骗等违法行为负责。
 
 ## 1. 安装依赖
 1. 安装PyTorch：我们推荐从 **[PyTorch 官方网站 ](https://pytorch.org/)** 下载 PyTorch.

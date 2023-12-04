@@ -1,10 +1,12 @@
+![logo](doc/logo.png)
+
 Language: [简体中文](./README.md) **English**
 
 **This English readme will not update first time, please read [简体中文](./README.md) for latest info。**
 
 I am not good at English. If there are any errors, please point them out.
 
-# Diffusion-SVC-V2
+# Latent Diffusion Speech
 [![Colab_CN](https://img.shields.io/static/v1?label=Colab&message=Notebook&color=F9AB00&logo=googlecolab&style=flat-square)](https://colab.research.google.com/github/CNChTu/Diffusion-SVC/blob/main/Diffusion_SVC_EN.ipynb)
 [![madewithlove](https://forthebadge.com/images/badges/built-with-love.svg)](https://github.com/CNChTu/Diffusion-SVC/)
 [![Discord](https://img.shields.io/discord/1044927142900809739?color=%23738ADB&label=Discord&style=for-the-badge)](https://discord.gg/jvA5c2xzSE)
@@ -15,7 +17,6 @@ This repository is a separate storage for the diffusion part of the [DDSP-SVC](h
 
 <br>Samples and introductions can be found in [[Introduction Video(Not done yet)]]()
 
-![Diagram](doc/diagram.jpg)
 ## 0. Introduction
 Diffusion-SVC is a separate storage for the diffusion part of the [DDSP-SVC](https://github.com/yxlllc/DDSP-SVC) repository. It can be trained and inferred independently.
 
