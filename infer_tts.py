@@ -119,7 +119,7 @@ if __name__ == '__main__':
         else:
             raise ValueError(' [x] Unknown quantize_type: ' + args.train.units_quantize_type)
 
-        lm = get_language_model(**args.model.text2semantic)
+        lm = get_language_model(**args.model.text2semantic).to(device)
         lm.load_state_dict(torch.load(cmd.language_model, map_location=torch.device(device))["model"])
         lm.eval()
 
