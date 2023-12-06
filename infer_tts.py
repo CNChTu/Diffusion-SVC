@@ -9,6 +9,7 @@ from text.cleaner import text_to_sequence
 from cluster import get_cluster_model
 import soundfile as sf
 import numpy as np
+from tools.tools import units_forced_alignment
 
 def parse_args(args=None, namespace=None):
     """Parse command-line arguments."""
@@ -160,6 +161,8 @@ if __name__ == '__main__':
             semantic_emb = semantic_embedding(semantic_token)
         elif args.train.units_quantize_type == "vq":
             semantic_emb = semantic_embedding.get_codes_from_indices(semantic_token)
+
+        semantic_emb = units_forced_alignment(semantic_emb, scale_factor=(diffusion_svc.args.data.sampling_rate/diffusion_svc.args.data.block_size)/(diffusion_svc.args.data.encoder_sample_rate/args.data.encoder_hop_size),units_forced_mode=diffusion_svc.args.data.units_forced_mode)
 
         wav = diffusion_svc.infer(semantic_emb,f0=None,volume=None, spk_id = spk_id, infer_speedup=speedup, method=method)
         

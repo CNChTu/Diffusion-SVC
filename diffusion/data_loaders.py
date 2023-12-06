@@ -1,13 +1,12 @@
 import os
 import random
-import re
 import numpy as np
 import librosa
 import torch
 import random
 from tqdm import tqdm
 from torch.utils.data import Dataset
-
+from tools.tools import units_forced_alignment
 
 def traverse_dir(
         root_dir,
@@ -70,6 +69,7 @@ def get_data_loaders(args, whole_audio=False, accelerator=None):
         spk_encoder_mode=args.data.speaker_encoder_mode,
         volume_noise=volume_noise,
         is_tts = args.model.is_tts,
+        units_forced_mode = args.data.units_forced_mode,
         accelerator=accelerator
     )
     loader_train = torch.utils.data.DataLoader(
@@ -93,6 +93,7 @@ def get_data_loaders(args, whole_audio=False, accelerator=None):
         spk_encoder_mode=args.data.speaker_encoder_mode,
         volume_noise=volume_noise,
         is_tts = args.model.is_tts,
+        units_forced_mode = args.data.units_forced_mode,
         accelerator=None
     )
     loader_valid = torch.utils.data.DataLoader(
@@ -123,6 +124,7 @@ class AudioDataset(Dataset):
             spk_encoder_mode='each_spk',
             volume_noise=None,
             is_tts=True,
+            units_forced_mode = "nearest",
             accelerator=None
     ):
         super().__init__()
@@ -140,6 +142,7 @@ class AudioDataset(Dataset):
             is_sort=True,
             is_ext=True
         )
+        self.units_forced_mode = units_forced_mode
         self.whole_audio = whole_audio
         self.use_aug = use_aug
         self.data_buffer = {}
@@ -270,7 +273,7 @@ class AudioDataset(Dataset):
         frame_resolution = self.hop_size / self.sample_rate
         duration = data_buffer['duration']
         waveform_sec = duration if self.whole_audio else self.waveform_sec
-
+        
         # load audio
         idx_from = 0 if self.whole_audio else random.uniform(0, duration - waveform_sec - 0.1)
         start_frame = int(idx_from / frame_resolution)
@@ -309,10 +312,12 @@ class AudioDataset(Dataset):
         if units is None:
             units = os.path.join(self.path_root, 'units', name_ext) + '.npy'
             units = np.load(units)
+            units = units_forced_alignment(units, n_frames=mel.shape[0], units_forced_mode=self.units_forced_mode)
             units_len = units.shape[0]
             units = units[start_frame: start_frame + units_frame_len]
             units = torch.from_numpy(units).float()
         else:
+            units = units_forced_alignment(units, n_frames=mel.shape[0], units_forced_mode=self.units_forced_mode)
             units = units[start_frame: start_frame + units_frame_len]
 
         # load spk_emb

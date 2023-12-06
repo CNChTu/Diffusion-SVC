@@ -475,29 +475,28 @@ class Units_Encoder:
             audio_res = torch.nn.functional.pad(audio, (0, 400 - audio_res.size(-1)))
         units = self.model(audio_res, padding_mask=padding_mask)
 
-        # alignment
-        if self.units_forced_mode == 'left':
-            n_frames = audio.size(-1) // hop_size + 1
-            ratio = (hop_size / sample_rate) / (self.encoder_hop_size / self.encoder_sample_rate)
-            index = torch.clamp(torch.round(ratio * torch.arange(n_frames).to(self.device)).long(), max=units.size(1) - 1)
-            units_aligned = torch.gather(units, 1, index.unsqueeze(0).unsqueeze(-1).repeat([1, 1, units.size(-1)]))
+        return units
 
-        elif self.units_forced_mode == 'nearest':
-            n_frames = int(audio.size(-1) // hop_size + 1)
-            units = units.transpose(1, 2)
-            units_aligned = torch.nn.functional.interpolate(units, size=int(n_frames), mode='nearest')
-            units_aligned = units_aligned.transpose(1, 2)
 
-        elif self.units_forced_mode in ('rfa441to512', 'rfa512to441'):
-            n_frames = int(audio.size(-1) // hop_size + 1)
-            units = units.transpose(1, 2)
-            units_aligned = torch.nn.functional.interpolate(units, size=int(n_frames), mode='nearest')
-            units_aligned = units_aligned.transpose(1, 2)
+def units_forced_alignment(self, units, audio = None, sample_rate = None, hop_size = None, n_frames = None, scale_factor = None, units_forced_mode = 'nearest'):
+    # alignment
+    assert (audio is not None and sample_rate is not None and hop_size is not None) or n_frames is not None or scale_factor is not None
+    n_frames = int(audio.size(-1) // hop_size + 1) if n_frames is None else n_frames
+    if units_forced_mode == 'left':
+        assert scale_factor is not None
+        index = torch.clamp(torch.round(scale_factor * torch.arange(n_frames).to(self.device)).long(), max=units.size(1) - 1)
+        units_aligned = torch.gather(units, 1, index.unsqueeze(0).unsqueeze(-1).repeat([1, 1, units.size(-1)]))
 
-        else:
-            raise ValueError(f'Unknow units_forced_mode:{self.units_forced_mode}')
-        return units_aligned
+    elif units_forced_mode in ('rfa441to512', 'rfa512to441'):
+        units = units.transpose(1, 2)
+        units_aligned = torch.nn.functional.interpolate(units, size=n_frames, scale_factor=scale_factor, mode='nearest')
+        units_aligned = units_aligned.transpose(1, 2)
 
+    else:
+        units = units.transpose(1, 2)
+        units_aligned = torch.nn.functional.interpolate(units, size=n_frames, scale_factor=scale_factor, mode=units_forced_mode)
+        units_aligned = units_aligned.transpose(1, 2)
+        
 
 class Audio2HubertSoft(torch.nn.Module):
     def __init__(self, path, h_sample_rate=16000, h_hop_size=320):
