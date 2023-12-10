@@ -552,6 +552,7 @@ class Whisper(torch.nn.Module):
         model.load_state_dict(checkpoint["model_state_dict"])
         self.hidden_dim = dims
         self.model = model.to(device)
+        self.device = device
         self.model.eval()
 
     @torch.inference_mode()
@@ -560,7 +561,7 @@ class Whisper(torch.nn.Module):
         # audln = audio.shape[0]
         # units_len = audln // 320
         # audio = pad_or_trim(audio)
-        mel = log_mel_spectrogram(audio).to(self.dev)
+        mel = log_mel_spectrogram(audio).to(self.device)
         with torch.no_grad():
             units = self.model.encoder(mel.unsqueeze(0)).squeeze().data.cpu().float()
             return units
