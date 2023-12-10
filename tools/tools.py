@@ -554,6 +554,7 @@ class Whisper(torch.nn.Module):
         self.model = model.to(device)
         self.device = device
         self.model.eval()
+        del model.decoder
 
     @torch.inference_mode()
     def forward(self, audio, padding_mask=None):  # B, T
