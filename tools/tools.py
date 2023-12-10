@@ -17,6 +17,9 @@ from torch.nn.modules.utils import consume_prefix_in_state_dict_if_present
 from torchaudio.transforms import Resample
 from torch.optim.lr_scheduler import StepLR
 from encoder.funasr.model import SpeechEncoder
+from encoder.whisper.audio import log_mel_spectrogram, pad_or_trim
+from encoder.whisper.model import ModelDimensions, Whisper
+
 CREPE_RESAMPLE_KERNEL = {}
 
 
@@ -430,6 +433,9 @@ class Units_Encoder:
         if encoder == 'funasr':
             self.model = FunASR(encoder_ckpt, device=device)
             is_loaded_encoder = True
+        if encoder == 'whisper':
+            self.model = Whisper(encoder_ckpt, device=device)
+            is_loaded_encoder = True
         if encoder in ('wav2vec2', 'wav2vec2-xlsr-53-espeak-cv-ft'):
             self.model = Wav2Vec2(encoder_ckpt, device=device)
             is_loaded_encoder = True
@@ -534,6 +540,31 @@ class FunASR(torch.nn.Module):
             padding_mask = padding_mask.sum(1)
         units = self.model(audio, padding_mask)
         return units[0]
+
+class Whisper(torch.nn.Module):
+    def __init__(self, path, device='cpu'):
+        super().__init__()
+        print(' [Encoder Model] ASR')
+        print(' [Loading] ' + path)
+        checkpoint = torch.load(path, map_location=device)
+        dims = ModelDimensions(**checkpoint["dims"])
+        model = Whisper(dims)
+        model.load_state_dict(checkpoint["model_state_dict"])
+        self.hidden_dim = dims
+        self.model = model.to(device)
+        self.model.eval()
+
+    @torch.inference_mode()
+    def forward(self, audio, padding_mask=None):  # B, T
+        audio = audio.view(1,-1)
+        # audln = audio.shape[0]
+        # units_len = audln // 320
+        # audio = pad_or_trim(audio)
+        mel = log_mel_spectrogram(audio).to(self.dev)
+        with torch.no_grad():
+            units = self.model.encoder(mel.unsqueeze(0)).squeeze().data.cpu().float()
+            return units
+        
 
 class Audio2ContentVec():
     def __init__(self, path, h_sample_rate=16000, h_hop_size=320, device='cpu'):
