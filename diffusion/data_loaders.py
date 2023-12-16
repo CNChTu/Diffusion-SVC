@@ -302,10 +302,7 @@ class AudioDataset(Dataset):
         if mel is None:
             mel = os.path.join(self.path_root, mel_key, name_ext) + '.npy'
             mel = np.load(mel)
-            mel = mel[start_frame: start_frame + units_frame_len]
             mel = torch.from_numpy(mel).float()
-        else:
-            mel = mel[start_frame: start_frame + units_frame_len]
 
         # load units
         units = data_buffer.get('units')
@@ -314,12 +311,13 @@ class AudioDataset(Dataset):
             units = np.load(units)
             units = units_forced_alignment(units, n_frames=mel.shape[0], units_forced_mode=self.units_forced_mode)
             units_len = units.shape[0]
-            units = units[start_frame: start_frame + units_frame_len]
             units = torch.from_numpy(units).float()
         else:
             units = units_forced_alignment(units, n_frames=mel.shape[0], units_forced_mode=self.units_forced_mode)
-            units = units[start_frame: start_frame + units_frame_len]
-
+        
+        units = units[start_frame: start_frame + units_frame_len, :]
+        mel = mel[start_frame: start_frame + units_frame_len, :]
+        
         # load spk_emb
         spk_emb = data_buffer.get('spk_emb')
         if self.use_spk_encoder:
