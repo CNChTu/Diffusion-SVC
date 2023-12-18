@@ -34,7 +34,7 @@ def parse_args(args=None, namespace=None):
         "-n",
         "--num_workers",
         type=int,
-        default=2,
+        default=0,
         required=False,
         help="proceeding workers, 0 if not set")
     return parser.parse_args(args=args, namespace=namespace)
