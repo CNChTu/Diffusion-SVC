@@ -146,7 +146,6 @@ class AudioDataset(Dataset):
         self.whole_audio = whole_audio
         self.use_aug = use_aug
         self.data_buffer = {}
-        self.pitch_aug_dict = np.load(os.path.join(self.path_root, 'pitch_aug_dict.npy'), allow_pickle=True).item()
         self.is_tts = is_tts
         self.n_spk = n_spk
         self.spk_name_id_map = {}
@@ -177,7 +176,9 @@ class AudioDataset(Dataset):
                     volume = volume + _noise * torch.sign(volume)
 
                 path_augvol = os.path.join(self.path_root, 'aug_vol', name_ext) + '.npy'
-                aug_vol = np.load(path_augvol)
+                aug_vol, keyshift = np.load(path_augvol, allow_pickle=True)
+                keyshift = int(keyshift)
+                aug_vol = aug_vol.astype(np.float32)
                 aug_vol = torch.from_numpy(aug_vol).float().unsqueeze(-1).to(device)
                 if volume_noise is not None:
                     _noise = volume_noise * torch.rand(aug_vol.shape,).to(device)
@@ -186,7 +187,8 @@ class AudioDataset(Dataset):
                 f0 = None
                 aug_vol = None
                 volume = None
- 
+                keyshift = 0
+
             if n_spk is not None and n_spk > 1:
                 dirname_split = os.path.dirname(name_ext)
                 if self.spk_name_id_map.get(dirname_split) is None:
@@ -243,7 +245,8 @@ class AudioDataset(Dataset):
                     'aug_vol': aug_vol,
                     'spk_id': spk_id,
                     't_spk_id': t_spk_id,
-                    'spk_emb': spk_emb
+                    'spk_emb': spk_emb,
+                    'keyshift': keyshift
                 }
             else:
                 self.data_buffer[name_ext] = {
@@ -252,7 +255,8 @@ class AudioDataset(Dataset):
                     'volume': volume,
                     'aug_vol': aug_vol,
                     'spk_id': spk_id,
-                    't_spk_id': t_spk_id
+                    't_spk_id': t_spk_id,
+                    'keyshift': keyshift
                 }
 
     def __getitem__(self, file_idx):
@@ -342,7 +346,7 @@ class AudioDataset(Dataset):
             f0 = data_buffer.get('f0')
             aug_shift = 0
             if aug_flag:
-                aug_shift = self.pitch_aug_dict[name_ext]
+                aug_shift = data_buffer.get('keyshift')
             f0_frames = 2 ** (aug_shift / 12) * f0[start_frame: start_frame + units_frame_len]
 
             # load volume
