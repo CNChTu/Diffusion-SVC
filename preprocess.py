@@ -99,9 +99,18 @@ def preprocess(path, f0_extractor, volume_extractor, mel_extractor, units_encode
             file_name = os.path.split(file)[-1]
             # 得到文本
             text = utt_text[file_name]
+            if text2semantic_mode == "phone":
             # 文本转换为音素
-            (phones, tones, lang_ids), (norm_text, word2ph) = text_to_sequence(text, "ZH")
-            # 保存音素
+                (phones, tones, lang_ids), (norm_text, word2ph) = text_to_sequence(text, "ZH")
+                # 保存音素
+            elif text2semantic_mode == "text":
+                from transformers import BertTokenizer
+                from text.multi_language_bert import get_bert_token
+                tokenizer = BertTokenizer.from_pretrained("bert-base-multilingual-cased", cache_dir="./pretrain")
+                tones = []
+                lang_ids = []
+                word2ph = []
+                phones, norm_text = get_bert_token(text, tokenizer)
             os.makedirs(os.path.dirname(path_uttfile), exist_ok=True)
             np.save(path_uttfile, np.array((np.array(phones), np.array(tones), np.array(lang_ids), np.array(word2ph)),dtype=object), allow_pickle=True)
             

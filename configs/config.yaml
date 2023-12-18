@@ -29,7 +29,7 @@ model:
   is_tts: true # If TTS or VC, it is true, if SVC, it is false
   text2semantic:
     type: 'roformer'
-    mode: 'phone' # choice: phone, phone+text, phone+bert, phone+text+bert
+    mode: 'phone' # choice: phone, text, phone+text, phone+bert, phone+text+bert
     semantic_kmeans_num: 2048
     codebook_path: 'pretrain/semantic_codebook.pt'
     n_spk: 1
