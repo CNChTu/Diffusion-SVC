@@ -174,7 +174,7 @@ class TextDataset(Dataset):
                 path_semantic_token = os.path.join(self.path_semantic_token_root, name_ext)
 
                 phones, tones, lang_ids, word2ph = np.load(path_utt, allow_pickle=True)
-
+        
                 if self.n_spk is not None and self.n_spk > 1:
                     dirname_split = os.path.dirname(name_ext)
                     if self.spk_name_id_map.get(dirname_split) is None:
