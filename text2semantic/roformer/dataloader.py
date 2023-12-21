@@ -174,7 +174,14 @@ class TextDataset(Dataset):
                 path_semantic_token = os.path.join(self.path_semantic_token_root, name_ext)
 
                 phones, tones, lang_ids, word2ph = np.load(path_utt, allow_pickle=True)
-        
+
+                if tones == []:
+                    tones = None
+                if lang_ids == []:
+                    lang_ids = None
+                if word2ph == []:
+                    word2ph = None
+
                 if self.n_spk is not None and self.n_spk > 1:
                     dirname_split = os.path.dirname(name_ext)
                     if self.spk_name_id_map.get(dirname_split) is None:
@@ -215,7 +222,7 @@ class TextDataset(Dataset):
         
         rtn = {
             'phone': torch.LongTensor(data_buffer['phones'].astype(np.int64)),
-            'tone': torch.LongTensor(data_buffer['tones'].astype(np.int64)),
+            'tone': torch.LongTensor(data_buffer['tones'].astype(np.int64)) if data_buffer['tones'] is not None else None,
             'semantic': torch.LongTensor(data_buffer['semantic_tokens'].astype(np.int64)),
             'labels': torch.LongTensor(data_buffer['semantic_tokens'].astype(np.int64)),
             'attention_mask': attention_mask,
@@ -245,7 +252,10 @@ def colle_fn(batch):
     name = []
     for batch_item in batch:
         phone.append(batch_item['phone'])
-        tone.append(batch_item['tone'])
+        if batch_item['tone'] is not None and tone is not None:
+            tone.append(batch_item['tone'])
+        else:
+            tone = None
         semantic.append(batch_item['semantic'])
         labels.append(batch_item['labels'])
         attention_mask.append(batch_item['attention_mask'])
@@ -257,7 +267,7 @@ def colle_fn(batch):
         name.append(batch_item['name'])
     rtn = {
             'phone': pad_sequence(phone, batch_first=True, padding_value=-100),
-            'tone': pad_sequence(tone, batch_first=True, padding_value=-100),
+            'tone': pad_sequence(tone, batch_first=True, padding_value=-100) if tone is not None else None,
             'semantic': pad_sequence(semantic, batch_first=True, padding_value=-100),
             'labels': pad_sequence(labels, batch_first=True, padding_value=-100),
             'attention_mask': pad_sequence(attention_mask, batch_first=True, padding_value=0),

@@ -84,6 +84,13 @@ class Roformer(nn.Module):
             token_size += 3
             # self.tone_emb = nn.Embedding(num_tones, config.hidden_size)
             # self.phone_emb = nn.Embedding(token_size + 2, config.hidden_size)
+        if "text" in self.mode:
+            from transformers import BertTokenizer
+            bert_tokenizer = BertTokenizer.from_pretrained("bert-base-multilingual-cased", cache_dir="./pretrain")
+            token_size = bert_tokenizer.vocab_size
+            self.BOS = bert_tokenizer.cls_token_id
+            self.EOS = token_size.sep_token_id
+            self.PAD = token_size.pad_token_id
         encoder_config.vocab_size = token_size
         encoder_config.type_vocab_size = self.num_tones + 1
         encoder_config.pad_token_id = self.PAD

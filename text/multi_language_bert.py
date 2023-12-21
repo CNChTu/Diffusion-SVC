@@ -34,8 +34,8 @@ if __name__ == '__main__':
     import torch
     token = get_bert_token('你好,我是说的道理。')
     print(token)
-    print()
-
+    tokenizer = BertTokenizer.from_pretrained("bert-base-multilingual-cased", cache_dir="./pretrain")
+    print(tokenizer.vocab_size)
     word_level_feature = torch.rand(38, 1024)  # 12个词,每个词1024维特征
     word2phone = [1, 2, 1, 2, 2, 1, 2, 2, 1, 2, 2, 1, 2, 2, 2, 2, 2, 1, 1, 2, 2, 1, 2, 2, 2, 2, 1, 2, 2, 2, 2, 2, 1, 2, 2, 2, 2, 1]
 
