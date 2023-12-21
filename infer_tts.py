@@ -138,7 +138,7 @@ if __name__ == '__main__':
         semantic_token = lm.generate(phones,
                             tones,
                             attention_mask=None,
-                            use_cache=None,
+                            use_cache=True,
                             max_length=1024,
                             do_sample=True,
                             temperature=1.0,

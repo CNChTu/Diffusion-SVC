@@ -149,7 +149,7 @@ def train(args, initial_global_step, model, optimizer, scheduler, diffusion_mode
                         data[k] = data[k].to(accelerator.device)
                         if k == "phone":
                             data[k][data[k] == -100] = accelerator.unwrap_model(model).PAD
-                        if k == "tone":
+                        if k == "tone" and data[k] is not None:
                             data[k][data[k] == -100] = accelerator.unwrap_model(model).num_tones
                         if k == "semantic":
                             data[k][data[k] == -100] = accelerator.unwrap_model(model).semantic_pad_token_id

@@ -33,6 +33,7 @@ model:
     semantic_kmeans_num: 2048
     codebook_path: 'pretrain/semantic_codebook.pt'
     n_spk: 1
+    use_flash_attn: false
     train:
       batch_size: 6
       lr: 0.0002
