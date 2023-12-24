@@ -332,7 +332,7 @@ class RoFormerFlashAttention(RoFormerSelfAttention):
         
         if encoder_attention_mask is None:
             encoder_attention_mask = attention_mask
-
+        
         max_q_len = query_layer.size(2)
         max_k_len = key_layer.size(2)
 
@@ -400,7 +400,7 @@ if __name__ == '__main__':
             is_decoder = True,
             add_cross_attention = True
     )
-    b = Roformer(a,a2, semantic_kmeans_num=2048, use_flash_attn=True).cuda()
+    b = Roformer(a,a2, semantic_kmeans_num=2048, use_flash_attn=False).cuda()
     phone = torch.LongTensor([[1,2,3,4,5,6,7,8,9,10,11,12,13,14,15],[1,2,3,4,5,6,7,8,9,10,11,12,13,14,15]]).cuda()
     tone = torch.LongTensor([[1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],[1,1,1,1,1,1,1,1,1,1,1,1,1,1,1]]).cuda()
     semantic = torch.LongTensor([[1,2,3,4,5,6,7,8,9,10,11,12,13,14,15],[1,2,3,4,5,6,7,8,9,10,11,12,13,14,15]]).cuda()
@@ -408,6 +408,6 @@ if __name__ == '__main__':
     attention_mask = torch.LongTensor([[1,1,1,1,1,1,1,1,1,1,0,0,0,0,0],[1,1,1,1,1,1,0,0,0,0,0,0,0,0,0]]).cuda()
     outputs = b(phone=phone, tone=tone, semantic=semantic,labels=labels,attention_mask=attention_mask,encoder_attention_mask=attention_mask)
     print(outputs)
-    generate = b.generate(phone=phone, tone=tone,end_gate_threshold=0.9)
+    generate = b.generate(phone=phone, tone=tone,end_gate_threshold=0.9,attention_mask=attention_mask)
     print(generate)
 
