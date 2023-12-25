@@ -136,7 +136,7 @@ class Roformer(nn.Module):
             for i in self.text_encoder.encoder.layer:
                 i.attention.self = RoFormerlashAttention2(config=encoder_config)
             for i in self.semantic_decoder.roformer.encoder.layer:
-                i.attention.self = RoFormerlashAttention2(config=decoder_config)
+                i.attention.self = RoFormerlashAttention2(config=decoder_config,is_causal=True)
                 i.crossattention.self = RoFormerlashAttention2(config=decoder_config)
     
     def get_flash_attn_extended_attention_mask(self, attention_mask, input_shape = None, dtype = None):

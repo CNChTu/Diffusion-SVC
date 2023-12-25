@@ -22,8 +22,9 @@ class RoFormerlashAttention2(RoFormerSelfAttention):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-
+    
         self._flash_attn_uses_top_left_mask = not is_flash_attn_greater_or_equal_2_10()
+        self.is_causal = kwargs.get("is_causal", False)
         self.has_warned = False
 
     def forward(
@@ -165,10 +166,10 @@ class RoFormerlashAttention2(RoFormerSelfAttention):
                 The scaling of QK^T before applying softmax. Default to 1 / sqrt(head_dim)
         """
         if not self._flash_attn_uses_top_left_mask:
-            causal = self.is_decoder
+            causal = self.is_causal
         else:
             # TODO: Remove the `query_length != 1` check once Flash Attention for RoCm is bumped to 2.1. For details, please see the comment in LlamaFlashAttention2 __init__.
-            causal = self.is_decoder and query_length != 1
+            causal = self.is_causal and query_length != 1
 
         # Contains at least one padding token in the sequence
         if attention_mask is not None:
