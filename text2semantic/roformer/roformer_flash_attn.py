@@ -21,7 +21,7 @@ if is_flash_attn_2_available():
 class RoFormerlashAttention2(RoFormerSelfAttention):
 
     def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
+        super().__init__(kwargs.get("config"))
     
         self._flash_attn_uses_top_left_mask = not is_flash_attn_greater_or_equal_2_10()
         self.is_causal = kwargs.get("is_causal", False)
