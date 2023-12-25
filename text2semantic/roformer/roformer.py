@@ -1,6 +1,5 @@
 from transformers import RoFormerForCausalLM, RoFormerModel, RoFormerConfig, GenerationConfig
 from transformers.generation.logits_process import LogitsProcessor, LogitsProcessorList
-from transformers.models.roformer.modeling_roformer import RoFormerSelfAttention
 import torch
 from torch import nn
 from text.symbols import *
@@ -130,28 +129,18 @@ class Roformer(nn.Module):
 
         self.use_flash_attn = use_flash_attn
         if use_flash_attn:
+            self.text_encoder.get_extended_attention_mask = self.get_flash_attn_extended_attention_mask
             self.semantic_decoder.roformer.get_extended_attention_mask = self.get_flash_attn_extended_attention_mask
+            self.semantic_decoder.roformer.invert_attention_mask = self.get_flash_attn_extended_attention_mask
+            from .roformer_flash_attn import RoFormerlashAttention2
             for i in self.text_encoder.encoder.layer:
-                i.attention.self = RoFormerFlashAttention(encoder_config)
+                i.attention.self = RoFormerlashAttention2(config=encoder_config)
             for i in self.semantic_decoder.roformer.encoder.layer:
-                i.attention.self = RoFormerFlashAttention(decoder_config)
-                i.crossattention.self = RoFormerFlashAttention(decoder_config)
+                i.attention.self = RoFormerlashAttention2(config=decoder_config)
+                i.crossattention.self = RoFormerlashAttention2(config=decoder_config)
     
-    def get_flash_attn_extended_attention_mask(self, attention_mask, input_shape, dtype = None):
-        if dtype is None:
-            dtype = self.text_encoder.embeddings.word_embeddings.weight.dtype
-        
-        if attention_mask.dim() == 3:
-            extended_attention_mask = attention_mask[:, None, :, :]
-        elif attention_mask.dim() == 2:
-            extended_attention_mask = attention_mask[:, None, None, :]
-        else:
-            raise ValueError(
-                f"Wrong shape for input_ids (shape {input_shape}) or attention_mask (shape {attention_mask.shape})"
-            )
-        extended_attention_mask = extended_attention_mask.to(dtype=dtype)  # fp16 compatibility
-        extended_attention_mask = (1.0 - extended_attention_mask) * torch.finfo(dtype).min
-        return extended_attention_mask
+    def get_flash_attn_extended_attention_mask(self, attention_mask, input_shape = None, dtype = None):
+        return attention_mask
     
 
     def forward(
@@ -279,109 +268,6 @@ class Roformer(nn.Module):
         return {"input_ids": input_ids, "attention_mask": attention_mask, "past_key_values": past_key_values, **model_kwargs}
 
 
-class RoFormerFlashAttention(RoFormerSelfAttention):
-    def __init__(self, config):
-        super().__init__(config)
-
-    def forward(
-        self,
-        hidden_states,
-        attention_mask=None,
-        sinusoidal_pos=None,
-        head_mask=None,
-        encoder_hidden_states=None,
-        encoder_attention_mask=None,
-        past_key_value=None,
-        output_attentions=False,
-    ):
-        from flash_attn import flash_attn_varlen_func
-        mixed_query_layer = self.query(hidden_states)
-        query_layer = self.transpose_for_scores(mixed_query_layer)
-        # If this is instantiated as a cross-attention module, the keys
-        # and values come from an encoder; the attention mask needs to be
-        # such that the encoder's padding tokens are not attended to.
-        is_cross_attention = encoder_hidden_states is not None
-
-        if is_cross_attention and past_key_value is not None:
-            # reuse k,v, cross_attentions
-            key_layer = past_key_value[0]
-            value_layer = past_key_value[1]
-            # attention_mask = encoder_attention_mask
-        elif is_cross_attention:
-            key_layer = self.transpose_for_scores(self.key(encoder_hidden_states))
-            value_layer = self.transpose_for_scores(self.value(encoder_hidden_states))
-            # attention_mask = encoder_attention_mask
-        else:
-            key_layer = self.transpose_for_scores(self.key(hidden_states))
-            value_layer = self.transpose_for_scores(self.value(hidden_states))
-            if sinusoidal_pos is not None:
-                if self.rotary_value:
-                    query_layer, key_layer, value_layer = self.apply_rotary_position_embeddings(
-                        sinusoidal_pos, query_layer, key_layer, value_layer
-                    )
-                else:
-                    query_layer, key_layer = self.apply_rotary_position_embeddings(
-                        sinusoidal_pos, query_layer, key_layer
-                    )
-            if past_key_value is not None:
-                key_layer = torch.cat([past_key_value[0], key_layer], dim=2)
-                value_layer = torch.cat([past_key_value[1], value_layer], dim=2)
-        if self.is_decoder:
-            past_key_value = (key_layer, value_layer)
-        source_dtype = query_layer.dtype
-        
-        if encoder_attention_mask is None:
-            encoder_attention_mask = attention_mask
-        
-        max_q_len = query_layer.size(2)
-        max_k_len = key_layer.size(2)
-
-        query_layer = query_layer.permute(0, 2, 1, 3)
-        key_layer = key_layer.permute(0, 2, 1, 3)
-        value_layer = value_layer.permute(0, 2, 1, 3)
-        _,_,n_haed,head_dim = query_layer.shape
-        query_layer = query_layer.view(-1, n_haed, head_dim).contiguous()
-        key_layer = key_layer.view(-1, n_haed, head_dim).contiguous()
-        value_layer = value_layer.view(-1, n_haed, head_dim).contiguous()
-        
-        q_len = torch.sum((attention_mask==0), dim=-1)[:,0,0].int()
-        k_len = torch.sum((encoder_attention_mask==0), dim=-1)[:,0,0].int()
-        
-        attention_index = (attention_mask==0).view(-1)
-        encoder_attention_index = (encoder_attention_mask==0).view(-1)
-        query_layer = query_layer[attention_index]
-        key_layer = key_layer[encoder_attention_index]
-        value_layer = value_layer[encoder_attention_index]
-        
-        query_layer = query_layer.to(torch.bfloat16)
-        key_layer = key_layer.to(torch.bfloat16)
-        value_layer = value_layer.to(torch.bfloat16)
-        
-        context_layer, attention_probs, S_dmask = flash_attn_varlen_func(query_layer, key_layer, value_layer,q_len,k_len,max_q_len, max_k_len, self.dropout.p, causal=self.is_decoder, return_attn_probs=True)
-        assert not torch.isnan(context_layer).any(), "context_layer contains NaN"
-        assert not torch.isnan(attention_probs).any(), "attention_probs contains NaN"
-        context_layer = context_layer.to(source_dtype)
-        attention_probs = attention_probs.to(source_dtype)
-         
-        context_layer = [context_layer[start:start+length,...] for start, length in zip([0]+q_len[:-1].tolist(), q_len.tolist())]
-        
-        context_layer = pad_sequence(context_layer, batch_first=True, padding_value=0)
-
-        if context_layer.shape[1] < max_q_len:
-            context_layer = F.pad(context_layer, (0,0,0,0,0,max_q_len-context_layer.shape[1]), value=0)
-        
-        context_layer = context_layer.contiguous()
-        # Mask heads if we want to
-
-        if head_mask is not None:
-            context_layer *= head_mask
-
-        new_context_layer_shape = context_layer.size()[:-2] + (self.all_head_size,)
-        context_layer = context_layer.view(*new_context_layer_shape)
-
-        outputs = (context_layer, attention_probs) if output_attentions else (context_layer,)
-        return outputs
-
 if __name__ == '__main__':
     a = RoFormerConfig(
          hidden_size=768,
@@ -400,7 +286,7 @@ if __name__ == '__main__':
             is_decoder = True,
             add_cross_attention = True
     )
-    b = Roformer(a,a2, semantic_kmeans_num=2048, use_flash_attn=False).cuda()
+    b = Roformer(a,a2, semantic_kmeans_num=2048, use_flash_attn=True).cuda()
     phone = torch.LongTensor([[1,2,3,4,5,6,7,8,9,10,11,12,13,14,15],[1,2,3,4,5,6,7,8,9,10,11,12,13,14,15]]).cuda()
     tone = torch.LongTensor([[1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],[1,1,1,1,1,1,1,1,1,1,1,1,1,1,1]]).cuda()
     semantic = torch.LongTensor([[1,2,3,4,5,6,7,8,9,10,11,12,13,14,15],[1,2,3,4,5,6,7,8,9,10,11,12,13,14,15]]).cuda()
