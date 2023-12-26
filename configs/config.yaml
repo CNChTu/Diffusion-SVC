@@ -15,6 +15,9 @@ data:
   volume_noise: 0 # if not 0 ,add noise for volume in train ;;;;EXPERIMENTAL FUNCTION, NOT RECOMMENDED FOR USE;;;;
   train_path: data/train # Create a folder named "audio" under this path and put the audio clip in it
   valid_path: data/val # Create a folder named "audio" under this path and put the audio clip in it
+  filelist_path: null # If you want to use a filelist, set the path here
+  train_set_rate: 0.999 # The proportion of the training set to be used, the rest is used as the validation set, used when filelist_path is not null
+  use_datasets: false # If true, use datasets(arrow) of huggingface instead of the path above
   extensions: # List of extension included in the data collection
     - wav
 model:

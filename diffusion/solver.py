@@ -3,8 +3,8 @@ import time
 import numpy as np
 import torch
 import librosa
-from logger.saver import Saver, Saver_empty
-from logger import utils
+from train_log.saver import Saver, Saver_empty
+from train_log import utils
 from tools.tools import clip_grad_value_
 
 def test(args, model, vocoder, loader_test, f0_extractor, quantizer, saver, accelerator):

@@ -45,6 +45,13 @@ def traverse_dir(
     return file_list
 
 
+def filelist_path_to_file_list(filelist_path):
+    with open(filelist_path, 'r') as f:
+        file_list = f.read().splitlines()
+    root_path = file_list[0]
+    file_list = file_list[1:]
+    return file_list, root_path
+
 class DotDict(dict):
     def __getattr__(*args):
         val = dict.get(*args)

@@ -5,11 +5,11 @@ import librosa
 import torch
 import argparse
 import shutil
-from logger import utils
+from train_log import utils
 from tqdm import tqdm
 from tools.tools import F0_Extractor, Volume_Extractor, Units_Encoder, SpeakerEncoder
 from diffusion.vocoder import Vocoder
-from logger.utils import traverse_dir
+from train_log.utils import traverse_dir, filelist_path_to_file_list
 from text.cleaner import text_to_sequence
 import torch.multiprocessing as mp
 import traceback
@@ -40,18 +40,22 @@ def parse_args(args=None, namespace=None):
     return parser.parse_args(args=args, namespace=namespace)
 
 def preprocess_worker(rank, path, args, sample_rate, hop_size,
-               device='cuda', use_pitch_aug=None, extensions=['wav'], is_tts = False, text2semantic_mode = "phone",num_workers = 0):
+               device='cuda', use_pitch_aug=None, extensions=['wav'], is_tts = False, filelist=None, root_path=None, num_workers = 0):
     if device == 'cuda':
         num_gpus = torch.cuda.device_count()
         torch.cuda.set_device(rank % num_gpus)
 
     path_srcdir = os.path.join(path, 'audio')
-    filelist = traverse_dir(
-        path_srcdir,
-        extensions=extensions,
-        is_pure=True,
-        is_sort=True,
-        is_ext=True)
+    if filelist is None:
+        filelist = traverse_dir(
+            path_srcdir,
+            extensions=extensions,
+            is_pure=True,
+            is_sort=True,
+            is_ext=True)
+    else:
+        filelist = filelist
+
     if num_workers != 0:
         filelist = filelist[rank::num_workers]
 
@@ -99,12 +103,12 @@ def preprocess_worker(rank, path, args, sample_rate, hop_size,
     )
 
     preprocess(path, f0_extractor, volume_extractor, mel_extractor, units_encoder, sample_rate,
-            hop_size, device=device, use_pitch_aug=use_pitch_aug, extensions=extensions,is_tts = is_tts, text2semantic_mode=args["model"]["text2semantic"]["mode"], filelist=filelist, rank = rank)
+            hop_size, device=device, use_pitch_aug=use_pitch_aug, extensions=extensions,is_tts = is_tts, text2semantic_mode=args["model"]["text2semantic"]["mode"], filelist=filelist,root_path=root_path, rank = rank)
 
 
 
 def preprocess(path, f0_extractor, volume_extractor, mel_extractor, units_encoder, sample_rate, hop_size,
-               device='cuda', use_pitch_aug=False, extensions=['wav'], is_tts = False, text2semantic_mode = "phone", filelist=None, rank = 0):
+               device='cuda', use_pitch_aug=False, extensions=['wav'], is_tts = False, text2semantic_mode = "phone", filelist=None, root_path=None, rank = 0):
     path_srcdir = os.path.join(path, 'audio')
     path_unitsdir = os.path.join(path, 'units')
     path_f0dir = os.path.join(path, 'f0')
@@ -116,7 +120,8 @@ def preprocess(path, f0_extractor, volume_extractor, mel_extractor, units_encode
     if is_tts:
         path_uttdir = os.path.join(path, 'utt')
         utt_text = {}
-    
+        
+    spk_set = set()
     if filelist is None:
         # list files
         filelist = traverse_dir(
@@ -127,10 +132,14 @@ def preprocess(path, f0_extractor, volume_extractor, mel_extractor, units_encode
             is_ext=True)
     else:
         filelist = filelist
+        
+    if root_path is not None:
+        path_srcdir = root_path
 
     # run  
     def process(file):
         binfile = file + '.npy'
+        spk_name = os.path.dirname(file)
         path_srcfile = os.path.join(path_srcdir, file)
         path_unitsfile = os.path.join(path_unitsdir, binfile)
         path_f0file = os.path.join(path_f0dir, binfile)
@@ -140,7 +149,8 @@ def preprocess(path, f0_extractor, volume_extractor, mel_extractor, units_encode
         path_augmelfile = os.path.join(path_augmeldir, binfile)
         path_skipfile = os.path.join(path_skipdir, file)
         if is_tts:
-            if len(utt_text) == 0:
+            if spk_name not in spk_set:
+                print(f" [INFO] Loading utt_text from {spk_name}")
                 path_uttfile = os.path.join(path_srcdir, file)
                 path_uttfile = os.path.dirname(path_uttfile)
                 path_uttfile = os.path.join(path_uttfile,"utt_text.txt")
@@ -148,6 +158,7 @@ def preprocess(path, f0_extractor, volume_extractor, mel_extractor, units_encode
                     for f_i in f.readlines():
                         k, v = f_i.replace("\n","").split("|")
                         utt_text[k] = v
+                spk_set.add(spk_name)
             path_uttfile = os.path.join(path_uttdir, binfile)
         # load audio
         audio, _ = librosa.load(path_srcfile, sr=sample_rate)
@@ -251,20 +262,35 @@ if __name__ == '__main__':
     is_tts = args.model.is_tts
     sample_rate = args.data.sampling_rate
     hop_size = args.data.block_size
-
+    train_set_rate = args.data.train_set_rate
     extensions = args.data.extensions
 
+    if args.data.filelist_path is not None:
+        file_list, root_path = filelist_path_to_file_list(args.data.filelist_path)
+        random.shuffle(file_list)
+        split_len = int(len(file_list)*train_set_rate)
+        train_file_list = file_list[:split_len]
+        valid_file_list = file_list[split_len:]
+        print(f" [INFO] Train set: {len(train_file_list)} files, Valid set: {len(valid_file_list)} files")
+        with open(os.path.join(args.data.train_path, "filelist.txt"),"w") as f:
+            f.write(f"{root_path}\n")
+            f.write("\n".join(train_file_list))
+        with open(os.path.join(args.data.valid_path, "filelist.txt"),"w") as f:
+            f.write(f"{root_path}\n")
+            f.write("\n".join(valid_file_list))
+    else:
+        train_file_list, valid_file_list, root_path = None, None, None
     if cmd.num_workers == 0:
         # preprocess training set
         preprocess_worker(0, args.data.train_path, dict(args), sample_rate, hop_size,
-               device=device, use_pitch_aug=None, extensions=extensions, is_tts = is_tts, text2semantic_mode=args.model.text2semantic.mode)
+               device=device, use_pitch_aug=None, extensions=extensions, is_tts = is_tts, filelist=train_file_list,root_path=root_path)
         # preprocess validation set
         preprocess_worker(0, args.data.valid_path, dict(args), sample_rate, hop_size,
-               device=device, use_pitch_aug=False, extensions=extensions, is_tts = is_tts, text2semantic_mode=args.model.text2semantic.mode)
+               device=device, use_pitch_aug=False, extensions=extensions, is_tts = is_tts, filelist=valid_file_list,root_path=root_path)
     else:
         # preprocess training set
         mp.spawn(preprocess_worker, args=(args.data.train_path, dict(args), sample_rate, hop_size,
-               device, None, extensions, is_tts, args.model.text2semantic.mode, num_workers), nprocs=num_workers)
+               device, None, extensions, is_tts, args.model.text2semantic.mode, train_file_list, root_path, num_workers), nprocs=num_workers)
         # preprocess validation set
         mp.spawn(preprocess_worker, args=(args.data.valid_path, dict(args), sample_rate, hop_size,
-                device, False, extensions, is_tts, args.model.text2semantic.mode, num_workers), nprocs=num_workers)
+                device, False, extensions, is_tts, args.model.text2semantic.mode, valid_file_list, root_path, num_workers), nprocs=num_workers)

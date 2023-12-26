@@ -3,9 +3,9 @@ import cluster
 import numpy as np 
 import torch.multiprocessing as mp
 import argparse
-from logger import utils
+from train_log import utils
 import os
-from logger.utils import traverse_dir
+from train_log.utils import traverse_dir
 from tqdm import tqdm
 # def _process_utterance(wav_path):
 #         wav = np.load(wav_path)

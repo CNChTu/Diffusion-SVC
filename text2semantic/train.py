@@ -2,7 +2,7 @@ import os
 import argparse
 import torch
 from torch.optim import lr_scheduler
-from logger import utils
+from train_log import utils
 from .utils import get_data_loaders
 import accelerate
 from tools.infer_tools import DiffusionSVC

@@ -9,6 +9,8 @@ from transformers.cache_utils import Cache
 import torch.nn.functional as F
 import logging
 
+logger = logging.getLogger(__name__)
+
 from transformers.utils import (
     is_flash_attn_2_available,
     is_flash_attn_greater_or_equal_2_10
@@ -25,7 +27,6 @@ class RoFormerlashAttention2(RoFormerSelfAttention):
     
         self._flash_attn_uses_top_left_mask = not is_flash_attn_greater_or_equal_2_10()
         self.is_causal = kwargs.get("is_causal", False)
-        self.has_warned = False
 
     def forward(
         self,
@@ -112,13 +113,12 @@ class RoFormerlashAttention2(RoFormerSelfAttention):
             else:
                 target_dtype = self.query.weight.dtype
 
-            if not self.has_warned:
-                logging.warning(
-                    f"The input hidden states seems to be silently casted in float32, this might be related to"
-                    f" the fact you have upcasted embedding or layer norm layers in float32. We will cast back the input in"
-                    f" {target_dtype}."
-                )
-                self.has_warned = True
+            logger.warning_once(
+                f"Warning: "
+                f"The input hidden states seems to be silently casted in float32, this might be related to"
+                f" the fact you have upcasted embedding or layer norm layers in float32. We will cast back the input in"
+                f" {target_dtype}."
+            )
 
             query_states = query_states.to(torch.bfloat16)
             key_states = key_states.to(torch.bfloat16)

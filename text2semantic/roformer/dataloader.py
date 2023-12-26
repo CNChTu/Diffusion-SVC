@@ -279,7 +279,7 @@ def colle_fn(batch):
 
 
 if __name__  == '__main__':
-    from logger import utils
+    from train_log import utils
     args = utils.load_config("configs/config.yaml")
     print(args)
     loader_train, loader_valid = get_data_loaders(args)

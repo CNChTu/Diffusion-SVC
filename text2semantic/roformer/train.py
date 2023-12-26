@@ -4,7 +4,7 @@ import numpy as np
 import torch
 import librosa
 from text2semantic.saver import Saver,Saver_empty
-from logger import utils
+from train_log import utils
 from torch import autocast
 from torch.cuda.amp import GradScaler
 from torch.nn.parallel import DistributedDataParallel

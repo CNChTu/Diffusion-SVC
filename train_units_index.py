@@ -1,5 +1,5 @@
 from tools.units_index import train_index
-from logger import utils
+from train_log import utils
 import pickle
 import argparse
 import os
