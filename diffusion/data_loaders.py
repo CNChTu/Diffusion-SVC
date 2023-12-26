@@ -7,13 +7,20 @@ import random
 from tqdm import tqdm
 from torch.utils.data import Dataset
 from tools.tools import units_forced_alignment
-from train_log.utils import traverse_dir
+from train_log.utils import traverse_dir, filelist_path_to_file_list
 
 def get_data_loaders(args, whole_audio=False, accelerator=None):
     if args.data.volume_noise == 0:
         volume_noise = None
     else:
         volume_noise = args.data.volume_noise
+    
+    if args.data.filelist_path is not None:
+        file_list, root_path = filelist_path_to_file_list(os.path.join(args.data.train_path,"filelist.txt"))
+    else:
+        file_list = None
+        root_path = None
+
     data_train = AudioDataset(
         args.data.train_path,
         waveform_sec=args.data.duration,
@@ -31,6 +38,8 @@ def get_data_loaders(args, whole_audio=False, accelerator=None):
         volume_noise=volume_noise,
         is_tts = args.model.is_tts,
         units_forced_mode = args.data.units_forced_mode,
+        file_list=file_list,
+        root_path=root_path,
         accelerator=accelerator
     )
     loader_train = torch.utils.data.DataLoader(
@@ -41,6 +50,13 @@ def get_data_loaders(args, whole_audio=False, accelerator=None):
         persistent_workers=(args.train.num_workers > 0) if args.train.cache_device == 'cpu' else False,
         pin_memory=True if args.train.cache_device == 'cpu' else False
     )
+
+    if args.data.filelist_path is not None:
+        file_list, root_path = filelist_path_to_file_list(os.path.join(args.data.valid_path,"filelist.txt"))
+    else:
+        file_list = None
+        root_path = None
+
     data_valid = AudioDataset(
         args.data.valid_path,
         waveform_sec=args.data.duration,
@@ -55,6 +71,8 @@ def get_data_loaders(args, whole_audio=False, accelerator=None):
         volume_noise=volume_noise,
         is_tts = args.model.is_tts,
         units_forced_mode = args.data.units_forced_mode,
+        file_list=file_list,
+        root_path=root_path,
         accelerator=None
     )
     loader_valid = torch.utils.data.DataLoader(
@@ -86,6 +104,8 @@ class AudioDataset(Dataset):
             volume_noise=None,
             is_tts=True,
             units_forced_mode = "nearest",
+            file_list=None,
+            root_path=None,
             accelerator=None
     ):
         super().__init__()
@@ -94,15 +114,19 @@ class AudioDataset(Dataset):
         self.sample_rate = sample_rate
         self.hop_size = hop_size
         self.path_root = path_root
+        self.root_path = root_path
         self.use_spk_encoder = use_spk_encoder
         self.spk_encoder_mode = spk_encoder_mode
-        self.paths = traverse_dir(
-            os.path.join(path_root, 'audio'),
-            extensions=extensions,
-            is_pure=True,
-            is_sort=True,
-            is_ext=True
-        )
+        if file_list is not None:
+            self.paths = file_list
+        else:
+            self.paths = traverse_dir(
+                os.path.join(path_root, 'audio'),
+                extensions=extensions,
+                is_pure=True,
+                is_sort=True,
+                is_ext=True
+            )
         self.units_forced_mode = units_forced_mode
         self.whole_audio = whole_audio
         self.use_aug = use_aug
@@ -121,7 +145,10 @@ class AudioDataset(Dataset):
 
         t_spk_id = 1
         for name_ext in tqdm(self.paths, total=len(self.paths), position=accelerator.process_index if accelerator is not None else 0):
-            path_audio = os.path.join(self.path_root, 'audio', name_ext)
+            if self.root_path is not None:
+                path_audio = os.path.join(self.root_path, name_ext)
+            else:
+                path_audio = os.path.join(self.path_root, 'audio', name_ext)
             duration = librosa.get_duration(filename=path_audio, sr=self.sample_rate)
 
             if not is_tts:
