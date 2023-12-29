@@ -21,7 +21,7 @@
     "普通设置": "General settings",
     "音频切分大小": "Audio split size",
     "交叉淡化时长": "Cross fade duration",
-    "使用历史区块数量": "Number of historical blocks used",
+    "额外推理时长": "Extra inference time",
     "f0预测模式": "f0 prediction mode",
     "启用相位声码器": "Enable phase vocoder",
     "切片设置": "Slice settings",
