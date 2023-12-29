@@ -202,7 +202,7 @@ class F0_Extractor:
         self.hop_size = hop_size
         self.f0_min = f0_min
         self.f0_max = f0_max
-        self.transformer_f0 = None
+        self.fcpe = None
         self.rmvpe = None
         if f0_extractor == 'crepe':
             key_str = str(sample_rate)
@@ -289,26 +289,27 @@ class F0_Extractor:
                 [f0[int(min(int(np.round(n * self.hop_size / self.sample_rate / 0.005)), len(f0) - 1))] for n in
                  range(n_frames - start_frame)])
             f0 = np.pad(f0, (start_frame, 0))
-
+        
+        # extract f0 using fcpe
         elif self.f0_extractor == "fcpe":
-            _JUMP_SAFE_PAD = False
-            if self.transformer_f0 is None:
-                from encoder.fcpe.model import FCPEInfer
-                self.transformer_f0 = FCPEInfer(model_path='pretrain/fcpe/fcpe.pt')
-            if _JUMP_SAFE_PAD:
-                raw_audio = audio
-            f0 = self.transformer_f0(audio=raw_audio, sr=self.sample_rate)
-            f0 = f0.transpose(1, 2)
-            if not _JUMP_SAFE_PAD:
-                f0 = torch.nn.functional.interpolate(f0, size=int(n_frames), mode='nearest')
-            f0 = f0.transpose(1, 2)
+            if self.fcpe is None:
+                from torchfcpe import spawn_bundled_infer_model
+                self.device_fcpe = 'cuda' if torch.cuda.is_available() else 'cpu'
+                self.fcpe = spawn_bundled_infer_model(device=self.device_fcpe)
+            _audio = torch.from_numpy(audio).to(self.device_fcpe).unsqueeze(0)
+            f0 = self.fcpe(_audio, sr=self.sample_rate, decoder_mode="local_argmax", threshold=0.006)
             f0 = f0.squeeze().cpu().numpy()
-            if _JUMP_SAFE_PAD:
-                f0 = np.array(
-                    [f0[int(min(int(np.round(n * self.hop_size / self.sample_rate / 0.01)), len(f0) - 1))] for n in
-                     range(n_frames - start_frame)])
-                f0 = np.pad(f0.astype('float'), (start_frame, n_frames - len(f0) - start_frame))
-
+            uv = f0 == 0
+            if len(f0[~uv]) > 0:
+                f0[uv] = np.interp(np.where(uv)[0], np.where(~uv)[0], f0[~uv])
+            origin_time = 0.01 * np.arange(len(f0))
+            target_time = self.hop_size / self.sample_rate * np.arange(n_frames - start_frame)
+            f0 = np.interp(target_time, origin_time, f0)
+            uv = np.interp(target_time, origin_time, uv.astype(float)) > 0.5
+            f0[uv] = 0
+            f0 = np.pad(f0, (start_frame, 0))
+        
+        # extract f0 using rmvpe        
         elif self.f0_extractor == "rmvpe":
             if self.rmvpe is None:
                 from encoder.rmvpe import RMVPE

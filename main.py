@@ -76,8 +76,8 @@ def parse_args(args=None, namespace=None):
         "--pitch_extractor",
         type=str,
         required=False,
-        default='crepe',
-        help="pitch extrator type: parselmouth, dio, harvest, crepe (default) or rmvpe",
+        default='fcpe',
+        help="pitch extrator type: parselmouth, dio, harvest, crepe, rmvpe or fcpe (default)",
     )
     parser.add_argument(
         "-fmin",

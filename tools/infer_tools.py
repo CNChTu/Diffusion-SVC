@@ -88,9 +88,10 @@ class DiffusionSVC:
     def flush(self, model_path=None, f0_model=None, f0_min=None, f0_max=None, naive_model_path=None):
         assert (model_path is not None) or (naive_model_path is not None)
         # flush model if changed
-        if ((self.model_path != model_path) or (self.f0_model != f0_model)
-                or (self.f0_min != f0_min) or (self.f0_max != f0_max)):
+        if self.model_path != model_path:
             self.load_model(model_path, f0_model=f0_model, f0_min=f0_min, f0_max=f0_max)
+        elif self.f0_model != f0_model or self.f0_min != f0_min or self.f0_max != f0_max:
+            self.load_f0_extractor(f0_model, f0_min=f0_min, f0_max=f0_max)
         if (self.naive_model_path != naive_model_path) and (naive_model_path is not None):
             self.load_naive_model(naive_model_path)
         # check args if use naive
@@ -110,7 +111,7 @@ class DiffusionSVC:
 
     def flush_f0_extractor(self, f0_model, f0_min=None, f0_max=None):
         if (f0_model != self.f0_model) and (f0_model is not None):
-            self.load_f0_extractor(f0_model)
+            self.load_f0_extractor(f0_model, f0_min=f0_min, f0_max=f0_max)
 
     def load_f0_extractor(self, f0_model, f0_min=None, f0_max=None):
         self.f0_model = f0_model if (f0_model is not None) else self.args.data.f0_extractor

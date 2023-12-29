@@ -17,7 +17,7 @@ if __name__ == '__main__':
     # 模型加载设置
     device = 'cuda'  # 设备
     model_path = ''  # 模型位置，会自动读取同目录下的config.yaml
-    f0_model = 'crepe'  # f0模式
+    f0_model = 'fcpe'  # f0模式
     f0_max = 800
     f0_min = 65
     # 以下设置和main.py一样，但是需要注意，这里推理是不切片的
