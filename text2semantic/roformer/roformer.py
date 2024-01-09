@@ -96,6 +96,7 @@ class Roformer(nn.Module):
             self.BOS = bert_tokenizer.cls_token_id
             self.EOS = token_size.sep_token_id
             self.PAD = token_size.pad_token_id
+            self.num_tones = 0
         encoder_config.vocab_size = token_size
         encoder_config.type_vocab_size = self.num_tones + 1
         encoder_config.pad_token_id = self.PAD
