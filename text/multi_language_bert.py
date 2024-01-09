@@ -25,7 +25,6 @@ def get_bert_feature(text, word2ph, model = BertModel.from_pretrained("bert-base
 
 def get_bert_token(text, tokenizer = BertTokenizer.from_pretrained("bert-base-multilingual-cased", cache_dir="./pretrain")):
     inputs = tokenizer(text)
-    print(inputs)
     return inputs["input_ids"], tokenizer.convert_ids_to_tokens(inputs["input_ids"])
 
 if __name__ == '__main__':
