@@ -184,7 +184,7 @@ class TextDataset(Dataset):
         
         rtn = {
             'phone': torch.LongTensor(data_buffer['phones'].astype(np.int64)),
-            'tone': torch.LongTensor(data_buffer['tones'].astype(np.int64)) if data_buffer['tones'] is not None else None,
+            'tone': torch.LongTensor(data_buffer['tones'].astype(np.int64)) if data_buffer['tones'] is len(data_buffer['tones'])!=0 else None,
             'semantic': torch.LongTensor(data_buffer['semantic_tokens'].astype(np.int64)),
             'labels': torch.LongTensor(data_buffer['semantic_tokens'].astype(np.int64)),
             'attention_mask': attention_mask,

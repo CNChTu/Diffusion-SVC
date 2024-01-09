@@ -94,8 +94,8 @@ class Roformer(nn.Module):
             bert_tokenizer = BertTokenizer.from_pretrained("bert-base-multilingual-cased", cache_dir="./pretrain")
             token_size = bert_tokenizer.vocab_size
             self.BOS = bert_tokenizer.cls_token_id
-            self.EOS = token_size.sep_token_id
-            self.PAD = token_size.pad_token_id
+            self.EOS = bert_tokenizer.sep_token_id
+            self.PAD = bert_tokenizer.pad_token_id
             self.num_tones = 0
         encoder_config.vocab_size = token_size
         encoder_config.type_vocab_size = self.num_tones + 1
