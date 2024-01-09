@@ -103,12 +103,24 @@ def preprocess_worker(rank, path, args, sample_rate, hop_size,
     )
 
     preprocess(path, f0_extractor, volume_extractor, mel_extractor, units_encoder, sample_rate,
-            hop_size, device=device, use_pitch_aug=use_pitch_aug, extensions=extensions,is_tts = is_tts, text2semantic_mode=args["model"]["text2semantic"]["mode"], filelist=filelist,root_path=root_path, rank = rank)
+            hop_size, device=device, use_pitch_aug=use_pitch_aug,
+            extensions=extensions,is_tts = is_tts,
+            text2semantic_mode=args["model"]["text2semantic"]["mode"],
+            filelist=filelist,root_path=root_path,
+            force_units_interpolation=args["data"]["force_units_interpolation"],
+            source_encoder_hop_size=args["data"]["source_encoder_hop_size"],
+            target_encoder_hop_size=args["data"]["encoder_hop_size"],
+            rank = rank)
 
 
 
 def preprocess(path, f0_extractor, volume_extractor, mel_extractor, units_encoder, sample_rate, hop_size,
-               device='cuda', use_pitch_aug=False, extensions=['wav'], is_tts = False, text2semantic_mode = "phone", filelist=None, root_path=None, rank = 0):
+                device='cuda', use_pitch_aug=False, extensions=['wav'], is_tts = False, text2semantic_mode = "phone",
+                filelist=None, root_path=None,
+                force_units_interpolation=False,
+                source_encoder_hop_size=320,
+                target_encoder_hop_size=320,
+                rank = 0):
     path_srcdir = os.path.join(path, 'audio')
     path_unitsdir = os.path.join(path, 'units')
     path_f0dir = os.path.join(path, 'f0')
@@ -209,6 +221,9 @@ def preprocess(path, f0_extractor, volume_extractor, mel_extractor, units_encode
 
         # units encode
         units_t = units_encoder.encode(audio_t, sample_rate, hop_size)
+        if force_units_interpolation:
+            units_t = torch.nn.functional.interpolate(units_t.transpose(-1,-2), scale_factor=target_encoder_hop_size/source_encoder_hop_size, mode='linear', align_corners=False).transpose(-1,-2)
+        
         units = units_t.squeeze().to('cpu').numpy()
         
         # extract f0

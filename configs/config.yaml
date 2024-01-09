@@ -9,7 +9,9 @@ data:
   cnhubertsoft_gate: 10 # only use with cnhubertsoftfish
   encoder_sample_rate: 16000
   encoder_hop_size: 320
-  encoder_out_channels: 768 # 256 if using 'hubertsoft'
+  encoder_out_channels: 768 # 256 if using 'hubertsoft'\
+  force_units_interpolation: false # If true, the encoder will interpolate the units to the encoder_hop_size
+  source_encoder_hop_size: 320 # If force_units_interpolation is true, the encoder will interpolate the source units to the encoder_hop_size
   encoder_ckpt: pretrain/contentvec/checkpoint_best_legacy_500.pt
   units_forced_mode: 'nearest' # Recommended 'nearest',experiment 'rfa512to441' and 'rfa441to512' ; 'left'  only use for compatible with history code
   volume_noise: 0 # if not 0 ,add noise for volume in train ;;;;EXPERIMENTAL FUNCTION, NOT RECOMMENDED FOR USE;;;;
