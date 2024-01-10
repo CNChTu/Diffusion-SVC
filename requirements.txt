@@ -27,3 +27,4 @@ gradio
 faiss-cpu
 vector-quantize-pytorch
 wget
+openxlab
