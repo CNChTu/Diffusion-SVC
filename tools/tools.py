@@ -204,6 +204,8 @@ class F0_Extractor:
         self.f0_max = f0_max
         self.transformer_f0 = None
         self.rmvpe = None
+        self.pesto = None
+        self.pesto_data_processor = None
         if f0_extractor == 'crepe':
             key_str = str(sample_rate)
             if key_str not in CREPE_RESAMPLE_KERNEL:
@@ -286,13 +288,19 @@ class F0_Extractor:
             f0 = np.pad(f0, (start_frame, 0))
 
         elif self.f0_extractor == "fcpe":
+            if device is None:
+                device = 'cuda' if torch.cuda.is_available() else 'cpu'
             _JUMP_SAFE_PAD = False
             if self.transformer_f0 is None:
-                from encoder.fcpe.model import FCPEInfer
-                self.transformer_f0 = FCPEInfer(model_path='pretrain/fcpe/fcpe.pt')
+                #from torchfcpe import spawn_infer_model_from_pt
+                #self.transformer_f0 = spawn_infer_model_from_pt(pt_path='E:/AUFSe04BPyProgram/AUFSd04BPyProgram/fcpe/20231001/FCPE/torchfcpe/exp/yx2_001ach/model_300000.pt', device=device)
+                from torchfcpe import spawn_bundled_infer_model
+                self.transformer_f0 = spawn_bundled_infer_model(device=device)
             if _JUMP_SAFE_PAD:
                 raw_audio = audio
-            f0 = self.transformer_f0(audio=raw_audio, sr=self.sample_rate)
+            #f0 = self.transformer_f0(audio=raw_audio, sr=self.sample_rate)
+            _raw_audio = torch.from_numpy(raw_audio).float().unsqueeze(0).unsqueeze(-1).to(device)
+            f0 = self.transformer_f0(_raw_audio, self.sample_rate, threshold=0.005)
             f0 = f0.transpose(1, 2)
             if not _JUMP_SAFE_PAD:
                 f0 = torch.nn.functional.interpolate(f0, size=int(n_frames), mode='nearest')
@@ -318,6 +326,26 @@ class F0_Extractor:
             uv = np.interp(target_time, origin_time, uv.astype(float)) > 0.5
             f0[uv] = 0
             f0 = np.pad(f0, (start_frame, 0))
+
+        elif self.f0_extractor == "pesto":
+            if device is None:
+                device = 'cuda' if torch.cuda.is_available() else 'cpu'
+            from pesto import predict
+            from pesto.utils import load_model, load_dataprocessor
+            if self.pesto is None:
+                self.pesto = load_model("mir-1k", device=device)
+                self.pesto_data_processor = load_dataprocessor(step_size=0.01, device=device)
+            self.pesto_data_processor.sampling_rate = self.sample_rate
+            _raw_audio = torch.from_numpy(raw_audio).float().unsqueeze(0).unsqueeze(0).to(device)
+            _timesteps, _pitch, _confidence, _activations = predict(_raw_audio, self.sample_rate,
+                                                                    model=self.pesto, step_size=0.01,
+                                                                    data_preprocessor=self.pesto_data_processor,
+                                                                    convert_to_freq=True)
+            uv = _confidence < 0.75
+            f0 = _pitch * ( ~uv )
+            f0 = f0.unsqueeze(-2)
+            f0 = torch.nn.functional.interpolate(f0, size=int(n_frames), mode='nearest')
+            f0 = f0.squeeze().cpu().numpy()
         else:
             raise ValueError(f" [x] Unknown f0 extractor: {self.f0_extractor}")
 
