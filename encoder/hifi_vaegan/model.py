@@ -54,6 +54,14 @@ class Encoder(nn.Module):
         self.conv_post.apply(init_weights)
         self.upp = np.prod(h["upsample_rates"])
 
+    def remove_weight_norm(self):
+        for a_lay in self.ups:
+            remove_weight_norm(a_lay)
+        for a_lay in self.resblocks:
+            a_lay.remove_weight_norm()
+        remove_weight_norm(self.conv_pre)
+        remove_weight_norm(self.conv_post)
+
     def forward(self, x):
         x = x[:, None, :]
         x = self.conv_pre(x)
@@ -215,11 +223,10 @@ class Generator(torch.nn.Module):
         return x
 
     def remove_weight_norm(self):
-        print('Removing weight norm...')
-        for l in self.ups:
-            remove_weight_norm(l)
-        for l in self.resblocks:
-            l.remove_weight_norm()
+        for a_lay in self.ups:
+            remove_weight_norm(a_lay)
+        for a_lay in self.resblocks:
+            a_lay.remove_weight_norm()
         remove_weight_norm(self.conv_pre)
         remove_weight_norm(self.conv_post)
 
@@ -382,6 +389,7 @@ class InferModel:
             self.enc_q = Encoder(h=self.hps_).cpu()
             self.enc_q.load_state_dict(self.load('enc_q'), strict=False)
             self.enc_q.eval()
+            self.enc_q.remove_weight_norm()
             self.enc_q = self.enc_q.to(self.device)
         z, m, logs = self.enc_q(wav)
         return z, m, logs
@@ -392,6 +400,7 @@ class InferModel:
             self.dec = Generator(h=self.hps_).cpu()
             self.dec.load_state_dict(self.load('dec'), strict=False)
             self.dec.eval()
+            self.dec.remove_weight_norm()
             self.dec = self.dec.to(self.device)
         wav = self.dec(z)
         return wav
@@ -414,10 +423,10 @@ if __name__ == '__main__':
         import librosa
 
         model = InferModel(
-            r"E:\AUFSe04BPyProgram\AUFSd04BPyProgram\ddsp-svc\20230308\diffusion-svc\pretrain/vqvae\1123/config.json",
-            r"E:\AUFSe04BPyProgram\AUFSd04BPyProgram\ddsp-svc\20230308\diffusion-svc\pretrain\vqvae\1123/G_3540000.pth"
+            r"C:\Users\29210\Desktop\ylzzvaegan/config.json",
+            r"C:\Users\29210\Desktop\ylzzvaegan\新建文件夹/G_200.pth"
         )
-        in_wav, in_sr = librosa.load(r"E:\AUFSe04BPyProgram\AUFSd04BPyProgram\AudioGAN\AudioGAN\raw\ELECT.wav",
+        in_wav, in_sr = librosa.load(r"E:\AUFSe04BPyProgram\AUFSd04BPyProgram\AudioGAN\AudioGAN\raw\测试专用.wav",
                                      sr=int(model.sr))
         print(in_wav.shape)
         in_wav = torch.from_numpy(in_wav).float().unsqueeze(0).to(model.device)
@@ -429,5 +438,5 @@ if __name__ == '__main__':
         out_wav = model.decode(z).squeeze().cpu().numpy()
         print(out_wav.max(), out_wav.min(), out_wav.mean(), out_wav.std())
         print(out_wav.shape)
-        soundfile.write(r"E:\AUFSe04BPyProgram\AUFSd04BPyProgram\AudioGAN\AudioGAN\results\vqvae.wav", out_wav,
+        soundfile.write(r"C:\Users\29210\Desktop\ylzzvaegan\测试专用rmw1.wav", out_wav,
                         int(model.sr))
