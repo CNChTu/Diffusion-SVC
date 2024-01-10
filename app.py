@@ -3,10 +3,30 @@ import librosa
 from ast import literal_eval
 import torch
 from tools.infer_tools import DiffusionSVC
+from openxlab.model import download
+import openxlab
+import os
 
-G_MODEL_PATH = "model_600000.pt"
-G_NAIVE_MODEL_PATH = 'model_200000.pt'
-G_OTHER_VOCODER_DICT = {'type': 'nsf-hifigan', 'path': 'pretrain/ft/opki/opki_4000.ckpt'}
+ak = os.getenv(OPENXLAB_AK)
+sk = os.getenv(OPENXLAB_SK)
+
+openxlab.login(ak=ak, sk=sk)
+
+download(model_repo='CNChiTu/ContentVec', 
+        model_name='ContentVec', output='pretrain/contentvec')
+
+download(model_repo='CNChiTu/DiffusionSVC', 
+        model_name='DiffusionSVC_1.0_DEMO_Combo_Model_opencpop-kiritan.ptc')
+
+download(model_repo='CNChiTu/TEST', 
+        model_name='TEST')
+
+download(model_repo='CNChiTu/TEST', 
+        model_name='TEST_CONFIG')
+
+G_MODEL_PATH = "opencpop-kiritan.ptc"
+G_NAIVE_MODEL_PATH = None
+G_OTHER_VOCODER_DICT = {'type': 'nsf-hifigan', 'path': 'opki_4000.ckpt'}
 G_NUM_SPK = 2
 G_SPKID_SPKNAME_DICT = {
     "OpenCPop": "1",
