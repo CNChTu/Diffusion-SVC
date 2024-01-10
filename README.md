@@ -1,5 +1,8 @@
 Language: [English](./README_en.md) **简体中文**
 
+# 此仓库仅用于 Openxlab
+
+
 # Diffusion-SVC
 [![Colab_CN](https://img.shields.io/static/v1?label=Colab&message=Notebook&color=F9AB00&logo=googlecolab&style=flat-square)](https://colab.research.google.com/github/CNChTu/Diffusion-SVC/blob/main/Diffusion_SVC_CN.ipynb)
 [![madewithlove](https://forthebadge.com/images/badges/built-with-love.svg)](https://github.com/CNChTu/Diffusion-SVC/)
