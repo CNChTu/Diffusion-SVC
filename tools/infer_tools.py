@@ -68,8 +68,9 @@ class DiffusionSVC:
                 device=self.device,
                 loaded_vocoder=vocoder
             )
-        if other_vocoder_dict['type'] != self.args.vocoder.type:
-            raise ValueError(" 选定的外部声码器必须和模型所用声码器的类型一致。")
+        if other_vocoder_dict is not None:
+            if other_vocoder_dict['type'] != self.args.vocoder.type:
+                raise ValueError(" 选定的外部声码器必须和模型所用声码器的类型一致。")
 
         self.units_encoder = Units_Encoder(
             self.args.data.encoder,
