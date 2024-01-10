@@ -193,8 +193,13 @@ if __name__ == '__main__':
         other_vocoder_dict = None
 
     diffusion_svc = DiffusionSVC(device=device)  # 加载模型
-    diffusion_svc.load_model(model_path=cmd.model, f0_model=cmd.pitch_extractor, f0_max=cmd.f0_max, f0_min=cmd.f0_min,
-                             other_vocoder_dict=other_vocoder_dict)
+    diffusion_svc.load_model(
+        model_path=cmd.model,
+        f0_model=cmd.pitch_extractor,
+        f0_max=float(cmd.f0_max),
+        f0_min=float(cmd.f0_min),
+        other_vocoder_dict=other_vocoder_dict
+    )
 
     spk_mix_dict = literal_eval(cmd.spk_mix_dict)
 
