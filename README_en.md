@@ -5,6 +5,7 @@ Language: [简体中文](./README.md) **English**
 I am not good at English. If there are any errors, please point them out.
 
 # Diffusion-SVC
+[![Open in OpenXLab](https://cdn-static.openxlab.org.cn/app-center/openxlab_app.svg)](https://openxlab.org.cn/apps/detail/CNChiTu/DiffusionSVC-V1-Demo)
 [![Colab_CN](https://img.shields.io/static/v1?label=Colab&message=Notebook&color=F9AB00&logo=googlecolab&style=flat-square)](https://colab.research.google.com/github/CNChTu/Diffusion-SVC/blob/main/Diffusion_SVC_EN.ipynb)
 [![madewithlove](https://forthebadge.com/images/badges/built-with-love.svg)](https://github.com/CNChTu/Diffusion-SVC/)
 [![Discord](https://img.shields.io/discord/1044927142900809739?color=%23738ADB&label=Discord&style=for-the-badge)](https://discord.gg/jvA5c2xzSE)
@@ -51,9 +52,9 @@ Place all training set data (.wav format audio clips) in the `data/train/audio` 
 
 Place all validation set data (.wav format audio clips) in the `data/val/audio` folder, or in a directory specified in the configuration file such as `aaaa/bbbb/audio`.
 
-#### 1.2 Random Selection by Program :
+#### ~~1.2 Random Selection by Program (Not Implemented):~~
 
-Run `python draw.py`. The program will help you select validation set data (you can adjust parameters such as the number of files to be extracted in `draw.py`).
+~~Run `python draw.py`. The program will help you select validation set data (you can adjust parameters such as the number of files to be extracted in `draw.py`).~~
 
 #### 1.3 Folder Structure Directory Display:
 **Note: Speaker IDs must start from 1, not 0; if there is only one speaker, this speaker's ID must be 1.**

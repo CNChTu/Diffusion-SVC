@@ -1,6 +1,7 @@
 Language: [English](./README_en.md) **简体中文**
 
 # Diffusion-SVC
+[![Open in OpenXLab](https://cdn-static.openxlab.org.cn/app-center/openxlab_app.svg)](https://openxlab.org.cn/apps/detail/CNChiTu/DiffusionSVC-V1-Demo)
 [![Colab_CN](https://img.shields.io/static/v1?label=Colab&message=Notebook&color=F9AB00&logo=googlecolab&style=flat-square)](https://colab.research.google.com/github/CNChTu/Diffusion-SVC/blob/main/Diffusion_SVC_CN.ipynb)
 [![madewithlove](https://forthebadge.com/images/badges/built-with-love.svg)](https://github.com/CNChTu/Diffusion-SVC/)
 [![Discord](https://img.shields.io/discord/1044927142900809739?color=%23738ADB&label=Discord&style=for-the-badge)](https://discord.gg/jvA5c2xzSE)
@@ -49,9 +50,9 @@ pip install -r requirements.txt
 
 将所有的验证集数据 (.wav 格式音频切片) 放到 `data/val/audio`,也可以是配置文件中指定的文件夹如`aaaa/bbbb/audio`。
 
-#### 1.2 程序随机选择：
+#### ~~1.2 程序随机选择(未实装)：~~
 
-运行`python draw.py`,程序将帮助你挑选验证集数据（可以调整 `draw.py` 中的参数修改抽取文件的数量等参数）。
+~~运行`python draw.py`,程序将帮助你挑选验证集数据（可以调整 `draw.py` 中的参数修改抽取文件的数量等参数）~~。
 
 #### 1.3文件夹结构目录展示：
 **注意：说话人id必须从1开始，不能从0开始；如果只有一个说话人则该说话人id必须为1**
