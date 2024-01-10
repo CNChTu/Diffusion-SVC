@@ -4,8 +4,8 @@ from ast import literal_eval
 import torch
 from tools.infer_tools import DiffusionSVC
 
-G_MODEL_PATH = "exp/shallowtest/model_600000.pt"
-G_NAIVE_MODEL_PATH = 'exp/naivetest/model_200000.pt'
+G_MODEL_PATH = "model_600000.pt"
+G_NAIVE_MODEL_PATH = 'model_200000.pt'
 G_OTHER_VOCODER_DICT = {'type': 'nsf-hifigan', 'path': 'pretrain/ft/opki/opki_4000.ckpt'}
 G_NUM_SPK = 2
 G_SPKID_SPKNAME_DICT = {
