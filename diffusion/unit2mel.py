@@ -5,11 +5,14 @@ import torch.nn as nn
 import numpy as np
 import torch.nn.functional as F
 from torch.nn.utils import weight_norm
+import random
 from .diffusion import GaussianDiffusion
 from .wavenet import WaveNet
 from .convnext import ConvNext
 from .vocoder import Vocoder
 from .naive.naive import Unit2MelNaive
+from .naive_v2.naive_v2 import Unit2MelNaiveV2
+from .naive_v2.naive_v2_diff import NaiveV2Diff
 
 
 class DotDict(dict):
@@ -112,7 +115,8 @@ def load_svc_model(args, vocoder_dimension):
             max_beta=args.model.max_beta,
             spec_min=args.model.spec_min,
             spec_max=args.model.spec_max,
-            denoise_fn=args.model.denoise_fn)
+            denoise_fn=args.model.denoise_fn,
+            mask_cond_ratio=args.model.mask_cond_ratio)
 
     elif args.model.type == 'Naive':
         model = Unit2MelNaive(
@@ -138,6 +142,17 @@ def load_svc_model(args, vocoder_dimension):
             use_full_siren=True,
             l2reg_loss=args.model.l2_reg_loss)
 
+    elif args.model.type == 'NaiveV2':
+        model = Unit2MelNaiveV2(
+            args.data.encoder_out_channels,
+            args.model.n_spk,
+            args.model.use_pitch_aug,
+            vocoder_dimension,
+            args.model.n_layers,
+            args.model.n_chans,
+            use_speaker_encoder=args.model.use_speaker_encoder,
+            speaker_encoder_out_channels=args.data.speaker_encoder_out_channels)
+
     else:
         raise TypeError(" [X] Unknow model")
     return model
@@ -158,8 +173,18 @@ class Unit2MelV2(nn.Module):
             max_beta=0.02,
             spec_min=-12,
             spec_max=2,
-            denoise_fn=None):
+            denoise_fn=None,
+            mask_cond_ratio=None,
+    ):
         super().__init__()
+        if mask_cond_ratio is not None:
+            mask_cond_ratio = float(mask_cond_ratio) if (str(mask_cond_ratio) != 'NOTUSE') else None
+            if mask_cond_ratio > 0:
+                self.mask_cond_ratio = mask_cond_ratio
+            else:
+                self.mask_cond_ratio = None
+        else:
+            self.mask_cond_ratio = None
 
         if denoise_fn is None:
             # catch None
@@ -187,7 +212,7 @@ class Unit2MelV2(nn.Module):
 
             # init wavenet denoiser
             denoiser = WaveNet(out_dims, self.wn_layers, self.wn_chans, n_hidden, self.wn_dilation, self.wn_kernel,
-                               self.wn_tf_use, self.wn_tf_rf, self.wn_tf_n_layers, self.wn_tf_n_head)
+                               self.wn_tf_use, self.wn_tf_rf, self.wn_tf_n_layers, self.wn_tf_n_head, self.dwconv)
 
         elif denoise_fn.type == 'ConvNext':
             # catch None
@@ -208,8 +233,37 @@ class Unit2MelV2(nn.Module):
                 gradient_checkpointing=self.gradient_checkpointing
             )
 
+        elif denoise_fn.type == 'NaiveV2Diff':
+            # catch None
+            self.cn_layers = denoise_fn.cn_layers if (denoise_fn.cn_layers is not None) else 20
+            self.cn_chans = denoise_fn.cn_chans if (denoise_fn.cn_chans is not None) else 384
+            self.use_mlp = denoise_fn.use_mlp if (denoise_fn.use_mlp is not None) else True
+            self.mlp_factor = denoise_fn.mlp_factor if (denoise_fn.mlp_factor is not None) else 4
+            self.expansion_factor = denoise_fn.expansion_factor if (denoise_fn.expansion_factor is not None) else 2
+            self.kernel_size = denoise_fn.kernel_size if (denoise_fn.kernel_size is not None) else 31
+            self.conv_only = denoise_fn.conv_only if (denoise_fn.conv_only is not None) else True
+            self.wavenet_like = denoise_fn.wavenet_like if (denoise_fn.wavenet_like is not None) else False
+            self.use_norm = denoise_fn.use_norm if (denoise_fn.use_norm is not None) else True
+            self.conv_model_type = denoise_fn.conv_model_type if (denoise_fn.conv_model_type is not None) else 'mode1'
+            # init convnext denoiser
+            denoiser = NaiveV2Diff(
+                mel_channels=out_dims,
+                dim=self.cn_chans,
+                use_mlp=self.use_mlp,
+                mlp_factor=self.mlp_factor,
+                condition_dim=n_hidden,
+                num_layers=self.cn_layers,
+                expansion_factor=self.expansion_factor,
+                kernel_size=self.kernel_size,
+                conv_only=self.conv_only,
+                wavenet_like=self.wavenet_like,
+                use_norm=self.use_norm,
+                conv_model_type=denoise_fn.conv_model_type
+            )
+
         else:
             raise TypeError(" [X] Unknow denoise_fn")
+        self.denoise_fn_type = denoise_fn.type
 
         # catch None
         self.z_rate = z_rate
@@ -281,9 +335,19 @@ class Unit2MelV2(nn.Module):
             if (self.z_rate is not None) and (self.z_rate != 0):
                 gt_spec = gt_spec * self.z_rate  # scale z
 
+        # conditional mask
+        if self.mask_cond_ratio is not None:
+            if not infer:
+                if self.denoise_fn_type == 'NaiveV2Diff':
+                    self.decoder.denoise_fn.mask_cond_ratio = self.mask_cond_ratio
+
         # diffusion
         x = self.decoder(x, gt_spec=gt_spec, infer=infer, infer_speedup=infer_speedup, method=method, k_step=k_step,
                          use_tqdm=use_tqdm)
+
+        if self.mask_cond_ratio is not None:
+            if self.denoise_fn_type == 'NaiveV2Diff':
+                self.decoder.denoise_fn.mask_cond_ratio = None
 
         if (self.z_rate is not None) and (self.z_rate != 0):
             x = x / self.z_rate  # scale z

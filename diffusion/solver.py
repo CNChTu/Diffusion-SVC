@@ -143,7 +143,12 @@ def train(args, initial_global_step, model, optimizer, scheduler, vocoder, loade
 
             # handle nan loss
             if torch.isnan(loss):
-                raise ValueError(' [x] nan loss ')
+                #raise ValueError(' [x] nan loss ')
+                # 如果是nan,则跳过这个batch,并清理以防止内存泄漏
+                print(' [x] nan loss ')
+                optimizer.zero_grad()
+                del loss
+                continue
             else:
                 # backpropagate
                 if dtype == torch.float32:
