@@ -1,0 +1,51 @@
+data:
+  f0_extractor: 'fcpe' # 'parselmouth', 'dio', 'harvest', 'crepe', 'rmvpe' or 'fcpe'
+  f0_min: 65 # about C2
+  f0_max: 800 # about G5
+  sampling_rate: 44100
+  block_size: 512 # Equal to hop_length
+  duration: 2 # Audio duration during training, must be less than the duration of the shortest audio clip
+  encoder: 'contentvec768l12' # 'hubertsoft', 'hubertbase', 'hubertbase768', 'contentvec', 'contentvec768' or 'contentvec768l12' or 'cnhubertsoftfish'
+  cnhubertsoft_gate: 10 # only use with cnhubertsoftfish
+  encoder_sample_rate: 16000
+  encoder_hop_size: 320
+  encoder_out_channels: 768 # 256 if using 'hubertsoft'
+  encoder_ckpt: pretrain/contentvec/checkpoint_best_legacy_500.pt
+  units_forced_mode: 'nearest' # Recommended 'nearest',experiment 'rfa512to441' and 'rfa441to512' ; 'left'  only use for compatible with history code
+  volume_noise: 0 # if not 0 ,add noise for volume in train ;;;;EXPERIMENTAL FUNCTION, NOT RECOMMENDED FOR USE;;;;
+  train_path: op_data/train # Create a folder named "audio" under this path and put the audio clip in it
+  valid_path: op_data/val # Create a folder named "audio" under this path and put the audio clip in it
+  extensions: # List of extension included in the data collection
+    - wav
+model:
+  type: 'NaiveV2'
+  n_layers: 3
+  n_chans: 256
+  use_pitch_aug: true  
+  n_spk: 2 # max number of different speakers
+device: cuda
+vocoder:
+  type: 'nsf-hifigan'
+  ckpt: 'pretrain/nsf_hifigan/model'
+infer:
+  speedup: 10
+  method: 'dpm-solver' # 'pndm' or 'dpm-solver'
+env:
+  expdir: exp/naivev2
+  gpu_id: 0
+train:
+  num_workers: 0 # If your cpu and gpu are both very strong, set to 0 may be faster!
+  amp_dtype: fp32 # naive model only can ues fp32, else nan
+  batch_size: 48
+  cache_all_data: true # Save Internal-Memory or Graphics-Memory if it is false, but may be slow
+  cache_device: 'cuda' # Set to 'cuda' to cache the data into the Graphics-Memory, fastest speed for strong gpu
+  cache_fp16: true
+  epochs: 100000
+  interval_log: 10
+  interval_val: 5000
+  interval_force_save: 10000
+  lr: 0.0005
+  decay_step: 100000
+  gamma: 0.5
+  weight_decay: 0
+  save_opt: false
