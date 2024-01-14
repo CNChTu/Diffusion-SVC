@@ -2,8 +2,6 @@ import torch
 from nsf_hifigan.nvSTFT import STFT
 from nsf_hifigan.models import load_model, load_config
 from torchaudio.transforms import Resample
-import os
-from encoder.hifi_vaegan import InferModel
 
 
 class Vocoder:
@@ -16,8 +14,6 @@ class Vocoder:
             self.vocoder = NsfHifiGAN(vocoder_ckpt, device=device)
         elif vocoder_type == 'nsf-hifigan-log10':
             self.vocoder = NsfHifiGANLog10(vocoder_ckpt, device=device)
-        elif vocoder_type == 'hifivaegan':
-            self.vocoder = HiFiVAEGAN(vocoder_ckpt, device=device)
         else:
             raise ValueError(f" [x] Unknown vocoder: {vocoder_type}")
 
@@ -97,42 +93,4 @@ class NsfHifiGANLog10(NsfHifiGAN):
         with torch.no_grad():
             c = 0.434294 * mel.transpose(1, 2)
             audio = self.model(c, f0)
-            return audio
-
-
-class HiFiVAEGAN(torch.nn.Module):
-    def __init__(self, model_path, device=None):
-        super().__init__()
-        if device is None:
-            device = 'cuda' if torch.cuda.is_available() else 'cpu'
-        self.device = device
-        self.model_path = model_path
-        self.config_path = os.path.join(os.path.split(model_path)[0], 'config.json')
-        self.model = InferModel(self.config_path, self.model_path, device=device)
-
-    def sample_rate(self):
-        return self.model.sr
-
-    def hop_size(self):
-        return self.model.hop_size
-
-    def dimension(self):
-        return self.model.inter_channels
-
-    def extract(self, audio, keyshift=0, only_z=False):
-        if audio.shape[-1] % self.model.hop_size == 0:
-            audio = torch.cat((audio, torch.zeros_like(audio[:, :1])), dim=-1)
-        if keyshift != 0:
-            raise ValueError("HiFiVAEGAN could not use keyshift!")
-        with torch.no_grad():
-            z, m, logs = self.model.encode(audio)
-            if only_z:
-                return z.transpose(1, 2)
-            mel = torch.stack((m.transpose(-1, -2), logs.transpose(-1, -2)), dim=-1)
-        return mel
-
-    def forward(self, mel, f0):
-        with torch.no_grad():
-            z = mel.transpose(1, 2)
-            audio = self.model.decode(z)
             return audio
