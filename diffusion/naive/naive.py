@@ -2,10 +2,7 @@ import torch
 import torch.nn as nn
 import numpy as np
 import torch.nn.functional as F
-try:
-    from torch.nn.utils.parametrizations import weight_norm
-except ImportError:
-    from torch.nn.utils import weight_norm
+from torch.nn.utils import weight_norm
 from .pcmer import PCmer
 
 
@@ -22,10 +19,10 @@ class Unit2MelNaive(nn.Module):
             use_speaker_encoder=False,
             speaker_encoder_out_channels=256,
             use_full_siren=False,
-            l2reg_loss=0# 废弃
+            l2reg_loss=0
     ):
         super().__init__()
-        self.l2reg_loss = l2reg_loss  # 废弃
+        self.l2reg_loss = l2reg_loss if (l2reg_loss is not None) else 0
         self.f0_embed = nn.Linear(1, n_chans)
         self.volume_embed = nn.Linear(1, n_chans)
         if use_pitch_aug:
@@ -76,7 +73,7 @@ class Unit2MelNaive(nn.Module):
 
     def forward(self, units, f0, volume, spk_id=None, spk_mix_dict=None, aug_shift=None,
                 gt_spec=None, infer=True, infer_speedup=10, method='dpm-solver', k_step=None, use_tqdm=True,
-                spk_emb=None, spk_emb_dict=None, use_vae=False):
+                spk_emb=None, spk_emb_dict=None):
 
         '''
         input:
@@ -84,7 +81,6 @@ class Unit2MelNaive(nn.Module):
         return:
             dict of B x n_frames x feat
         '''
-        assert use_vae is False
         x = self.stack(units.transpose(1,2)).transpose(1,2)
         x = x + self.f0_embed((1+ f0 / 700).log()) + self.volume_embed(volume)
         if self.use_speaker_encoder:
@@ -113,4 +109,14 @@ class Unit2MelNaive(nn.Module):
         x = self.dense_out(x)
         if not infer:
             x = F.mse_loss(x, gt_spec)
+            if self.l2reg_loss > 0:
+                x = x + l2_regularization(model=self, l2_alpha=self.l2reg_loss)
         return x
+
+
+def l2_regularization(model, l2_alpha):
+    l2_loss = []
+    for module in model.modules():
+        if type(module) is nn.Conv2d:
+            l2_loss.append((module.weight ** 2).sum() / 2.0)
+    return l2_alpha * sum(l2_loss)
