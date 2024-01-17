@@ -43,6 +43,7 @@ class NaiveV2DiffLayer(nn.Module):
                  kernel_size=31,
                  wavenet_like=False,
                  conv_model_type='mode1',
+                 use_pre_norm=False,
                  ):
         super().__init__()
 
@@ -52,7 +53,8 @@ class NaiveV2DiffLayer(nn.Module):
             kernel_size=kernel_size,
             dropout=conv_dropout,
             use_norm=use_norm,
-            conv_model_type=conv_model_type
+            conv_model_type=conv_model_type,
+            use_pre_norm=use_pre_norm,
         )
         self.norm = nn.LayerNorm(dim_model)
 
@@ -66,8 +68,8 @@ class NaiveV2DiffLayer(nn.Module):
             self.diffusion_step_projection = nn.Conv1d(dim_model, dim_model, 1)
             self.condition_projection = nn.Conv1d(dim_model, dim_model, 1)
         else:
-            self.diffusion_step_projection = nn.Linear(dim_model, dim_model)
-            self.condition_projection = nn.Linear(dim_model, dim_model)
+            self.diffusion_step_projection = nn.Conv1d(dim_model, dim_model, 1)
+            self.condition_projection = nn.Conv1d(dim_model, dim_model, 1)
 
         # selfatt -> fastatt: performer!
         if not conv_only:
@@ -116,6 +118,7 @@ class NaiveV2Diff(nn.Module):
             wavenet_like=False,
             use_norm=True,
             conv_model_type='mode1',
+            use_pre_norm=False,
     ):
         super(NaiveV2Diff, self).__init__()
         self.wavenet_like = wavenet_like
@@ -134,9 +137,11 @@ class NaiveV2Diff(nn.Module):
                 nn.GELU(),
                 nn.Conv1d(dim * mlp_factor, dim, 1),
             )
+            self.use_mlp = True
         else:
             self.diffusion_embedding = DiffusionEmbedding(dim)
-            self.conditioner_projection = nn.Conv1d(condition_dim, dim, 1)
+            self.conditioner_projection = None
+            self.use_mlp = False
 
         self.residual_layers = nn.ModuleList(
             [
@@ -152,6 +157,7 @@ class NaiveV2Diff(nn.Module):
                     kernel_size=kernel_size,
                     wavenet_like=wavenet_like,
                     conv_model_type=conv_model_type,
+                    use_pre_norm=use_pre_norm,
                 )
                 for i in range(num_layers)
             ]
@@ -191,8 +197,12 @@ class NaiveV2Diff(nn.Module):
         x = self.input_projection(x)  # x [B, residual_channel, T]
         x = F.gelu(x)
 
-        diffusion_step = self.diffusion_embedding(diffusion_step).unsqueeze(-1)
-        condition = self.conditioner_projection(conditioner)
+        if self.use_mlp:
+            diffusion_step = self.diffusion_embedding(diffusion_step).unsqueeze(-1)
+            condition = self.conditioner_projection(conditioner)
+        else:
+            diffusion_step = self.diffusion_embedding(diffusion_step).unsqueeze(-1)
+            condition = conditioner
 
         if self.wavenet_like:
             _sk = []
