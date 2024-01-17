@@ -254,7 +254,7 @@ class Unit2MelV2(nn.Module):
             self.kernel_size = denoise_fn.kernel_size if (denoise_fn.kernel_size is not None) else 31
             self.conv_only = denoise_fn.conv_only if (denoise_fn.conv_only is not None) else True
             self.wavenet_like = denoise_fn.wavenet_like if (denoise_fn.wavenet_like is not None) else False
-            self.use_norm = denoise_fn.use_norm if (denoise_fn.use_norm is not None) else True
+            self.use_norm = denoise_fn.use_norm if (denoise_fn.use_norm is not None) else False
             self.conv_model_type = denoise_fn.conv_model_type if (denoise_fn.conv_model_type is not None) else 'mode1'
             self.conv_dropout = denoise_fn.conv_dropout if (denoise_fn.conv_dropout is not None) else 0.0
             self.atten_dropout = denoise_fn.atten_dropout if (denoise_fn.atten_dropout is not None) else 0.1
