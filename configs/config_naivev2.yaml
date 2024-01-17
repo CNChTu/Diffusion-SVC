@@ -22,7 +22,7 @@ model:
   use_pitch_aug: true  
   n_spk: 2 # max number of different speakers
   net_fn:
-    type: 'LYNXNet' # LYNXNet是ConformerNaiveEncoder(简称NaiveNet)的别名
+    type: 'LYNXNet' # LYNXNet is the other name of the ConformerNaiveEncoder(you can call it naive)
     n_layers: 3
     n_chans: 256
     out_put_norm: true # norm and weight_norm in last layer
