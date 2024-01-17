@@ -36,7 +36,7 @@ class Unit2MelNaiveV2(nn.Module):
             self.conv_model_type = net_fn.conv_model_type if (net_fn.conv_model_type is not None) else 'mode1'
             self.num_heads = net_fn.num_heads if (net_fn.num_heads is not None) else 8
             self.use_norm = net_fn.use_norm if (net_fn.use_norm is not None) else False
-            self.conv_only = net_fn.conv_only if (net_fn.conv_only is not None) else False
+            self.conv_only = net_fn.conv_only if (net_fn.conv_only is not None) else True
             self.conv_dropout = net_fn.conv_dropout if (net_fn.conv_dropout is not None) else 0.0
             self.atten_dropout = net_fn.atten_dropout if (net_fn.atten_dropout is not None) else 0.1
 

@@ -16,8 +16,8 @@ class ConformerNaiveEncoder(nn.Module):
         num_heads (int): Number of heads
         expansion_factor (int): Expansion factor of conv module, default 2
         kernel_size (int): Kernel size of conv module, default 31
-        use_norm (bool): Whether to use norm for FastAttention, only True can use bf16/fp16, default False
-        conv_only (bool): Whether to use only conv module without attention, default False
+        use_norm (bool): Whether to use norm
+        conv_only (bool): Whether to use only conv module without attention, default True
         conv_dropout (float): Dropout rate of conv module, default 0.
         atten_dropout (float): Dropout rate of attention module, default 0.
     """
@@ -29,7 +29,7 @@ class ConformerNaiveEncoder(nn.Module):
                  expansion_factor: int = 2,
                  kernel_size: int = 31,
                  use_norm: bool = False,
-                 conv_only: bool = False,
+                 conv_only: bool = True,
                  conv_dropout: float = 0.,
                  atten_dropout: float = 0.1,
                  conv_model_type='mode1'
@@ -82,7 +82,7 @@ class CFNEncoderLayer(nn.Module):
         expansion_factor (int): Expansion factor of conv module, default 2
         kernel_size (int): Kernel size of conv module, default 31
         num_heads (int): Number of heads
-        use_norm (bool): Whether to use norm for FastAttention, only True can use bf16/fp16, default False
+        use_norm (bool): Whether to use norm
         conv_only (bool): Whether to use only conv module without attention, default False
         conv_dropout (float): Dropout rate of conv module, default 0.1
         atten_dropout (float): Dropout rate of attention module, default 0.1
@@ -94,7 +94,7 @@ class CFNEncoderLayer(nn.Module):
                  kernel_size: int = 31,
                  num_heads: int = 8,
                  use_norm: bool = False,
-                 conv_only: bool = False,
+                 conv_only: bool = True,
                  conv_dropout: float = 0.,
                  atten_dropout: float = 0.1,
                  conv_model_type='mode1'
