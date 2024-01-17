@@ -31,8 +31,7 @@ class ConformerNaiveEncoder(nn.Module):
                  use_norm: bool = False,
                  conv_only: bool = False,
                  conv_dropout: float = 0.,
-                 atten_dropout: float = 0.,
-                 use_pre_norm=False,
+                 atten_dropout: float = 0.1,
                  conv_model_type='mode1'
                  ):
         super().__init__()
@@ -54,7 +53,6 @@ class ConformerNaiveEncoder(nn.Module):
                     conv_only=conv_only,
                     conv_dropout=conv_dropout,
                     atten_dropout=atten_dropout,
-                    use_pre_norm=use_pre_norm,
                     conv_model_type=conv_model_type
                 )
                 for _ in range(num_layers)
@@ -99,11 +97,9 @@ class CFNEncoderLayer(nn.Module):
                  conv_only: bool = False,
                  conv_dropout: float = 0.,
                  atten_dropout: float = 0.1,
-                 use_pre_norm=False,
                  conv_model_type='mode1'
                  ):
         super().__init__()
-        self.use_pre_norm = use_pre_norm
 
         self.conformer = ConformerConvModule(
             dim_model,
@@ -111,7 +107,6 @@ class CFNEncoderLayer(nn.Module):
             kernel_size=kernel_size,
             use_norm=use_norm,
             dropout=conv_dropout,
-            use_pre_norm=use_pre_norm,
             conv_model_type=conv_model_type)
 
         self.norm = nn.LayerNorm(dim_model)
@@ -139,11 +134,7 @@ class CFNEncoderLayer(nn.Module):
             torch.Tensor: Output tensor (#batch, length, dim_model)
         """
         if self.attn is not None:
-            if self.use_pre_norm:
-                x = self.norm(x) + x
-            else:
-                x = self.norm(x)
-            x = x + (self.attn(x, mask=mask))
+            x = x + (self.attn(self.norm(x), mask=mask))
 
         x = x + (self.conformer(x))
 
@@ -159,7 +150,6 @@ class ConformerConvModule(nn.Module):
             dropout=0.,
             use_norm=False,
             conv_model_type='mode1',
-            use_pre_norm=False
     ):
         super().__init__()
 
@@ -168,12 +158,13 @@ class ConformerConvModule(nn.Module):
 
         if conv_model_type == 'mode1':
             if use_norm:
-                if use_pre_norm:
-                    _norm = PreNorm(dim)
-                else:
-                    _norm = nn.LayerNorm(dim)
+                _norm = nn.LayerNorm(dim)
             else:
                 _norm = nn.Identity()
+            if float(dropout) > 0.:
+                _dropout = nn.Dropout(dropout)
+            else:
+                _dropout = nn.Identity()
             self.net = nn.Sequential(
                 _norm,
                 Transpose((1, 2)),
@@ -183,7 +174,7 @@ class ConformerConvModule(nn.Module):
                 nn.SiLU(),
                 nn.Conv1d(inner_dim, dim, 1),
                 Transpose((1, 2)),
-                nn.Dropout(dropout)
+                _dropout
             )
         elif conv_model_type == 'mode2':
             raise NotImplementedError('mode2 not implemented yet')
@@ -207,12 +198,3 @@ class Transpose(nn.Module):
 
     def forward(self, x):
         return x.transpose(*self.dims)
-
-
-class PreNorm(nn.Module):
-    def __init__(self, dim):
-        super().__init__()
-        self.norm = nn.LayerNorm(dim)
-
-    def forward(self, x):
-        return self.norm(x) + x

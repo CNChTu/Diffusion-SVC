@@ -31,22 +31,25 @@ class Unit2MelNaiveV2(nn.Module):
         self.out_put_norm = net_fn.out_put_norm if (net_fn.out_put_norm is not None) else False
 
         if net_fn.type == 'LYNXNet' or net_fn.type == 'NaiveNet':
-            self.use_pre_norm = net_fn.use_pre_norm if (net_fn.use_pre_norm is not None) else False
             self.expansion_factor = net_fn.expansion_factor if (net_fn.expansion_factor is not None) else 2
             self.kernel_size = net_fn.kernel_size if (net_fn.kernel_size is not None) else 31
             self.conv_model_type = net_fn.conv_model_type if (net_fn.conv_model_type is not None) else 'mode1'
+            self.num_heads = net_fn.num_heads if (net_fn.num_heads is not None) else 8
+            self.use_norm = net_fn.use_norm if (net_fn.use_norm is not None) else False
+            self.conv_only = net_fn.conv_only if (net_fn.conv_only is not None) else False
+            self.conv_dropout = net_fn.conv_dropout if (net_fn.conv_dropout is not None) else 0.0
+            self.atten_dropout = net_fn.atten_dropout if (net_fn.atten_dropout is not None) else 0.1
 
             self.decoder = ConformerNaiveEncoder(
                 num_layers=self.n_layers,
-                num_heads=8,
+                num_heads=self.num_heads,
                 dim_model=self.n_chans,
                 expansion_factor=self.expansion_factor,
                 kernel_size=self.kernel_size,
-                use_norm=False,
-                conv_only=True,
-                conv_dropout=0.0,
-                atten_dropout=0.1,
-                use_pre_norm=self.use_pre_norm,
+                use_norm=self.use_norm,
+                conv_only=self.conv_only,
+                conv_dropout=self.conv_dropout,
+                atten_dropout=self.atten_dropout,
                 conv_model_type=self.conv_model_type,
             )
         else:
