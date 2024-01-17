@@ -256,6 +256,8 @@ class Unit2MelV2(nn.Module):
             self.wavenet_like = denoise_fn.wavenet_like if (denoise_fn.wavenet_like is not None) else False
             self.use_norm = denoise_fn.use_norm if (denoise_fn.use_norm is not None) else True
             self.conv_model_type = denoise_fn.conv_model_type if (denoise_fn.conv_model_type is not None) else 'mode1'
+            self.conv_dropout = denoise_fn.conv_dropout if (denoise_fn.conv_dropout is not None) else 0.0
+            self.atten_dropout = denoise_fn.atten_dropout if (denoise_fn.atten_dropout is not None) else 0.1
             # init convnext denoiser
             denoiser = NaiveV2Diff(
                 mel_channels=out_dims,
@@ -269,8 +271,9 @@ class Unit2MelV2(nn.Module):
                 conv_only=self.conv_only,
                 wavenet_like=self.wavenet_like,
                 use_norm=self.use_norm,
-                conv_model_type=denoise_fn.conv_model_type,
-                use_pre_norm=denoise_fn.use_pre_norm,
+                conv_model_type=self.conv_model_type,
+                conv_dropout=self.conv_dropout,
+                atten_dropout=self.atten_dropout,
             )
 
         else:
