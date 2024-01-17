@@ -143,15 +143,26 @@ def load_svc_model(args, vocoder_dimension):
             l2reg_loss=args.model.l2_reg_loss)
 
     elif args.model.type == 'NaiveV2':
+        if args.model.net_fn is None:
+            net_fn = {
+                'type': 'LYNXNet',  # LYNXNet是ConformerNaiveEncoder(简称NaiveNet)的别名
+                'n_layers': args.model.n_layers,
+                'n_chans': args.model.n_chans,
+                'out_put_norm': True,
+                'conv_model_type': 'mode1',
+            }
+            net_fn = DotDict(net_fn)
+        else:
+            net_fn = args.model.net_fn
+
         model = Unit2MelNaiveV2(
             args.data.encoder_out_channels,
             args.model.n_spk,
             args.model.use_pitch_aug,
             vocoder_dimension,
-            args.model.n_layers,
-            args.model.n_chans,
             use_speaker_encoder=args.model.use_speaker_encoder,
-            speaker_encoder_out_channels=args.data.speaker_encoder_out_channels)
+            speaker_encoder_out_channels=args.data.speaker_encoder_out_channels,
+            net_fn=net_fn)
 
     else:
         raise TypeError(" [X] Unknow model")
@@ -258,7 +269,8 @@ class Unit2MelV2(nn.Module):
                 conv_only=self.conv_only,
                 wavenet_like=self.wavenet_like,
                 use_norm=self.use_norm,
-                conv_model_type=denoise_fn.conv_model_type
+                conv_model_type=denoise_fn.conv_model_type,
+                use_pre_norm=denoise_fn.use_pre_norm,
             )
 
         else:
