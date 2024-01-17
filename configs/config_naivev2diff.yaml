@@ -31,14 +31,16 @@ model:
     type: 'NaiveV2Diff'
     cn_layers: 6
     cn_chans: 512
-    use_mlp: true
+    use_mlp: true # is use MLP in cond_emb and output_proj
     mlp_factor: 4
     expansion_factor: 2
     kernel_size: 31
-    conv_only: true
-    wavenet_like: false
-    use_norm: false
+    conv_only: true # use Transformer block with conv block, if false
+    wavenet_like: false # dont change if dont understand; more info:diffusion/naive_v2/naive_v2_diff.py
+    use_norm: false # pre-norm for every layers
     conv_model_type: 'mode1'
+    conv_dropout: 0.0
+    atten_dropout: 0.1
   mask_cond_ratio: '0.4' # input 'NOTUSE' if not use
 device: cuda
 vocoder:

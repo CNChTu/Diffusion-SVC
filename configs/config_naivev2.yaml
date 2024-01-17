@@ -19,10 +19,21 @@ data:
     - wav
 model:
   type: 'NaiveV2'
-  n_layers: 3
-  n_chans: 256
   use_pitch_aug: true  
   n_spk: 2 # max number of different speakers
+  net_fn:
+    type: 'LYNXNet' # LYNXNet是ConformerNaiveEncoder(简称NaiveNet)的别名
+    n_layers: 3
+    n_chans: 256
+    out_put_norm: true # norm and weight_norm in last layer
+    expansion_factor: 2
+    kernel_size: 31
+    conv_model_type: 'mode1'
+    num_heads: 8
+    use_norm: false # pre-norm for every layers
+    conv_only: true # use Transformer block with conv block, if false
+    conv_dropout: 0.0
+    atten_dropout: 0.1
 device: cuda
 vocoder:
   type: 'nsf-hifigan'
