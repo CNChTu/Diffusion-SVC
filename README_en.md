@@ -12,6 +12,10 @@ I am not good at English. If there are any errors, please point them out.
 
 This repository is a separate storage for the diffusion part of the [DDSP-SVC](https://github.com/yxlllc/DDSP-SVC) repository. It can be trained and inferred independently.
 ***
+
+**Diffusion SVC 2.0 is coming soon, available in `v2.0_dev` branch early experience：[Go to branch](https://github.com/CNChTu/Diffusion-SVC/tree/v2.0_dev)**
+
+***
 **Recent update: The use of the naive model and the shallow Diffusion model of the repository can achieve better results than the simple Diffusion model with extremely low training costs, which is strongly recommended.However, the Naive model has weak generalization ability and may have too small f0 range on small datasets. At this point, the Naive model cannot train too many steps for fine-tuning (which will degrade the base model), and the front stage can also be considered to be replaced with an infinite range ddsp model.**
 <br>Samples and introductions can be found in [[Introduction Video(Not done yet)]]()
 
