@@ -18,6 +18,13 @@ def parse_args(args=None, namespace=None):
         type=str,
         required=True,
         help="path to the config file")
+    parser.add_argument(
+        "-p",
+        "--print",
+        type=str,
+        required=False,
+        default=None,
+        help="print model")
     return parser.parse_args(args=args, namespace=namespace)
 
 
@@ -49,6 +56,9 @@ if __name__ == '__main__':
     if args.device == 'cuda':
         torch.cuda.set_device(args.env.gpu_id)
     model.to(args.device)
+    # 打印模型结构
+    if (str(cmd.print) == 'True') or (str(cmd.print) == 'true'):
+        print(model)
     
     for state in optimizer.state.values():
         for k, v in state.items():
