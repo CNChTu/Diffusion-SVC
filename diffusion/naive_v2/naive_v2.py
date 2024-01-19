@@ -29,6 +29,7 @@ class Unit2MelNaiveV2(nn.Module):
         self.n_layers = net_fn.n_layers if (net_fn.n_layers is not None) else 6
         self.n_chans = net_fn.n_chans if (net_fn.n_chans is not None) else 256
         self.out_put_norm = net_fn.out_put_norm if (net_fn.out_put_norm is not None) else False
+        self.simple_stack = net_fn.simple_stack if (net_fn.simple_stack is not None) else False
 
         if net_fn.type == 'LYNXNet' or net_fn.type == 'NaiveNet':
             self.expansion_factor = net_fn.expansion_factor if (net_fn.expansion_factor is not None) else 2
@@ -70,11 +71,14 @@ class Unit2MelNaiveV2(nn.Module):
                 self.spk_embed = nn.Embedding(n_spk, self.n_chans)
 
         # conv in stack
-        self.stack = nn.Sequential(
-            nn.Conv1d(input_channel, self.n_chans, 3, 1, 1),
-            nn.GroupNorm(4, self.n_chans),
-            nn.LeakyReLU(),
-            nn.Conv1d(self.n_chans, self.n_chans, 3, 1, 1))
+        if self.simple_stack:
+            self.stack = nn.Conv1d(input_channel, self.n_chans, 1)
+        else:
+            self.stack = nn.Sequential(
+                nn.Conv1d(input_channel, self.n_chans, 3, 1, 1),
+                nn.GroupNorm(4, self.n_chans),
+                nn.LeakyReLU(),
+                nn.Conv1d(self.n_chans, self.n_chans, 3, 1, 1))
 
         # out
         if self.out_put_norm:
