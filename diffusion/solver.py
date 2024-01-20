@@ -19,6 +19,8 @@ def test(args, model, vocoder, loader_test, f0_extractor, quantizer, saver, acce
 
     # run
     with torch.no_grad():
+        utilization = 0
+        count = torch.zeros(args.model.text2semantic.semantic_kmeans_num).to(accelerator.device)
         for bidx, data in enumerate(loader_test):
             fn = data['name'][0]
             print('--------')
@@ -43,6 +45,7 @@ def test(args, model, vocoder, loader_test, f0_extractor, quantizer, saver, acce
                     commit_loss = 0
                 elif args.train.units_quantize_type == "vq":
                     data['units'], indices, commit_loss = quantizer(data['units'])
+                    count += torch.bincount(indices.flatten(), minlength=args.model.text2semantic.semantic_kmeans_num)
                 else:
                     raise ValueError(' [x] Unknown quantize_type: ' + args.train.units_quantize_type)
             else:
@@ -105,10 +108,15 @@ def test(args, model, vocoder, loader_test, f0_extractor, quantizer, saver, acce
 
     # report
     test_loss /= num_batches
-
+    utilization = torch.sum(count > 0).item() / args.model.text2semantic.semantic_kmeans_num
+    test_loss = test_loss.item()
     # check
     print(' [test_loss] test_loss:', test_loss)
     print(' Real Time Factor', np.mean(rtf_all))
+    print(f' Codebook utilization: {utilization*100}%')
+    saver.log_value({
+        'valid/utilization': utilization
+    })
     return test_loss
 
 
