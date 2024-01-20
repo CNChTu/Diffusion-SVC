@@ -418,6 +418,9 @@ class Units_Encoder:
         if encoder == 'hubertlarge1024l24':
             self.model = Audio2HubertLarge1024L24(encoder_ckpt, device=device)
             is_loaded_encoder = True
+        if encoder == 'wav2vec2large1024l24':
+            self.model = Audio2Wav2Vec2Large1024L24(encoder_ckpt, device=device)
+            is_loaded_encoder = True
         if encoder == 'contentvec':
             self.model = Audio2ContentVec(encoder_ckpt, device=device)
             is_loaded_encoder = True
@@ -820,6 +823,32 @@ class Audio2HubertLarge1024L24():
             units = logits[0]
             return units
 
+
+class Audio2Wav2Vec2Large1024L24():
+    def __init__(self, path, h_sample_rate=16000, h_hop_size=320, device='cpu'):
+        self.device = device
+        print(' [Encoder Model] Wav2Vec2Large Large')
+        print(' [Loading] ' + path)
+        self.models, self.saved_cfg, self.task = checkpoint_utils.load_model_ensemble_and_task([path], suffix="", )
+        self.hubert = self.models[0]
+        self.hubert = self.hubert.to(self.device)
+        self.hubert = self.hubert.float()
+        self.hubert.eval()
+
+    def __call__(self, audio, padding_mask=None):  # B, T
+        with torch.no_grad():
+            if padding_mask is None:
+                padding_mask = torch.BoolTensor(audio.shape).fill_(False)
+            else:
+                padding_mask = padding_mask.bool()
+                padding_mask = ~padding_mask if torch.all(padding_mask) else padding_mask
+            inputs = {
+                "source": audio.to(self.device),
+                "padding_mask": padding_mask.to(self.device)
+            }
+            logits = self.hubert.extract_features(**inputs)
+            units = logits["x"][0]
+            return units
 
 class Wav2Vec2:
     def __init__(self, path, h_sample_rate=16000, h_hop_size=320, device='cpu'):
