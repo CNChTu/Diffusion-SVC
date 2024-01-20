@@ -223,7 +223,7 @@ class Unit2MelV2(nn.Module):
 
             # init wavenet denoiser
             denoiser = WaveNet(out_dims, self.wn_layers, self.wn_chans, n_hidden, self.wn_dilation, self.wn_kernel,
-                               self.wn_tf_use, self.wn_tf_rf, self.wn_tf_n_layers, self.wn_tf_n_head, self.dwconv)
+                               self.wn_tf_use, self.wn_tf_rf, self.wn_tf_n_layers, self.wn_tf_n_head)
 
         elif denoise_fn.type == 'ConvNext':
             # catch None
