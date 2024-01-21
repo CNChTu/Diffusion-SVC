@@ -178,7 +178,7 @@ class Llama(nn.Module):
             logits_processor = logits_processor
         )
 
-        outputs = outputs[:, input_ids.shape[1]:]
+        outputs = outputs[:, input_ids.shape[1]:] - self.semantic_token_shift
 
         return outputs
 if __name__ == '__main__':
