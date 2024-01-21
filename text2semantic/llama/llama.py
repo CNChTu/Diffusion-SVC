@@ -1,4 +1,5 @@
-from transformers import LlamaForCausalLM, LlamaConfig
+from transformers import LlamaForCausalLM, LlamaConfig, GenerationConfig
+from transformers.generation.logits_process import LogitsProcessor, LogitsProcessorList
 import torch
 from torch import nn
 from text.symbols import *
@@ -6,6 +7,17 @@ from text.symbols import *
 from cluster import get_cluster_model, get_cluster_result, get_cluster_center_result, get_center
 
 from torch.nn.utils.rnn import pad_sequence, pack_sequence
+
+class EndGateLogitsProcessor(LogitsProcessor):
+    def __init__(self, end_gate_threshold: float, eos_token_id: int):
+        
+        self.end_gate_threshold = end_gate_threshold
+        self.eos_token_id = eos_token_id
+
+    def __call__(self, input_ids: torch.LongTensor, scores: torch.FloatTensor) -> torch.FloatTensor:
+        gate = torch.softmax(scores,dim=-1)[:, self.eos_token_id] > self.end_gate_threshold
+        scores[gate] = float("inf")
+        return scores
 
 
 class Llama(nn.Module):
@@ -41,9 +53,9 @@ class Llama(nn.Module):
         token_shift = token_size
         self.semantic_token_shift = token_shift
 
-        config.bos_token_id = semantic_kmeans_num
-        config.eos_token_id = semantic_kmeans_num + 1
-        config.pad_token_id = semantic_kmeans_num + 2
+        config.bos_token_id = self.semantic_token_shift + semantic_kmeans_num
+        config.eos_token_id = self.semantic_token_shift + semantic_kmeans_num + 1
+        config.pad_token_id = self.semantic_token_shift + semantic_kmeans_num + 2
         token_size += semantic_kmeans_num + 3
 
         config.vocab_size = token_size
@@ -102,7 +114,73 @@ class Llama(nn.Module):
             
 
         return outputs
+    
+    
+    @torch.no_grad()
+    def generate(self,
+                 phone,
+                 tone,
+                 attention_mask=None,
+                 use_cache=None,
+                 max_length=1024,
+                 do_sample=True,
+                 temperature=1.0,
+                 top_k=5,
+                 top_p=1.0,
+                 repetition_penalty=1.0,
+                 num_beams=1,
+                 no_repeat_ngram_size = 0,
+                 early_stopping = True,
+                 spk_id = None,
+                 end_gate_threshold = None,
+                 **kwargs
+                 ):
+        
+        logits_processor = LogitsProcessorList()
+        if end_gate_threshold is not None:
+            logits_processor.append(EndGateLogitsProcessor(end_gate_threshold = end_gate_threshold, eos_token_id = self.config.eos_token_id))
 
+        if len(logits_processor) == 0:
+            logits_processor = None
+
+        if self.mode == "phone":
+            phone = torch.cat([torch.tensor([[self.BOS]]), phone, torch.tensor([[self.EOS]])], dim=1)
+        elif self.mode == "text":
+            phone = phone
+            
+        input_ids = torch.cat([phone, torch.tensor([[self.config.bos_token_id]])], dim=1)
+        
+        if num_beams == 1:
+            early_stopping = False
+
+        generation_config = GenerationConfig(
+            max_length=max_length,
+            do_sample=do_sample,
+            temperature=temperature,
+            top_k=top_k,
+            top_p=top_p,
+            repetition_penalty=repetition_penalty,
+            num_beams=num_beams,
+            no_repeat_ngram_size = no_repeat_ngram_size,
+            early_stopping = early_stopping,
+            bos_token_id = self.config.bos_token_id,
+            eos_token_id = self.config.eos_token_id,
+            pad_token_id = self.config.pad_token_id,
+            bad_words_ids = [[i] for i in range(0, self.semantic_token_shift)]
+        )
+
+        outputs = self.llama.generate(
+            inputs = input_ids,
+            encoder_attention_mask = attention_mask,
+            attention_mask = None,
+            use_cache = use_cache,
+            generation_config=generation_config,
+            logits_processor = logits_processor
+        )
+
+        outputs = outputs[:, input_ids.shape[1]:]
+
+        return outputs
 if __name__ == '__main__':
     a = LlamaConfig(
          hidden_size=768,
@@ -118,4 +196,7 @@ if __name__ == '__main__':
     labels = torch.LongTensor([[1,2,3,4,5,6,7,8,9,10,11,1,2,3,4,5,6,7,8,9,10,11,1,2,3,8,9,10,11,-100,-100,-100,-100,-100]])
     outputs = b(phone=phone, tone=tone, semantic=semantic,labels=labels)
     print(outputs)
+    generate = b.generate(phone=phone, tone=tone,end_gate_threshold=0.9)
+    print(generate)
+
 

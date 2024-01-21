@@ -204,8 +204,6 @@ class Roformer(nn.Module):
                  end_gate_threshold = None,
                  **kwargs
                  ):
-        if self.use_flash_attn:
-            use_cache = False
         logits_processor = LogitsProcessorList()
         if end_gate_threshold is not None:
             logits_processor.append(EndGateLogitsProcessor(end_gate_threshold = end_gate_threshold, eos_token_id = self.semantic_eos_token_id))
