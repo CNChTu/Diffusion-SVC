@@ -79,7 +79,8 @@ if __name__ == "__main__":
                 dim = args.data.encoder_out_channels,
                 codebook_size = args.model.text2semantic.semantic_kmeans_num,
                 decay = 0.8,             
-                commitment_weight = 1. 
+                commitment_weight = 1.,
+                use_cosine_sim=True
             )
         model_para = torch.load(args.model.text2semantic.codebook_path)
         model.load_state_dict(model_para["model"])
