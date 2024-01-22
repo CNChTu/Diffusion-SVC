@@ -231,17 +231,16 @@ class AlphasCumprod(nn.Module):
 
 class GaussianDiffusion(nn.Module):
     def __init__(self, 
-                out_dims=128,
-                n_layers=20,
-                n_chans=384,
+                denoise_fn,
                 n_hidden=256,
+                out_dims=128,
                 timesteps=1000, 
                 k_step=1000,
                 max_beta=0.02,
                 spec_min=-12, 
                 spec_max=2):
         super().__init__()
-        self.denoise_fn = DiffNet(out_dims, n_layers, n_chans, n_hidden)
+        self.denoise_fn = denoise_fn
         self.out_dims = out_dims
         self.mel_bins = out_dims
         self.n_hidden = n_hidden
@@ -509,7 +508,11 @@ class GaussianDiffusion(nn.Module):
         # self.DDIM_pred = DDimNoisePredictor(self.alphas_cumprod, self.denoise_fn)
         # self.DDIM_pred = torch.jit.script(self.DDIM_pred)
         self.alpha = AlphasCumprod(self.alphas_cumprod)
-        self.denoise_fn = torch.jit.script(self.denoise_fn)
+        dfn_sonnx = self.denoise_fn
+        try:
+            self.denoise_fn = torch.jit.script(dfn_sonnx)
+        except:
+            self.denoise_fn = dfn_sonnx
         
         cond = torch.randn([1, self.n_hidden, 10]).cpu()
         if init_noise is None:
