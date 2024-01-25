@@ -106,29 +106,30 @@ class RoFormerlashAttention2(RoFormerSelfAttention):
         # in fp32. (LlamaRMSNorm handles it correctly)
 
         input_dtype = query_states.dtype
-        if input_dtype == torch.float32:
-            # Handle the case where the model is quantized
-            if torch.is_autocast_enabled():
-                target_dtype = torch.get_autocast_gpu_dtype()
-            else:
-                target_dtype = self.query.weight.dtype
-
+        # Handle the case where the model is quantized
+        if torch.is_autocast_enabled():
+            target_dtype = torch.get_autocast_gpu_dtype()
+        else:
+            target_dtype = self.query.weight.dtype
+    
+        if target_dtype == torch.float32:
             logger.warning_once(
                 f"Warning: "
                 f"The input hidden states seems to be silently casted in float32, this might be related to"
-                f" the fact you have upcasted embedding or layer norm layers in float32. We will cast back the input in"
-                f" {target_dtype}."
+                f" the fact you have upcasted embedding or layer norm layers in float32. We will cast back the input in bfloat16"
             )
 
+        if input_dtype == torch.float32:
             query_states = query_states.to(torch.bfloat16)
             key_states = key_states.to(torch.bfloat16)
             value_states = value_states.to(torch.bfloat16)
+
         attn_output = self._flash_attention_forward(
             query_states, key_states, value_states, encoder_attention_mask, attention_mask, q_len, k_len, dropout=dropout_rate
         )
         
         if input_dtype == torch.float32:
-            attn_output = attn_output.to(target_dtype)
+            attn_output = attn_output.to(input_dtype)
 
         # Mask heads if we want to
         if head_mask is not None:
