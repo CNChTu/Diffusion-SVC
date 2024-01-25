@@ -132,3 +132,81 @@ class Unit2MelNaiveV2(nn.Module):
         if not infer:
             x = F.mse_loss(x, gt_spec)
         return x
+
+
+class Unit2MelNaiveV2ForDiff(nn.Module):
+    def __init__(
+            self,
+            input_channel,
+            out_dims=128,
+            net_fn=None,
+    ):
+        super().__init__()
+        self.l2reg_loss = 0  # 废弃
+        # catch None
+        assert net_fn is not None
+        self.n_layers = net_fn.n_layers if (net_fn.n_layers is not None) else 6
+        self.n_chans = net_fn.n_chans if (net_fn.n_chans is not None) else 256
+        self.out_put_norm = net_fn.out_put_norm if (net_fn.out_put_norm is not None) else False
+        self.simple_stack = net_fn.simple_stack if (net_fn.simple_stack is not None) else False
+
+        if net_fn.type == 'LYNXNet' or net_fn.type == 'NaiveNet':
+            self.expansion_factor = net_fn.expansion_factor if (net_fn.expansion_factor is not None) else 2
+            self.kernel_size = net_fn.kernel_size if (net_fn.kernel_size is not None) else 31
+            self.conv_model_type = net_fn.conv_model_type if (net_fn.conv_model_type is not None) else 'mode1'
+            self.num_heads = net_fn.num_heads if (net_fn.num_heads is not None) else 8
+            self.use_norm = net_fn.use_norm if (net_fn.use_norm is not None) else False
+            self.conv_only = net_fn.conv_only if (net_fn.conv_only is not None) else True
+            self.conv_dropout = net_fn.conv_dropout if (net_fn.conv_dropout is not None) else 0.0
+            self.atten_dropout = net_fn.atten_dropout if (net_fn.atten_dropout is not None) else 0.1
+
+            self.decoder = ConformerNaiveEncoder(
+                num_layers=self.n_layers,
+                num_heads=self.num_heads,
+                dim_model=self.n_chans,
+                expansion_factor=self.expansion_factor,
+                kernel_size=self.kernel_size,
+                use_norm=self.use_norm,
+                conv_only=self.conv_only,
+                conv_dropout=self.conv_dropout,
+                atten_dropout=self.atten_dropout,
+                conv_model_type=self.conv_model_type,
+            )
+        else:
+            raise ValueError(f'net_fn.type={net_fn.type} is not supported')
+
+        # conv in stack
+        if self.simple_stack:
+            self.stack = nn.Conv1d(input_channel, self.n_chans, 1)
+        else:
+            self.stack = nn.Sequential(
+                nn.Conv1d(input_channel, self.n_chans, 3, 1, 1),
+                nn.GroupNorm(4, self.n_chans),
+                nn.LeakyReLU(),
+                nn.Conv1d(self.n_chans, self.n_chans, 3, 1, 1))
+
+        # out
+        if self.out_put_norm:
+            self.norm = nn.LayerNorm(self.n_chans)
+            self.n_out = out_dims
+            self.dense_out = weight_norm(
+                nn.Linear(self.n_chans, self.n_out))
+        else:
+            self.out_proj = nn.Linear(self.n_chans, out_dims)
+
+    def forward(self, in_x):
+
+        # input proj
+        x = self.stack(in_x.transpose(1, 2)).transpose(1, 2)
+
+        # net
+        x = self.decoder(x)
+
+        # out prpk
+        if self.out_put_norm:
+            x = self.norm(x)
+            x = self.dense_out(x)
+        else:
+            x = self.out_proj(x)
+        return x
+
