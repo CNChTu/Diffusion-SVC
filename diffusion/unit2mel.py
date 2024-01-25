@@ -64,9 +64,30 @@ def load_model_vocoder(
 
 def load_model_vocoder_from_combo(combo_model_path, device='cpu', loaded_vocoder=None):
     read_dict = torch.load(combo_model_path, map_location=torch.device(device))
+    # 检查是否有键名“_version_”
+    if '_version_' in read_dict.keys():
+        raise ValueError(" [X] 这是新版本的模型, 请在新仓库中使用")
+    # 检查是否有键名“comb_diff_model”, 如果有为带级联训练的模型
+    if 'comb_diff_model' in read_dict.keys():
+        is_combo_diff_model = True
+    else:
+        is_combo_diff_model = False
+    # 如果打包了声码器, 则从权重中加载声码器
+    if 'vocoder' in read_dict.keys():
+        read_vocoder_dict = read_dict['vocoder']  # 从权重中读取声码器, 里面key有 'config' 和 'model'
+        vocoder_type = read_dict['vocoder_type']  # 字符串, 用于指定声码器类型
+        if loaded_vocoder is not None:
+            print(" [WARN] 外部加载了声码器, 但是权重中也包含了声码器, 请确认你清楚自己在做什么")
+            print(" [WARN] 权重中的声码器将会被忽略！")
+        else:
+            loaded_vocoder = Vocoder(vocoder_type, read_vocoder_dict, device=device)
+
     # args
     diff_args = DotDict(read_dict["diff_config_dict"])
-    naive_args = DotDict(read_dict["naive_config_dict"])
+    if not is_combo_diff_model:
+        naive_args = DotDict(read_dict["naive_config_dict"])
+    else:
+        naive_args = None
     # vocoder
     if loaded_vocoder is None:
         vocoder = Vocoder(diff_args.vocoder.type, diff_args.vocoder.ckpt, device=device)
@@ -81,10 +102,13 @@ def load_model_vocoder_from_combo(combo_model_path, device='cpu', loaded_vocoder
     diff_model.eval()
 
     # naive_model
-    naive_model = load_svc_model(args=naive_args, vocoder_dimension=vocoder.dimension)
-    naive_model.to(device)
-    naive_model.load_state_dict(read_dict["naive_model"]['model'])
-    naive_model.eval()
+    if not is_combo_diff_model:
+        naive_model = load_svc_model(args=naive_args, vocoder_dimension=vocoder.dimension)
+        naive_model.to(device)
+        naive_model.load_state_dict(read_dict["naive_model"]['model'])
+        naive_model.eval()
+    else:
+        naive_model = None
     return diff_model, diff_args, naive_model, naive_args, vocoder
 
 
@@ -186,6 +210,7 @@ class Unit2MelV2(nn.Module):
             spec_max=2,
             denoise_fn=None,
             mask_cond_ratio=None,
+            naive_fn=None,
     ):
         super().__init__()
         if mask_cond_ratio is not None:
