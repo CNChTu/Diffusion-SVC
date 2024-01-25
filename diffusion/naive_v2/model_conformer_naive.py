@@ -134,7 +134,7 @@ class CFNEncoderLayer(nn.Module):
             torch.Tensor: Output tensor (#batch, length, dim_model)
         """
         if self.attn is not None:
-            x = x + (self.attn(self.norm(x), mask=mask))
+            x = x + (self.attn(self.norm(x), src_mask=mask))
 
         x = x + (self.conformer(x))
 

@@ -87,7 +87,7 @@ class NaiveV2DiffLayer(nn.Module):
         x = x.transpose(1, 2)
 
         if self.attn is not None:
-            x = (self.attn(self.norm(x), mask=None))
+            x = (self.attn(self.norm(x)))
 
         x = self.conformer(x)  # (#batch, dim_model, length)
 
