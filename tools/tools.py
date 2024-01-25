@@ -8,7 +8,7 @@ import torchcrepe
 import librosa
 import fsspec
 from tqdm import tqdm
-from transformers import HubertModel, Wav2Vec2FeatureExtractor, Wav2Vec2ForCTC
+from transformers import HubertModel, Wav2Vec2FeatureExtractor, Wav2Vec2ForCTC, AutoFeatureExtractor, Wav2Vec2BertModel, AutoProcessor
 from fairseq import checkpoint_utils
 from encoder.hubert.model import HubertSoft
 from encoder.speaker_encoder.model import SpeakerEncoder as TTSSpeakerEncoder
@@ -395,6 +395,7 @@ class Units_Encoder:
         if device is None:
             device = 'cuda' if torch.cuda.is_available() else 'cpu'
         self.device = device
+        self.encoder = encoder
 
         if cnhubertsoft_gate is None:
             cnhubertsoft_gate = 10
@@ -439,6 +440,9 @@ class Units_Encoder:
         if encoder == 'whisper':
             self.model = Whisper(encoder_ckpt, device=device)
             is_loaded_encoder = True
+        if encoder == 'w2v-bert':
+            self.model = Wav2Vec2Bert(encoder_ckpt, device=device)
+            is_loaded_encoder = True
         if encoder in ('wav2vec2', 'wav2vec2-xlsr-53-espeak-cv-ft'):
             self.model = Wav2Vec2(encoder_ckpt, device=device)
             is_loaded_encoder = True
@@ -468,8 +472,7 @@ class Units_Encoder:
             else:
                 key_str = str(sample_rate)
                 if key_str not in self.resample_kernel:
-                    self.resample_kernel[key_str] = Resample(sample_rate, self.encoder_sample_rate,
-                                                             lowpass_filter_width=128).to(self.device)
+                    self.resample_kernel[key_str] = Resample(sample_rate, self.encoder_sample_rate).to(self.device)
                 audio_res = self.resample_kernel[key_str](audio)
         else:
             if isinstance(audio, np.ndarray):
@@ -478,7 +481,10 @@ class Units_Encoder:
                 _audio = audio.cpu().numpy()
             audio_res = librosa.resample(_audio, orig_sr=sample_rate, target_sr=self.encoder_sample_rate)
             audio_res = torch.from_numpy(audio_res).to(self.device)
-
+        
+        if self.encoder == 'w2v-bert':
+            audio_res = audio_res.cpu().numpy()
+            
         # encode
         if audio_res.size(-1) < 400:
             audio_res = torch.nn.functional.pad(audio, (0, 400 - audio_res.size(-1)))
@@ -863,6 +869,24 @@ class Wav2Vec2:
         return logits
 
 
+class Wav2Vec2Bert:
+    def __init__(self, path, h_sample_rate=16000, h_hop_size=320, device='cpu'):
+        self.device = device
+        self.processor = AutoFeatureExtractor.from_pretrained("facebook/w2v-bert-2.0", cache_dir="pretrain")
+        self.model = Wav2Vec2BertModel.from_pretrained("facebook/w2v-bert-2.0", cache_dir="pretrain")
+        self.model.eval()
+        self.model.to(device)
+
+    @torch.no_grad()
+    def __call__(self, audio, padding_mask=None):  # B, T
+        inputs = self.processor(audio, sampling_rate=16000, return_tensors="pt")
+        for k, input in inputs.items():
+            inputs[k] = input.to(self.device)
+        outputs = self.model(**inputs)
+        return outputs.last_hidden_state
+
+
+
 class DotDict(dict):
     def __getattr__(*args):
         val = dict.get(*args)
@@ -966,3 +990,10 @@ class StepLRWithWarmUp(StepLR):
                     for base_lr in self.base_lrs]
         else:
             return super()._get_closed_form_lr()
+
+if __name__ == "__main__":
+    w2v_bert = Wav2Vec2Bert(path="pretrin")
+    audio1, sr = librosa.load('c:/Users/lenovo/Desktop/gt.wav', sr=16000)
+    audio2, sr = librosa.load('c:/Users/lenovo/Desktop/pred_audio_0.wav', sr=16000)
+    audio = [audio1, audio2]
+    w2v_bert(audio)
