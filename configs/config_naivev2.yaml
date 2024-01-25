@@ -22,9 +22,10 @@ model:
   use_pitch_aug: true  
   n_spk: 2 # max number of different speakers
   net_fn:
-    type: 'LYNXNet' # LYNXNet is the other name of the ConformerNaiveEncoder(you can call it naive)
+    type: 'LYNXNet' # LYNXNet is thr other name of ConformerNaiveEncoder(NaiveNet)
     n_layers: 3
     n_chans: 256
+    simple_stack: false # use simple stack for unit emb
     out_put_norm: true # norm and weight_norm in last layer
     expansion_factor: 2
     kernel_size: 31
