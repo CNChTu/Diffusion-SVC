@@ -113,7 +113,8 @@ if __name__ == '__main__':
                     decay = 0.8,             
                     commitment_weight = 1.,
                     freeze_codebook=True,
-                    use_cosine_sim=True
+                    use_cosine_sim=True,
+                    codebook_dim = 32,
                 )
             model_para = torch.load(args.model.text2semantic.codebook_path)
             semantic_embedding.load_state_dict(model_para["model"])

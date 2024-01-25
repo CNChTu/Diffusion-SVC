@@ -96,6 +96,7 @@ if __name__ == '__main__':
             quantizer = VectorQuantize(
                 dim = args.data.encoder_out_channels,
                 codebook_size = args.model.text2semantic.semantic_kmeans_num,
+                codebook_dim = 32,
                 decay = 0.8,             
                 commitment_weight = 1.,
                 use_cosine_sim=True
