@@ -141,7 +141,8 @@ def load_svc_model(args, vocoder_dimension):
             spec_max=args.model.spec_max,
             denoise_fn=args.model.denoise_fn,
             mask_cond_ratio=args.model.mask_cond_ratio,
-            naive_fn=args.model.naive_fn,)
+            naive_fn=args.model.naive_fn,
+            naive_fn_grad_not_by_diffusion=args.model.naive_fn_grad_not_by_diffusion,)
 
     elif args.model.type == 'Naive':
         model = Unit2MelNaive(
@@ -212,6 +213,7 @@ class Unit2MelV2(nn.Module):
             denoise_fn=None,
             mask_cond_ratio=None,
             naive_fn=None,
+            naive_fn_grad_not_by_diffusion=False,
     ):
         super().__init__()
         if mask_cond_ratio is not None:
@@ -242,8 +244,13 @@ class Unit2MelV2(nn.Module):
             self.combo_trained_model = False
             self.naive_stack = None
             self.naive_proj = None
+            self.naive_fn_grad_not_by_diffusion = False
         else:
             self.combo_trained_model = True
+            if naive_fn_grad_not_by_diffusion is not None:
+                self.naive_fn_grad_not_by_diffusion = bool(naive_fn_grad_not_by_diffusion)
+            else:
+                self.naive_fn_grad_not_by_diffusion = False
             if not isinstance(naive_fn, DotDict):
                 assert isinstance(naive_fn, dict)
                 naive_fn = DotDict(naive_fn)
@@ -409,6 +416,8 @@ class Unit2MelV2(nn.Module):
             else:
                 naive_loss = F.mse_loss(x, gt_spec)
             x = self.naive_proj(x)
+            if self.naive_fn_grad_not_by_diffusion:
+                x = x.detach()
         else:
             naive_loss = 0
 
