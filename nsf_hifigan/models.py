@@ -12,12 +12,30 @@ from .utils import init_weights, get_padding
 LRELU_SLOPE = 0.1
 
 
-def load_model(model_path, device='cuda'):
-    h = load_config(model_path)
+def load_model(model_path, device='cuda', load_for_combo=False):
+    # 处理下打包combo模型的加载
+    if load_for_combo:
+        config_file = os.path.join(os.path.split(model_path)[0], 'config.json')
+        with open(config_file) as f:
+            data = f.read()
+        json_config = json.loads(data)
+        model_state_dict = torch.load(model_path, map_location=device)
+        out_dict = {
+            "config": json_config,
+            "model": model_state_dict
+        }
+        return out_dict
 
-    generator = Generator(h).to(device)
+    # 如果model_path是字典，说明传入的是config + model
+    if type(model_path) == dict:
+        h = AttrDict(model_path['config'])
+        generator = Generator(h).to(device)
+        cp_dict = model_path['model']
+    else:
+        h = load_config(model_path)
+        generator = Generator(h).to(device)
+        cp_dict = torch.load(model_path, map_location=device)
 
-    cp_dict = torch.load(model_path, map_location=device)
     generator.load_state_dict(cp_dict['generator'])
     generator.eval()
     generator.remove_weight_norm()
