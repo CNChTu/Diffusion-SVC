@@ -201,7 +201,7 @@ class Generator(torch.nn.Module):
 
     def forward(self, x):
 
-        #if self.quantizer is not None:
+        # if self.quantizer is not None:
         #    x, _, _ = self.quantizer(x.transpose(1, 2))
         #    x = x.transpose(1, 2)
 
@@ -321,13 +321,27 @@ class InferHParams(HParams):
 
 class InferModel:
     def __init__(self,
-                 config_path,
+                 config_path,  # 如果是字典，则其实是传入的权重+配置，单独处理。其中包含'config'和'model'两个key
                  model_path=None,
                  device='cuda',
                  fp16=False,
-                 load_all=False):
-        hps = get_hparams_from_file(config_path, True)
-        self.config_path = config_path
+                 load_all=False,
+                 _load_from_state_dict=False
+                 ):
+        # config_path 是否为字典
+        if _load_from_state_dict:
+            assert type(config_path) == dict
+            config_dict = config_path['config']
+            hps = InferHParams(**config_dict)
+            self.model_path = None
+            self.config_path = None
+            self.load_from_state_dict(config_path['model'])
+        else:
+            assert type(config_path) != dict
+            hps = get_hparams_from_file(config_path, True)
+            self.model_path = model_path
+            self.config_path = config_path
+
         self.inter_channels = hps.model.inter_channels
         self.hidden_channels = hps.model.hidden_channels
         self.kernel_size = hps.model.kernel_size
@@ -341,7 +355,6 @@ class InferModel:
         self.ssl_dim = hps.model.ssl_dim
         self.hop_size = hps.data.hop_length
         self.windows_size = hps.data.hop_length
-        self.model_path = model_path
         self.device = device
         self.fp16 = fp16
         self.sr = hps.data.sampling_rate
@@ -414,6 +427,31 @@ class InferModel:
             if k[:len(model_type)] == model_type:
                 load_dict[k[len(model_type) + 1:]] = v
         return load_dict
+
+    @torch.no_grad()
+    def load_from_state_dict(self, state_dict):
+        state_dict = state_dict["model"]
+        # dec
+        load_dict_dec = {}
+        for k, v in state_dict.items():
+            if k[:len('dec')] == 'dec':
+                load_dict_dec[k[len('dec') + 1:]] = v
+        self.dec = Generator(h=self.hps_).cpu()
+        self.dec.load_state_dict(load_dict_dec, strict=False)
+        self.dec.eval()
+        self.dec.remove_weight_norm()
+        self.dec = self.dec.to(self.device)
+
+        # enc
+        load_dict_enc = {}
+        for k, v in state_dict.items():
+            if k[:len('enc_q')] == 'enc_q':
+                load_dict_enc[k[len('enc_q') + 1:]] = v
+        self.enc_q = Encoder(h=self.hps_).cpu()
+        self.enc_q.load_state_dict(load_dict_enc, strict=False)
+        self.enc_q.eval()
+        self.enc_q.remove_weight_norm()
+        self.enc_q = self.enc_q.to(self.device)
 
 
 if __name__ == '__main__':
