@@ -11,7 +11,7 @@ from .wavenet import WaveNet
 from .convnext import ConvNext
 from .vocoder import Vocoder
 from .naive.naive import Unit2MelNaive
-from .naive_v2.naive_v2 import Unit2MelNaiveV2
+from .naive_v2.naive_v2 import Unit2MelNaiveV2, Unit2MelNaiveV2ForDiff
 from .naive_v2.naive_v2_diff import NaiveV2Diff
 
 
@@ -140,7 +140,8 @@ def load_svc_model(args, vocoder_dimension):
             spec_min=args.model.spec_min,
             spec_max=args.model.spec_max,
             denoise_fn=args.model.denoise_fn,
-            mask_cond_ratio=args.model.mask_cond_ratio)
+            mask_cond_ratio=args.model.mask_cond_ratio,
+            naive_fn=args.model.naive_fn,)
 
     elif args.model.type == 'Naive':
         model = Unit2MelNaive(
@@ -234,6 +235,24 @@ class Unit2MelV2(nn.Module):
                           'wn_tf_n_layers': 2,
                           'wn_tf_n_head': 4}
             denoise_fn = DotDict(denoise_fn)
+            raise ValueError(" [X] denoise_fn is None, please check config file")
+
+        # check naive_fn
+        if naive_fn is None:
+            self.combo_trained_model = False
+            self.naive_stack = None
+            self.naive_proj = None
+        else:
+            self.combo_trained_model = True
+            if not isinstance(naive_fn, DotDict):
+                assert isinstance(naive_fn, dict)
+                naive_fn = DotDict(naive_fn)
+                self.naive_stack = Unit2MelNaiveV2ForDiff(
+                    input_channel=n_hidden,
+                    out_dims=out_dims,
+                    net_fn=naive_fn
+                )
+                self.naive_proj = nn.Linear(out_dims, n_hidden)
 
         if denoise_fn.type == 'WaveNet':
             # catch None
@@ -381,6 +400,18 @@ class Unit2MelV2(nn.Module):
                 if self.denoise_fn_type == 'NaiveV2Diff':
                     self.decoder.denoise_fn.mask_cond_ratio = self.mask_cond_ratio
 
+        # combo trained model
+        if self.combo_trained_model:
+            x = self.naive_stack(x)
+            if infer:
+                gt_spec = x
+                naive_loss = 0
+            else:
+                naive_loss = F.mse_loss(x, gt_spec)
+            x = self.naive_proj(x)
+        else:
+            naive_loss = 0
+
         # diffusion
         x = self.decoder(x, gt_spec=gt_spec, infer=infer, infer_speedup=infer_speedup, method=method, k_step=k_step,
                          use_tqdm=use_tqdm)
@@ -389,8 +420,12 @@ class Unit2MelV2(nn.Module):
             if self.denoise_fn_type == 'NaiveV2Diff':
                 self.decoder.denoise_fn.mask_cond_ratio = None
 
-        if (self.z_rate is not None) and (self.z_rate != 0):
-            x = x / self.z_rate  # scale z
+        if infer:
+            if (self.z_rate is not None) and (self.z_rate != 0):
+                x = x / self.z_rate  # scale z
+
+        if not infer:
+            x = x + naive_loss
 
         return x
 
