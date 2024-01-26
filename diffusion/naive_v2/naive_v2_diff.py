@@ -33,6 +33,7 @@ class NaiveV2DiffLayer(nn.Module):
 
     def __init__(self,
                  dim_model: int,
+                 dim_cond: int,
                  num_heads: int = 4,
                  use_norm: bool = False,
                  conv_only: bool = True,
@@ -62,12 +63,8 @@ class NaiveV2DiffLayer(nn.Module):
         else:
             self.wavenet_like_proj = None
 
-        if use_mlp:
-            self.diffusion_step_projection = nn.Conv1d(dim_model, dim_model, 1)
-            self.condition_projection = nn.Conv1d(dim_model, dim_model, 1)
-        else:
-            self.diffusion_step_projection = nn.Conv1d(dim_model, dim_model, 1)
-            self.condition_projection = nn.Conv1d(dim_model, dim_model, 1)
+        self.diffusion_step_projection = nn.Conv1d(dim_model, dim_model, 1)
+        self.condition_projection = nn.Conv1d(dim_cond, dim_model, 1)
 
         # selfatt -> fastatt: performer!
         if not conv_only:
@@ -136,16 +133,15 @@ class NaiveV2Diff(nn.Module):
                 nn.GELU(),
                 nn.Conv1d(dim * mlp_factor, dim, 1),
             )
-            self.use_mlp = True
         else:
             self.diffusion_embedding = DiffusionEmbedding(dim)
-            self.conditioner_projection = None
-            self.use_mlp = False
+            self.conditioner_projection = nn.Identity()
 
         self.residual_layers = nn.ModuleList(
             [
                 NaiveV2DiffLayer(
                     dim_model=dim,
+                    dim_cond=dim if use_mlp else condition_dim,
                     num_heads=8,
                     use_norm=use_norm,
                     conv_only=conv_only,
@@ -195,12 +191,8 @@ class NaiveV2Diff(nn.Module):
         x = self.input_projection(x)  # x [B, residual_channel, T]
         x = F.gelu(x)
 
-        if self.use_mlp:
-            diffusion_step = self.diffusion_embedding(diffusion_step).unsqueeze(-1)
-            condition = self.conditioner_projection(conditioner)
-        else:
-            diffusion_step = self.diffusion_embedding(diffusion_step).unsqueeze(-1)
-            condition = conditioner
+        diffusion_step = self.diffusion_embedding(diffusion_step).unsqueeze(-1)
+        condition = self.conditioner_projection(conditioner)
 
         if self.wavenet_like:
             _sk = []
