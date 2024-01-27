@@ -255,7 +255,6 @@ def preprocess(path, f0_extractor, volume_extractor, mel_extractor, units_encode
             units_t = units_encoder.encode(audio_t, sample_rate, hop_size)
             if force_units_interpolation:
                 units_t = torch.nn.functional.interpolate(units_t.transpose(-1,-2), scale_factor=target_encoder_hop_size/source_encoder_hop_size, mode='linear', align_corners=False).transpose(-1,-2)
-            print(units_t.shape)
             units = units_t.squeeze().to('cpu').numpy()
         
         # extract f0
