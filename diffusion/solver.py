@@ -67,12 +67,12 @@ def test(args, model, vocoder, loader_test, f0_extractor, quantizer, saver, acce
                 k_step=args.model.k_step_max,
                 spk_emb=data['spk_emb'])
             
-            if data['f0'] is None:
-                f0 = f0_extractor.model(mel=mel, infer=True, return_hz_f0=True)[:,:,0]
+            if data['f0'] is None and vocoder.vocoder_type != 'hifi-vaegan':
+                f0 = f0_extractor.model(mel=mel, infer=True, return_hz_f0=True)
             else:
                 f0 = data['f0']
 
-            signal = vocoder.infer(mel, f0[:,:,None])
+            signal = vocoder.infer(mel, f0)
             ed_time = time.time()
 
             # RTF
@@ -96,7 +96,13 @@ def test(args, model, vocoder, loader_test, f0_extractor, quantizer, saver, acce
             test_loss += commit_loss
 
             # log mel
-            saver.log_spec(data['name'][0], data['mel'], mel)
+            if vocoder.vocoder_type != 'hifi-vaegan':
+                saver.log_spec(data['name'][0], data['mel'], mel)
+            else:
+                gt_wav = vocoder.infer(data['mel'], data['f0'])
+                gt_mel = vocoder.vocoder.get_mel(gt_wav[0,...])
+                mel = vocoder.vocoder.get_mel(signal[0,...])
+                saver.log_spec(data['name'][0], gt_mel, mel)
 
             # log audio
             path_audio = os.path.join(args.data.valid_path, 'audio', data['name_ext'][0])

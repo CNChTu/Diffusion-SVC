@@ -122,5 +122,5 @@ if __name__ == '__main__':
         audio_lenth = audio_lenth.cpu().numpy()
         ac_len = np.ceil(audio_lenth / args.data.encoder_hop_size)
         with ThreadPoolExecutor(max_workers=10) as executor:
-            executor.map(save_semantic, semantic, ac_len, itertools.repeat(train_path_meldir), names)
+            executor.map(save_semantic, semantic, ac_len, itertools.repeat(valid_path_meldir), names)
     

@@ -67,6 +67,7 @@ if __name__ == '__main__':
     # np.save(path_melfile, mel)
 
     for audios, audio_lenth, names in tqdm(loader_train):
+        audios = audios.to(device)
         acoustics = vocoder.extract(audios, int(args.data.sampling_rate))
         ac_len = np.ceil(audio_lenth / vocoder.vocoder_hop_size)
         with ThreadPoolExecutor(max_workers=10) as executor:
@@ -75,6 +76,7 @@ if __name__ == '__main__':
     valid_path_meldir = os.path.join(args.data.valid_path, 'mel')
 
     for audios, audio_lenth, names in tqdm(loader_valid):
+        audios = audios.to(device)
         acoustics = vocoder.extract(audios, int(args.data.sampling_rate))
         ac_len = np.ceil(audio_lenth / vocoder.vocoder_hop_size)
         with ThreadPoolExecutor(max_workers=10) as executor:

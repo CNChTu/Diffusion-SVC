@@ -41,6 +41,8 @@ if __name__ == '__main__':
     
     # load model
     if args.model.type == 'Diffusion':
+        spec_norm = False if args.vocoder.type == "hifi-vaegan" else True
+
         model = Unit2Mel(
                     args.data.encoder_out_channels, 
                     args.model.n_spk,
@@ -52,7 +54,8 @@ if __name__ == '__main__':
                     args.model.n_hidden,
                     use_speaker_encoder=args.model.use_speaker_encoder,
                     speaker_encoder_out_channels=args.data.speaker_encoder_out_channels,
-                    is_tts=args.model.is_tts
+                    is_tts=args.model.is_tts,
+                    spec_norm=spec_norm,
                     )
     
     elif args.model.type == 'Naive':

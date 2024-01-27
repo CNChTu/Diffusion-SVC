@@ -2,18 +2,21 @@ import torch
 from nsf_hifigan.nvSTFT import STFT
 from nsf_hifigan.models import load_model, load_config
 from torchaudio.transforms import Resample
-
+from hifi_vaegan.hifi_vaegan import Hifi_VAEGAN
 
 class Vocoder:
     def __init__(self, vocoder_type, vocoder_ckpt, device=None):
         if device is None:
             device = 'cuda' if torch.cuda.is_available() else 'cpu'
         self.device = device
-
+        self.vocoder_type = vocoder_type
+        
         if vocoder_type == 'nsf-hifigan':
             self.vocoder = NsfHifiGAN(vocoder_ckpt, device=device)
         elif vocoder_type == 'nsf-hifigan-log10':
             self.vocoder = NsfHifiGANLog10(vocoder_ckpt, device=device)
+        elif vocoder_type == 'hifi-vaegan':
+            self.vocoder = Hifi_VAEGAN(vocoder_ckpt, device=device)
         else:
             raise ValueError(f" [x] Unknown vocoder: {vocoder_type}")
 
@@ -38,7 +41,8 @@ class Vocoder:
         return mel
 
     def infer(self, mel, f0):
-        f0 = f0[:, :mel.size(1), 0]  # B, n_frames
+        if f0 is not None:
+            f0 = f0[:, :mel.size(1), 0]  # B, n_frames
         audio = self.vocoder(mel, f0)
         return audio
 

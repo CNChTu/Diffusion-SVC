@@ -290,7 +290,7 @@ class DiffusionSVC:
                                 gt_spec=gt_spec, infer_speedup=infer_speedup, method=method, k_step=k_step,
                                 use_tqdm=use_tqdm, spk_emb=spk_emb)
         
-        if self.f0_extractor.f0_extractor == "fcpe" and f0 == None:
+        if self.f0_extractor.f0_extractor == "fcpe" and f0 == None and self.vocoder.vocoder_type != "hifi-vaegan":
             f0 = self.f0_extractor.extract(None, device = out_mel.device, mel = out_mel)
             f0 = torch.tensor(f0[None,:,None],device=out_mel.device)
 

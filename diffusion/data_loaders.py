@@ -40,7 +40,8 @@ def get_data_loaders(args, whole_audio=False, accelerator=None):
         units_forced_mode = args.data.units_forced_mode,
         file_list=file_list,
         root_path=root_path,
-        accelerator=accelerator
+        accelerator=accelerator,
+        is_vaegan=True if args.vocoder.type == "hifi-vaegan" else False
     )
     loader_train = torch.utils.data.DataLoader(
         data_train,
@@ -73,7 +74,8 @@ def get_data_loaders(args, whole_audio=False, accelerator=None):
         units_forced_mode = args.data.units_forced_mode,
         file_list=file_list,
         root_path=root_path,
-        accelerator=None
+        accelerator=None,
+        is_vaegan=True if args.vocoder.type == "hifi-vaegan" else False
     )
     loader_valid = torch.utils.data.DataLoader(
         data_valid,
@@ -106,7 +108,8 @@ class AudioDataset(Dataset):
             units_forced_mode = "nearest",
             file_list=None,
             root_path=None,
-            accelerator=None
+            accelerator=None,
+            is_vaegan=False
     ):
         super().__init__()
 
@@ -117,6 +120,8 @@ class AudioDataset(Dataset):
         self.root_path = root_path
         self.use_spk_encoder = use_spk_encoder
         self.spk_encoder_mode = spk_encoder_mode
+        self.is_vaegan  = is_vaegan
+
         if file_list is not None:
             self.paths = file_list
         else:
@@ -295,7 +300,10 @@ class AudioDataset(Dataset):
             mel = os.path.join(self.path_root, mel_key, name_ext) + '.npy'
             mel = np.load(mel)
             mel = torch.from_numpy(mel).float()
-
+            if self.is_vaegan:
+                m, logs = torch.split(mel, mel.shape[-1]//2, dim=-1)
+                mel = m + torch.randn_like(m) * torch.exp(logs)
+        
         # load units
         units = data_buffer.get('units')
         if units is None:

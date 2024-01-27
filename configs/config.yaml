@@ -9,7 +9,7 @@ data:
   cnhubertsoft_gate: 10 # only use with cnhubertsoftfish
   encoder_sample_rate: 16000
   encoder_hop_size: 320
-  encoder_out_channels: 768 # 256 if using 'hubertsoft'\
+  encoder_out_channels: 1024 # 256 if using 'hubertsoft'\
   force_units_interpolation: false # If true, the encoder will interpolate the units to the encoder_hop_size
   source_encoder_hop_size: 320 # If force_units_interpolation is true, the encoder will interpolate the source units to the encoder_hop_size
   encoder_ckpt: pretrain
@@ -80,8 +80,8 @@ model:
         max_position_embeddings: 3072
 device: cuda
 vocoder:
-  type: 'nsf-hifigan'
-  ckpt: 'pretrain/nsf_hifigan/model'
+  type: 'hifi-vaegan'
+  ckpt: 'pretrain/vaegan'
 infer:
   speedup: 10
   method: 'dpm-solver' # 'ddim', 'pndm', 'dpm-solver' or 'unipc'
