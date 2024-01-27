@@ -37,9 +37,28 @@ def parse_args(args=None, namespace=None):
         default=0,
         required=False,
         help="proceeding workers, 0 if not set")
+    parser.add_argument(
+        '-skf0', 
+        '--skip_f0',
+        action='store_true',
+        default=False,
+        help='skip f0 extract')
+    parser.add_argument(
+        '-skac', 
+        '--skip_acoustic',
+        action='store_true',
+        default=False,
+        help='skip acoustic(like mel) extract')
+    parser.add_argument(
+        '-skse', 
+        '--skip_semantic',
+        action='store_true',
+        default=False,
+        help='skip semantic(like mel) extract')
+    
     return parser.parse_args(args=args, namespace=namespace)
 
-def preprocess_worker(rank, path, args, sample_rate, hop_size,
+def preprocess_worker(rank, path, args, skip_flag, sample_rate, hop_size,
                device='cuda', use_pitch_aug=None, extensions=['wav'], is_tts = False, filelist=None, root_path=None, num_workers = 0):
     if device == 'cuda':
         num_gpus = torch.cuda.device_count()
@@ -58,17 +77,21 @@ def preprocess_worker(rank, path, args, sample_rate, hop_size,
 
     if num_workers != 0:
         filelist = filelist[rank::num_workers]
-
+    skip_f0, skip_acoustic, skip_semantic = skip_flag
     # initialize f0 extractor
-    f0_extractor = F0_Extractor(
-        f0_extractor=args['data']['f0_extractor'],
-        sample_rate=44100,
-        hop_size=512,
-        f0_min=args['data']['f0_min'],
-        f0_max=args['data']['f0_max'],
-        block_size=args['data']['block_size'],
-        model_sampling_rate=args['data']['sampling_rate']
-    )
+    if not skip_f0:
+        f0_extractor = F0_Extractor(
+            f0_extractor=args['data']['f0_extractor'],
+            sample_rate=44100,
+            hop_size=512,
+            f0_min=args['data']['f0_min'],
+            f0_max=args['data']['f0_max'],
+            block_size=args['data']['block_size'],
+            model_sampling_rate=args['data']['sampling_rate']
+        )
+    else:
+        f0_extractor = None
+        print('Skip f0 extraction!')
 
     # initialize volume extractor
     volume_extractor = Volume_Extractor(
@@ -80,27 +103,35 @@ def preprocess_worker(rank, path, args, sample_rate, hop_size,
     # initialize mel extractor
     mel_extractor = None
     use_pitch_aug = use_pitch_aug
-    mel_extractor = Vocoder(args['vocoder']['type'], args['vocoder']['ckpt'], device=device)
-    if mel_extractor.vocoder_sample_rate != sample_rate or mel_extractor.vocoder_hop_size != hop_size:
+    if not skip_acoustic:
+        mel_extractor = Vocoder(args['vocoder']['type'], args['vocoder']['ckpt'], device=device)
+        if mel_extractor.vocoder_sample_rate != sample_rate or mel_extractor.vocoder_hop_size != hop_size:
+            mel_extractor = None
+            print('Unmatch vocoder parameters, mel extraction is ignored!')
+        elif use_pitch_aug is None:
+            use_pitch_aug = args['model']['use_pitch_aug']
+    else:
         mel_extractor = None
-        print('Unmatch vocoder parameters, mel extraction is ignored!')
-    elif use_pitch_aug is None:
-        use_pitch_aug = args['model']['use_pitch_aug']
-    
+        print('Skip acoustic extraction!')
+        
     # initialize units encoder
     if args['data']['encoder'] == 'cnhubertsoftfish':
         cnhubertsoft_gate = args['data']['cnhubertsoft_gate']
     else:
         cnhubertsoft_gate = 10
-    units_encoder = Units_Encoder(
-        args['data']['encoder'],
-        args['data']['encoder_ckpt'],
-        args['data']['encoder_sample_rate'],
-        args['data']['encoder_hop_size'],
-        cnhubertsoft_gate=cnhubertsoft_gate,
-        device=device,
-        units_forced_mode=args['data']['units_forced_mode']
-    )
+    if not skip_semantic:
+        units_encoder = Units_Encoder(
+            args['data']['encoder'],
+            args['data']['encoder_ckpt'],
+            args['data']['encoder_sample_rate'],
+            args['data']['encoder_hop_size'],
+            cnhubertsoft_gate=cnhubertsoft_gate,
+            device=device,
+            units_forced_mode=args['data']['units_forced_mode']
+        )
+    else:
+        units_encoder = None
+        print('Skip semantic extraction!')
 
     preprocess(path, f0_extractor, volume_extractor, mel_extractor, units_encoder, sample_rate,
             hop_size, device=device, use_pitch_aug=use_pitch_aug,
@@ -220,14 +251,16 @@ def preprocess(path, f0_extractor, volume_extractor, mel_extractor, units_encode
             aug_vol = volume_extractor.extract(audio * (10 ** log10_vol_shift), sr=sample_rate)
 
         # units encode
-        units_t = units_encoder.encode(audio_t, sample_rate, hop_size)
-        if force_units_interpolation:
-            units_t = torch.nn.functional.interpolate(units_t.transpose(-1,-2), scale_factor=target_encoder_hop_size/source_encoder_hop_size, mode='linear', align_corners=False).transpose(-1,-2)
-        
-        units = units_t.squeeze().to('cpu').numpy()
+        if units_encoder is not None:
+            units_t = units_encoder.encode(audio_t, sample_rate, hop_size)
+            if force_units_interpolation:
+                units_t = torch.nn.functional.interpolate(units_t.transpose(-1,-2), scale_factor=target_encoder_hop_size/source_encoder_hop_size, mode='linear', align_corners=False).transpose(-1,-2)
+            print(units_t.shape)
+            units = units_t.squeeze().to('cpu').numpy()
         
         # extract f0
-        f0 = f0_extractor.extract(audio, uv_interp=False, sr=sample_rate)
+        if f0_extractor is not None:
+            f0 = f0_extractor.extract(audio, uv_interp=False, sr=sample_rate)
 
         uv = f0 == 0
         if len(f0[~uv]) > 0:
@@ -235,10 +268,12 @@ def preprocess(path, f0_extractor, volume_extractor, mel_extractor, units_encode
             f0[uv] = np.interp(np.where(uv)[0], np.where(~uv)[0], f0[~uv])
 
             # save npy     
-            os.makedirs(os.path.dirname(path_unitsfile), exist_ok=True)
-            np.save(path_unitsfile, units)
-            os.makedirs(os.path.dirname(path_f0file), exist_ok=True)
-            np.save(path_f0file, f0)
+            if units_encoder is not None:
+                os.makedirs(os.path.dirname(path_unitsfile), exist_ok=True)
+                np.save(path_unitsfile, units)
+            if f0_extractor is not None:
+                os.makedirs(os.path.dirname(path_f0file), exist_ok=True)
+                np.save(path_f0file, f0)
             os.makedirs(os.path.dirname(path_volumefile), exist_ok=True)
             np.save(path_volumefile, volume)
             if mel_extractor is not None:
@@ -271,7 +306,8 @@ if __name__ == '__main__':
     num_workers = cmd.num_workers
     if device is None:
         device = 'cuda' if torch.cuda.is_available() else 'cpu'
-
+    
+    skip_flag = [cmd.skip_f0, cmd.skip_acoustic, cmd.skip_semantic]
     # load config
     args = utils.load_config(cmd.config)
     is_tts = args.model.is_tts
@@ -297,15 +333,15 @@ if __name__ == '__main__':
         train_file_list, valid_file_list, root_path = None, None, None
     if cmd.num_workers == 0:
         # preprocess training set
-        preprocess_worker(0, args.data.train_path, dict(args), sample_rate, hop_size,
+        preprocess_worker(0, args.data.train_path, dict(args), skip_flag, sample_rate, hop_size,
                device=device, use_pitch_aug=None, extensions=extensions, is_tts = is_tts, filelist=train_file_list,root_path=root_path)
         # preprocess validation set
-        preprocess_worker(0, args.data.valid_path, dict(args), sample_rate, hop_size,
+        preprocess_worker(0, args.data.valid_path, dict(args), skip_flag, sample_rate, hop_size,
                device=device, use_pitch_aug=False, extensions=extensions, is_tts = is_tts, filelist=valid_file_list,root_path=root_path)
     else:
         # preprocess training set
-        mp.spawn(preprocess_worker, args=(args.data.train_path, dict(args), sample_rate, hop_size,
+        mp.spawn(preprocess_worker, args=(args.data.train_path, dict(args), skip_flag, sample_rate, hop_size,
                device, None, extensions, is_tts, args.model.text2semantic.mode, train_file_list, root_path, num_workers), nprocs=num_workers)
         # preprocess validation set
-        mp.spawn(preprocess_worker, args=(args.data.valid_path, dict(args), sample_rate, hop_size,
+        mp.spawn(preprocess_worker, args=(args.data.valid_path, dict(args), skip_flag, sample_rate, hop_size,
                 device, False, extensions, is_tts, args.model.text2semantic.mode, valid_file_list, root_path, num_workers), nprocs=num_workers)

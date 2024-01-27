@@ -30,8 +30,7 @@ class Vocoder:
         else:
             key_str = str(sample_rate)
             if key_str not in self.resample_kernel:
-                self.resample_kernel[key_str] = Resample(sample_rate, self.vocoder_sample_rate,
-                                                         lowpass_filter_width=128).to(self.device)
+                self.resample_kernel[key_str] = Resample(sample_rate, self.vocoder_sample_rate).to(self.device)
             audio_res = self.resample_kernel[key_str](audio)
 
         # extract

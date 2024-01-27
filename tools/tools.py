@@ -481,14 +481,17 @@ class Units_Encoder:
                 _audio = audio.cpu().numpy()
             audio_res = librosa.resample(_audio, orig_sr=sample_rate, target_sr=self.encoder_sample_rate)
             audio_res = torch.from_numpy(audio_res).to(self.device)
-        
-        if self.encoder == 'w2v-bert':
+
+        if self.encoder == 'w2v-bert' and isinstance(audio_res, torch.Tensor):
             audio_res = audio_res.cpu().numpy()
             
         # encode
-        if audio_res.size(-1) < 400:
+        if isinstance(audio_res, torch.Tensor) and audio_res.size(-1) < 400:
             audio_res = torch.nn.functional.pad(audio, (0, 400 - audio_res.size(-1)))
         units = self.model(audio_res, padding_mask=padding_mask)
+
+        if units.shape[0] == 1:
+            units = units.squeeze(0)
 
         return units
 
@@ -535,7 +538,9 @@ class Audio2HubertSoft(torch.nn.Module):
 
     def forward(self, audio, padding_mask=None):  # B, T
         with torch.inference_mode():
-            units = self.hubert.units(audio.unsqueeze(1))
+            if len(audio.shape) == 1:
+                audio = audio.unsqueeze(1)
+            units = self.hubert.units(audio)
             return units
 
 class FunASR(torch.nn.Module):
@@ -557,7 +562,7 @@ class FunASR(torch.nn.Module):
         else:
             padding_mask = padding_mask.sum(1)
         units = self.model(audio, padding_mask)
-        return units[0]
+        return units
 
 class Whisper(torch.nn.Module):
     def __init__(self, path, device='cpu'):
@@ -582,7 +587,9 @@ class Whisper(torch.nn.Module):
         # audio = pad_or_trim(audio)
         mel = log_mel_spectrogram(audio).to(self.device)
         with torch.no_grad():
-            units = self.model.encoder(mel.unsqueeze(0)).squeeze().data.cpu().float()
+            if len(mel.shape) == 2:
+                mel = mel.unsqueeze(0)
+            units = self.model.encoder(mel).squeeze().data.cpu().float()
             return units
         
 
@@ -612,7 +619,7 @@ class Audio2ContentVec():
         }
         with torch.no_grad():
             logits = self.hubert.extract_features(**inputs)
-            feats = self.hubert.final_proj(logits[0])
+            feats = self.hubert.final_proj(logits)
         units = feats  # .transpose(2, 1)
         return units
 
@@ -643,7 +650,7 @@ class Audio2ContentVec768():
         }
         with torch.no_grad():
             logits = self.hubert.extract_features(**inputs)
-            feats = logits[0]
+            feats = logits
         units = feats  # .transpose(2, 1)
         return units
 
@@ -674,7 +681,7 @@ class Audio2ContentVec768L12():
         }
         with torch.no_grad():
             logits = self.hubert.extract_features(**inputs)
-            feats = logits[0]
+            feats = logits
         units = feats  # .transpose(2, 1)
         return units
 
@@ -742,7 +749,7 @@ class Audio2HubertBase():
                 "output_layer": 9,  # layer 9
             }
             logits = self.hubert.extract_features(**inputs)
-            units = self.hubert.final_proj(logits[0])
+            units = self.hubert.final_proj(logits)
             return units
 
 
@@ -770,7 +777,7 @@ class Audio2HubertBase768():
                 "output_layer": 9,  # layer 9
             }
             logits = self.hubert.extract_features(**inputs)
-            units = logits[0]
+            units = logits
             return units
 
 
@@ -798,7 +805,7 @@ class Audio2HubertBase768L12():
                 "output_layer": 12,  # layer 12
             }
             logits = self.hubert.extract_features(**inputs)
-            units = logits[0]
+            units = logits
             return units
 
 
@@ -826,7 +833,7 @@ class Audio2HubertLarge1024L24():
                 "output_layer": 24,  # layer 24
             }
             logits = self.hubert.extract_features(**inputs)
-            units = logits[0]
+            units = logits
             return units
 
 
@@ -853,7 +860,7 @@ class Audio2Wav2Vec2Large1024L24():
                 "padding_mask": padding_mask.to(self.device)
             }
             logits = self.hubert.extract_features(**inputs)
-            units = logits["x"][0]
+            units = logits["x"]
             return units
 
 class Wav2Vec2:
@@ -872,8 +879,8 @@ class Wav2Vec2:
 class Wav2Vec2Bert:
     def __init__(self, path, h_sample_rate=16000, h_hop_size=320, device='cpu'):
         self.device = device
-        self.processor = AutoFeatureExtractor.from_pretrained("facebook/w2v-bert-2.0", cache_dir="pretrain")
-        self.model = Wav2Vec2BertModel.from_pretrained("facebook/w2v-bert-2.0", cache_dir="pretrain")
+        self.processor = AutoFeatureExtractor.from_pretrained("facebook/w2v-bert-2.0", cache_dir=path)
+        self.model = Wav2Vec2BertModel.from_pretrained("facebook/w2v-bert-2.0", cache_dir=path)
         self.model.eval()
         self.model.to(device)
 
