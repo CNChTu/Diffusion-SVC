@@ -300,9 +300,9 @@ class AudioDataset(Dataset):
             mel = os.path.join(self.path_root, mel_key, name_ext) + '.npy'
             mel = np.load(mel)
             mel = torch.from_numpy(mel).float()
-            if self.is_vaegan:
-                m, logs = torch.split(mel, mel.shape[-1]//2, dim=-1)
-                mel = m + torch.randn_like(m) * torch.exp(logs)
+        if self.is_vaegan:
+            m, logs = torch.split(mel, mel.shape[-1]//2, dim=-1)
+            mel = m + torch.randn_like(m) * torch.exp(logs)
         
         # load units
         units = data_buffer.get('units')
