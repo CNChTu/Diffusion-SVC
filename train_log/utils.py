@@ -3,7 +3,7 @@ import yaml
 import json
 import pickle
 import torch
-
+from tqdm import tqdm
 
 def traverse_dir(
         root_dir,
@@ -22,7 +22,7 @@ def traverse_dir(
 
     file_list = []
     cnt = 0
-    for file in os.scandir(root_dir):
+    for file in tqdm(os.scandir(root_dir)):
         if file.is_file():
             if any([file.path.endswith(f".{ext}") for ext in extensions]):
                 # path
