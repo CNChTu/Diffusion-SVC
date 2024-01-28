@@ -13,16 +13,22 @@ def traverse_dir(
         str_exclude=None,
         is_pure=False,
         is_sort=False,
-        is_ext=True):
+        is_ext=True,
+        second_root_dir=None
+        ):
+    
+    if second_root_dir == None:
+        second_root_dir = root_dir
+
     file_list = []
     cnt = 0
-    for root, _, files in os.walk(root_dir):
-        for file in files:
-            if any([file.endswith(f".{ext}") for ext in extensions]):
+    for file in os.scandir(root_dir):
+        if file.is_file():
+            if any([file.path.endswith(f".{ext}") for ext in extensions]):
                 # path
-                mix_path = os.path.join(root, file)
-                pure_path = mix_path[len(root_dir) + 1:] if is_pure else mix_path
-
+                mix_path = file.path
+                pure_path = mix_path[len(second_root_dir) + 1:] if is_pure else mix_path
+                
                 # amount
                 if (amount is not None) and (cnt == amount):
                     if is_sort:
@@ -40,6 +46,18 @@ def traverse_dir(
                     pure_path = pure_path[:-(len(ext) + 1)]
                 file_list.append(pure_path)
                 cnt += 1
+        if file.is_dir():
+            file_list += traverse_dir(
+                file.path,
+                extensions,
+                amount,
+                str_include,
+                str_exclude,
+                is_pure,
+                is_sort,
+                is_ext,
+                root_dir
+                )
     if is_sort:
         file_list.sort()
     return file_list
