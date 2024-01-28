@@ -25,7 +25,7 @@ class Vocoder:
         self.vocoder_hop_size = self.vocoder.hop_size()
         self.dimension = self.vocoder.dimension()
 
-    def extract(self, audio, sample_rate, keyshift=0):
+    def extract(self, audio, sample_rate, keyshift=0, **kwargs):
 
         # resample
         if sample_rate == self.vocoder_sample_rate:
@@ -37,7 +37,7 @@ class Vocoder:
             audio_res = self.resample_kernel[key_str](audio)
 
         # extract
-        mel = self.vocoder.extract(audio_res, keyshift=keyshift)  # B, n_frames, bins
+        mel = self.vocoder.extract(audio_res, keyshift=keyshift, **kwargs)  # B, n_frames, bins
         return mel
 
     def infer(self, mel, f0):
@@ -74,7 +74,7 @@ class NsfHifiGAN(torch.nn.Module):
     def dimension(self):
         return self.h.num_mels
 
-    def extract(self, audio, keyshift=0):
+    def extract(self, audio, keyshift=0, **kwargs):
         mel = self.stft.get_mel(audio, keyshift=keyshift).transpose(1, 2)  # B, n_frames, bins
         return mel
 

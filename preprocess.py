@@ -141,7 +141,9 @@ def preprocess_worker(rank, path, args, skip_flag, sample_rate, hop_size,
             force_units_interpolation=args["data"]["force_units_interpolation"],
             source_encoder_hop_size=args["data"]["source_encoder_hop_size"],
             target_encoder_hop_size=args["data"]["encoder_hop_size"],
-            rank = rank)
+            rank = rank,
+            only_mean=args["vocoder"]["only_mean"]
+            )
 
 
 
@@ -151,7 +153,9 @@ def preprocess(path, f0_extractor, volume_extractor, mel_extractor, units_encode
                 force_units_interpolation=False,
                 source_encoder_hop_size=320,
                 target_encoder_hop_size=320,
-                rank = 0):
+                rank = 0,
+                only_mean = False
+                ):
     path_srcdir = os.path.join(path, 'audio')
     path_unitsdir = os.path.join(path, 'units')
     path_f0dir = os.path.join(path, 'f0')
@@ -235,7 +239,7 @@ def preprocess(path, f0_extractor, volume_extractor, mel_extractor, units_encode
             
         # extract mel and volume augmentaion
         if mel_extractor is not None:
-            mel_t = mel_extractor.extract(audio_t, sample_rate)
+            mel_t = mel_extractor.extract(audio_t, sample_rate, only_mean=only_mean)
             mel = mel_t.squeeze().to('cpu').numpy()
 
             max_amp = float(torch.max(torch.abs(audio_t))) + 1e-5

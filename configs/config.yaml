@@ -83,6 +83,7 @@ device: cuda
 vocoder:
   type: 'hifi-vaegan'
   ckpt: 'pretrain/vaegan'
+  only_mean: true
 infer:
   speedup: 10
   method: 'dpm-solver' # 'ddim', 'pndm', 'dpm-solver' or 'unipc'

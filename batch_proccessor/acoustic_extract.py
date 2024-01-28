@@ -68,7 +68,7 @@ if __name__ == '__main__':
 
     for audios, audio_lenth, names in tqdm(loader_train):
         audios = audios.to(device)
-        acoustics = vocoder.extract(audios, int(args.data.sampling_rate))
+        acoustics = vocoder.extract(audios, int(args.data.sampling_rate), only_mean=args.vocoder.only_mean)
         ac_len = np.ceil(audio_lenth / vocoder.vocoder_hop_size)
         with ThreadPoolExecutor(max_workers=10) as executor:
             executor.map(save_acoutstic, acoustics, ac_len, itertools.repeat(train_path_meldir), names)
@@ -77,7 +77,7 @@ if __name__ == '__main__':
 
     for audios, audio_lenth, names in tqdm(loader_valid):
         audios = audios.to(device)
-        acoustics = vocoder.extract(audios, int(args.data.sampling_rate))
+        acoustics = vocoder.extract(audios, int(args.data.sampling_rate), only_mean=args.vocoder.only_mean)
         ac_len = np.ceil(audio_lenth / vocoder.vocoder_hop_size)
         with ThreadPoolExecutor(max_workers=10) as executor:
             executor.map(save_acoutstic, acoustics, ac_len, itertools.repeat(valid_path_meldir), names)

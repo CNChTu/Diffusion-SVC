@@ -37,7 +37,7 @@ class Hifi_VAEGAN(torch.nn.Module):
         return self.h["inter_channels"]
 
     @torch.no_grad()
-    def extract(self, audio, keyshift=0, only_z = False):
+    def extract(self, audio, keyshift=0, only_z = False, only_mean = False):
         if self.encoder_model is None:
             print('| Load Vaegan Encoder: ', self.model_path)
             state = torch.load(os.path.join(self.model_path, 'encoder.pth'))["model"]
@@ -49,6 +49,8 @@ class Hifi_VAEGAN(torch.nn.Module):
         if audio.shape[-1] % self.hop_size() != 0: # PAD
             audio = torch.nn.functional.pad(audio, (0, self.hop_size() - audio.shape[-1] % self.hop_size()))
         z, m, logs = self.encoder_model(audio)
+        if only_mean:
+            logs = torch.zeros_like(logs)
         z = z * self.scale_factor
         if only_z:
             return z.transpose(-1,-2)
