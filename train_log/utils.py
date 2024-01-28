@@ -22,6 +22,10 @@ def traverse_dir(
 
     file_list = []
     cnt = 0
+
+    if not os.path.exists(root_dir):
+        return file_list
+    
     for file in tqdm(os.scandir(root_dir)):
         if file.is_file():
             if any([file.path.endswith(f".{ext}") for ext in extensions]):
