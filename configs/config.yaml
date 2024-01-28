@@ -20,7 +20,7 @@ data:
   filelist_path: null # If you want to use a filelist, set the path here
   train_set_rate: 0.999 # The proportion of the training set to be used, the rest is used as the validation set, used when filelist_path is not null
   use_datasets: false # If true, use datasets(arrow) of huggingface instead of the path above
-  acoustic_scale: 1.0 # If you want to change the acoustic of the audio, set it here
+  acoustic_scale: 1.0 # If you want to change the acoustic of the scale, set it here (only vaegan use it)
   extensions: # List of extension included in the data collection
     - wav
 model:
@@ -83,7 +83,7 @@ device: cuda
 vocoder:
   type: 'hifi-vaegan'
   ckpt: 'pretrain/vaegan'
-  only_mean: true
+  only_mean: true # If true, only use the mean of the distribution (only vaegan use it)
 infer:
   speedup: 10
   method: 'dpm-solver' # 'ddim', 'pndm', 'dpm-solver' or 'unipc'
