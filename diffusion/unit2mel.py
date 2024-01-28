@@ -84,7 +84,8 @@ def load_svc_model(args, vocoder_dimension):
                     use_speaker_encoder=args.model.use_speaker_encoder,
                     speaker_encoder_out_channels=args.data.speaker_encoder_out_channels,
                     is_tts = args.model.is_tts,
-                    spec_norm=spec_norm
+                    spec_norm=spec_norm,
+                    acoustic_scale=args.data.acoustic_scale
                     )
 
     elif args.model.type == 'Naive':
@@ -130,6 +131,7 @@ class Unit2Mel(nn.Module):
             speaker_encoder_out_channels=256,
             is_tts: bool = False,
             spec_norm=True,
+            acoustic_scale=1.0
             ):
         super().__init__()
         self.unit_embed = nn.Linear(input_channel, n_hidden)
@@ -161,7 +163,7 @@ class Unit2Mel(nn.Module):
         cross_attention_dim = block_out_channels,
         attention_head_dim = n_heads,
         layers_per_block = n_layers,
-        resnet_time_scale_shift='scale_shift'), out_dims=out_dims, spec_norm=spec_norm)
+        resnet_time_scale_shift='scale_shift'), out_dims=out_dims, spec_norm=spec_norm, acoustic_scale=acoustic_scale)
 
     def forward(self, units, f0, volume, spk_id=None, spk_mix_dict=None, aug_shift=None,
                 gt_spec=None, infer=True, infer_speedup=10, method='dpm-solver', k_step=None, use_tqdm=True,

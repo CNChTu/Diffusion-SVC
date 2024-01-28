@@ -20,6 +20,7 @@ data:
   filelist_path: null # If you want to use a filelist, set the path here
   train_set_rate: 0.999 # The proportion of the training set to be used, the rest is used as the validation set, used when filelist_path is not null
   use_datasets: false # If true, use datasets(arrow) of huggingface instead of the path above
+  acoustic_scale: 1.0 # If you want to change the acoustic of the audio, set it here
   extensions: # List of extension included in the data collection
     - wav
 model:

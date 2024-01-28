@@ -56,6 +56,7 @@ if __name__ == '__main__':
                     speaker_encoder_out_channels=args.data.speaker_encoder_out_channels,
                     is_tts=args.model.is_tts,
                     spec_norm=spec_norm,
+                    acoustic_scale=args.data.acoustic_scale
                     )
     
     elif args.model.type == 'Naive':

@@ -66,7 +66,8 @@ class GaussianDiffusion(nn.Module):
                 max_beta=0.02,
                 spec_min=-12, 
                 spec_max=2,
-                spec_norm=True
+                spec_norm=True,
+                acoustic_scale=1.0
                 ):
         super().__init__()
         self.denoise_fn = denoise_fn
@@ -111,8 +112,8 @@ class GaussianDiffusion(nn.Module):
         self.register_buffer('spec_max', torch.FloatTensor([spec_max])[None, None, :out_dims])
         
         if not spec_norm:
-            self.norm_spec = lambda x: x
-            self.denorm_spec = lambda x: x
+            self.norm_spec = lambda x: x * acoustic_scale
+            self.denorm_spec = lambda x: x / acoustic_scale
 
     def q_mean_variance(self, x_start, t):
         mean = extract(self.sqrt_alphas_cumprod, t, x_start.shape) * x_start
