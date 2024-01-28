@@ -121,20 +121,20 @@ class NaiveV2Diff(nn.Module):
         self.mask_cond_ratio = None
 
         self.input_projection = nn.Conv1d(mel_channels, dim, 1)
+        self.diffusion_embedding = nn.Sequential(
+            DiffusionEmbedding(dim),
+            nn.Linear(dim, dim * mlp_factor),
+            nn.GELU(),
+            nn.Linear(dim * mlp_factor, dim),
+        )
+        
         if use_mlp:
-            self.diffusion_embedding = nn.Sequential(
-                DiffusionEmbedding(dim),
-                nn.Linear(dim, dim * mlp_factor),
-                nn.GELU(),
-                nn.Linear(dim * mlp_factor, dim),
-            )
             self.conditioner_projection = nn.Sequential(
                 nn.Conv1d(condition_dim, dim * mlp_factor, 1),
                 nn.GELU(),
                 nn.Conv1d(dim * mlp_factor, dim, 1),
             )
         else:
-            self.diffusion_embedding = DiffusionEmbedding(dim)
             self.conditioner_projection = nn.Identity()
 
         self.residual_layers = nn.ModuleList(
