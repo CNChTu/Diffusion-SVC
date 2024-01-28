@@ -16,7 +16,6 @@ class Hifi_VAEGAN(torch.nn.Module):
         self.model_path = model_path
         self.encoder_model = None
         self.decoder_model = None
-        self.scale_factor = 1
         self.h = load_config(model_path)
         self.stft = STFT(
             self.h["sampling_rate"],
@@ -51,7 +50,6 @@ class Hifi_VAEGAN(torch.nn.Module):
         z, m, logs = self.encoder_model(audio)
         if only_mean:
             logs = torch.zeros_like(logs)
-        z = z * self.scale_factor
         if only_z:
             return z.transpose(-1,-2)
         else:
@@ -61,7 +59,6 @@ class Hifi_VAEGAN(torch.nn.Module):
     @torch.no_grad()
     def forward(self, z, f0):
         z = z.transpose(-1,-2)
-        z = z / self.scale_factor
         if self.decoder_model is None:
             print('| Load Vaegan Decoder: ', self.model_path)
             state = torch.load(os.path.join(self.model_path, 'decoder.pth'))["model"]
