@@ -247,10 +247,13 @@ def train(args, initial_global_step, model, optimizer, scheduler, vocoder, loade
 
                 if args.train.units_quantize_type == "vq":
                     # save latest
-                    saver.save_model(quantizer, None, postfix=f'{saver.global_step}_semantic_codebook')
-                    last_val_step = saver.global_step - args.train.interval_val
-                    if last_val_step % args.train.interval_force_save != 0:
-                       saver.delete_model(postfix=f'{last_val_step}_semantic_codebook')
+                    if saver.global_step % args.train.interval_force_save == 0:
+                        saver.save_model(quantizer, None, postfix=f'{saver.global_step}_semantic_codebook_Force')
+                    else:
+                        saver.save_model(quantizer, None, postfix=f'{saver.global_step}_semantic_codebook')
+                    
+                    last_val_step = saver.global_step - args.train.interval_val * (args.train.last_save_model_num + 1)
+                    saver.delete_model(postfix=f'{last_val_step}_semantic_codebook')
 
                 # run testing set
                 test_loss = test(args, unwrap_model, vocoder, loader_test, f0_extractor, quantizer, saver, accelerator)
