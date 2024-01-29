@@ -265,32 +265,32 @@ def preprocess(path, f0_extractor, volume_extractor, mel_extractor, units_encode
         if f0_extractor is not None:
             f0 = f0_extractor.extract(audio, uv_interp=False, sr=sample_rate)
 
-        uv = f0 == 0
-        if len(f0[~uv]) > 0:
-            # interpolate the unvoiced f0
-            f0[uv] = np.interp(np.where(uv)[0], np.where(~uv)[0], f0[~uv])
-
-            # save npy     
-            if units_encoder is not None:
-                os.makedirs(os.path.dirname(path_unitsfile), exist_ok=True)
-                np.save(path_unitsfile, units)
-            if f0_extractor is not None:
+            uv = f0 == 0
+            if len(f0[~uv]) > 0:
+                # interpolate the unvoiced f0
+                f0[uv] = np.interp(np.where(uv)[0], np.where(~uv)[0], f0[~uv])
                 os.makedirs(os.path.dirname(path_f0file), exist_ok=True)
                 np.save(path_f0file, f0)
-            os.makedirs(os.path.dirname(path_volumefile), exist_ok=True)
-            np.save(path_volumefile, volume)
-            if mel_extractor is not None:
-                os.makedirs(os.path.dirname(path_melfile), exist_ok=True)
-                np.save(path_melfile, mel)
-                os.makedirs(os.path.dirname(path_augmelfile), exist_ok=True)
-                np.save(path_augmelfile, aug_mel)
-                os.makedirs(os.path.dirname(path_augvolfile), exist_ok=True)
-                np.save(path_augvolfile, np.asarray((aug_vol, keyshift), dtype = object) , allow_pickle=True)
-        else:
-            print('\n[Error] F0 extraction failed: ' + path_srcfile)
-            os.makedirs(os.path.dirname(path_skipfile), exist_ok=True)
-            shutil.move(path_srcfile, os.path.dirname(path_skipfile))
-            print('This file has been moved to ' + path_skipfile)
+            else:
+                print('\n[Error] F0 extraction failed: ' + path_srcfile)
+                os.makedirs(os.path.dirname(path_skipfile), exist_ok=True)
+                shutil.move(path_srcfile, os.path.dirname(path_skipfile))
+                print('This file has been moved to ' + path_skipfile)
+
+            # save npy     
+        if units_encoder is not None:
+            os.makedirs(os.path.dirname(path_unitsfile), exist_ok=True)
+            np.save(path_unitsfile, units)
+        os.makedirs(os.path.dirname(path_volumefile), exist_ok=True)
+        np.save(path_volumefile, volume)
+        if mel_extractor is not None:
+            os.makedirs(os.path.dirname(path_melfile), exist_ok=True)
+            np.save(path_melfile, mel)
+            os.makedirs(os.path.dirname(path_augmelfile), exist_ok=True)
+            np.save(path_augmelfile, aug_mel)
+            os.makedirs(os.path.dirname(path_augvolfile), exist_ok=True)
+            np.save(path_augvolfile, np.asarray((aug_vol, keyshift), dtype = object) , allow_pickle=True)
+
 
     print('Preprocess the audio clips in :', path_srcdir)
 
