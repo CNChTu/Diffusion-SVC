@@ -344,7 +344,7 @@ if __name__ == '__main__':
     else:
         # preprocess training set
         mp.spawn(preprocess_worker, args=(args.data.train_path, dict(args), skip_flag, sample_rate, hop_size,
-               device, None, extensions, is_tts, args.model.text2semantic.mode, train_file_list, root_path, num_workers), nprocs=num_workers)
+               device, None, extensions, is_tts, train_file_list, root_path, num_workers), nprocs=num_workers)
         # preprocess validation set
         mp.spawn(preprocess_worker, args=(args.data.valid_path, dict(args), skip_flag, sample_rate, hop_size,
-                device, False, extensions, is_tts, args.model.text2semantic.mode, valid_file_list, root_path, num_workers), nprocs=num_workers)
+                device, False, extensions, is_tts, valid_file_list, root_path, num_workers), nprocs=num_workers)
