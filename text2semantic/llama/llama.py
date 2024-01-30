@@ -63,11 +63,14 @@ class Llama(nn.Module):
         if use_flash_attn:
             config._attn_implementation = "flash_attention_2"
         self.llama = LlamaForCausalLM(config=config)
-        self.quantizer = get_cluster_model(codebook_path)
+        
+        try:
+            self.quantizer = get_cluster_model(codebook_path)
 
-        if self.llama.model.embed_tokens.weight.data.shape[1] == self.quantizer.cluster_centers_.shape[1]:
-            self.llama.model.embed_tokens.weight.data[len(symbols) - 1:len(symbols) + semantic_kmeans_num - 1] = torch.from_numpy(self.quantizer.cluster_centers_.copy())
-
+            if self.llama.model.embed_tokens.weight.data.shape[1] == self.quantizer.cluster_centers_.shape[1]:
+                self.llama.model.embed_tokens.weight.data[len(symbols) - 1:len(symbols) + semantic_kmeans_num - 1] = torch.from_numpy(self.quantizer.cluster_centers_.copy())
+        except:
+            pass
 
     def forward(
         self,
