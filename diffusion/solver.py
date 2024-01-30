@@ -7,6 +7,9 @@ from logger.saver import Saver
 from logger import utils
 from torch import autocast
 from torch.cuda.amp import GradScaler
+from nsf_hifigan.nvSTFT import STFT
+
+WAV_TO_MEL = None
 
 
 def test(args, model, vocoder, loader_test, saver):
@@ -71,10 +74,6 @@ def test(args, model, vocoder, loader_test, saver):
                 )
                 test_loss += loss.item()
 
-            # log mel
-            if args.vocoder.type != 'hifivaegan':
-                saver.log_spec(data['name'][0], data['mel'], mel)
-
             # log audio
             path_audio = os.path.join(args.data.valid_path, 'audio', data['name_ext'][0])
             audio, sr = librosa.load(path_audio, sr=args.data.sampling_rate)
@@ -82,6 +81,32 @@ def test(args, model, vocoder, loader_test, saver):
                 audio = librosa.to_mono(audio)
             audio = torch.from_numpy(audio).unsqueeze(0).to(signal)
             saver.log_audio({fn + '/gt.wav': audio, fn + '/pred.wav': signal})
+
+            # log mel
+            if args.vocoder.type == 'hifivaegan':
+                log_from_signal = True
+            else:
+                log_from_signal = False
+
+            if log_from_signal:
+                global WAV_TO_MEL
+                if WAV_TO_MEL is None:
+                    WAV_TO_MEL = STFT(
+                        sr=args.data.sampling_rate,
+                        n_mels=128,
+                        n_fft=2048,
+                        win_size=2048,
+                        hop_length=512,
+                        fmin=0,
+                        fmax=22050,
+                        clip_val=1e-5)
+                audio = audio.unsqueeze(0)
+                pre_mel = WAV_TO_MEL.get_mel(signal[0, ...])
+                gt_mel = WAV_TO_MEL.get_mel(audio[0, ...])
+                saver.log_spec(data['name'][0], gt_mel.transpose(-1, -2), pre_mel.transpose(-1, -2))
+            else:
+                saver.log_spec(data['name'][0], data['mel'], mel)
+
 
     # report
     test_loss /= args.train.batch_size

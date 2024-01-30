@@ -74,9 +74,16 @@ class NsfHifiGAN(torch.nn.Module):
         if device is None:
             device = 'cuda' if torch.cuda.is_available() else 'cpu'
         self.device = device
-        self.model_path = model_path
-        self.model = None
-        self.h = load_config(model_path)
+
+        if type(model_path) == dict:
+            '''传入的是config + model'''
+            self.model_path = None
+            self.model, self.h = load_model(model_path, device=self.device)
+        else:
+            # 原始模式
+            self.model_path = model_path
+            self.model = None
+            self.h = load_config(model_path)
         self.stft = STFT(
             self.h.sampling_rate,
             self.h.num_mels,
@@ -112,7 +119,11 @@ class NsfHifiGAN(torch.nn.Module):
         if model_path is None:
             model_path = self.model_path
         config, model = load_model(model_path, device=device, load_for_combo=True)
-        return config, model
+        out_dict = {
+            "config": config,
+            "model": model
+        }
+        return out_dict
 
 
 class NsfHifiGANLog10(NsfHifiGAN):
