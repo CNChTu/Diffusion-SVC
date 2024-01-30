@@ -217,7 +217,7 @@ class Unit2MelV2(nn.Module):
     ):
         super().__init__()
         if mask_cond_ratio is not None:
-            mask_cond_ratio = float(mask_cond_ratio) if (str(mask_cond_ratio) != 'NOTUSE') else None
+            mask_cond_ratio = float(mask_cond_ratio) if (str(mask_cond_ratio) != 'NOTUSE') else -99
             if mask_cond_ratio > 0:
                 self.mask_cond_ratio = mask_cond_ratio
             else:
