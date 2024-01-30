@@ -15,9 +15,10 @@ from tqdm import tqdm
 
 @torch.no_grad()
 def preprocess_utterance(rank, units_path, model,in_dir, out_dir, num_workers, units_quantize_type = "kmeans"):
+    gpu_num = torch.cuda.device_count()
     units_path = units_path[rank::num_workers]
     if units_quantize_type == "vq":
-        model = model.to(f"cuda:{rank%num_workers}")
+        model = model.to(f"cuda:{rank%gpu_num}")
     for unit_path in tqdm(units_path,position=rank):
         if units_quantize_type == "kmeans":
             unit = np.load(os.path.join(in_dir, "units" , unit_path))
@@ -26,7 +27,7 @@ def preprocess_utterance(rank, units_path, model,in_dir, out_dir, num_workers, u
             os.makedirs(os.path.dirname(out_path), exist_ok=True)
             np.save(out_path, token)
         elif units_quantize_type == "vq":
-            unit = torch.from_numpy(np.load(os.path.join(in_dir, "units" , unit_path))).to(f"cuda:{rank%num_workers}")[None,:]
+            unit = torch.from_numpy(np.load(os.path.join(in_dir, "units" , unit_path))).to(f"cuda:{rank%gpu_num}")[None,:]
             _, token, _ = model(unit)
             token = token[0].detach().cpu().numpy()
             out_path = os.path.join(out_dir, unit_path)
