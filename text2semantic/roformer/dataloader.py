@@ -137,11 +137,11 @@ class TextDataset(Dataset):
 
                 phones, tones, lang_ids, word2ph = np.load(path_utt, allow_pickle=True)
 
-                if tones == []:
+                if tones is []:
                     tones = None
-                if lang_ids == []:
+                if lang_ids is []:
                     lang_ids = None
-                if word2ph == []:
+                if word2ph is []:
                     word2ph = None
 
                 if self.n_spk is not None and self.n_spk > 1:
