@@ -119,8 +119,10 @@ def train(args, initial_global_step, model, optimizer, scheduler, diffusion_mode
         semantic_embedding = VectorQuantize(
                 dim = args.data.encoder_out_channels,
                 codebook_size = args.model.text2semantic.semantic_kmeans_num,
+                codebook_dim=32,
                 decay = 0.8,             
                 commitment_weight = 1.,
+                use_cosine_sim=True,
                 freeze_codebook=True
             )
         model_para = torch.load(args.model.text2semantic.codebook_path)
