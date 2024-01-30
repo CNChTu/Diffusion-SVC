@@ -42,7 +42,7 @@ model:
     conv_model_type: 'mode1'
     conv_dropout: 0.0
     atten_dropout: 0.1
-  mask_cond_ratio: '0.4' # input 'NOTUSE' if not use
+  mask_cond_ratio: 'NOTUSE' # input 'NOTUSE' if not use
 device: cuda
 vocoder:
   type: 'nsf-hifigan'
