@@ -277,7 +277,11 @@ class DiffusionSVC:
             spk_id = torch.LongTensor(np.array([[int(spk_id)]])).to(self.device)
 
         if k_step is not None:
-            print(f' [INFO] get k_step, do shallow diffusion {k_step} steps')
+            if k_step == 1000:
+                print(f' [INFO] get k_step=1000, do full 1000 steps depth diffusion')
+                k_step = None
+            else:
+                print(f' [INFO] get k_step, do shallow diffusion {k_step} steps')
         else:
             print(f' [INFO] Do full 1000 steps depth diffusion {k_step}')
         print(f" [INFO] method:{method}; infer_speedup:{infer_speedup}")

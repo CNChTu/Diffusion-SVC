@@ -21,7 +21,7 @@ class NaiveAndDiffModel:
             self.is_combo_trained_model = False
 
         # naive
-        if self.is_combo_trained_model:
+        if not self.is_combo_trained_model:
             naive_config_path = os.path.join(os.path.split(naive_model_path)[0], 'config.yaml')
             with open(naive_config_path, "r") as _f:
                 self.naive_config_dict = yaml.safe_load(_f)
@@ -77,6 +77,7 @@ class NaiveAndDiffModel:
                 "naive_config_dict": self.naive_config_dict
             }
         if self.vocoder is not None:
+            print(self.vocoder['model'])
             save_dict["vocoder"] = self.vocoder
             save_dict["vocoder_type"] = self.vocoder_type
         torch.save(save_dict, out_path)
