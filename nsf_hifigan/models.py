@@ -6,8 +6,14 @@ import torch
 import torch.nn.functional as F
 import torch.nn as nn
 from torch.nn import Conv1d, ConvTranspose1d, AvgPool1d, Conv2d
-from torch.nn.utils import weight_norm, remove_weight_norm, spectral_norm
+from torch.nn.utils import remove_weight_norm, spectral_norm
 from .utils import init_weights, get_padding
+_OLD_WEIGHT_NORM = False
+try:
+    from torch.nn.utils.parametrizations import weight_norm
+except ImportError:
+    from torch.nn.utils import weight_norm
+    _OLD_WEIGHT_NORM = True
 
 LRELU_SLOPE = 0.1
 
@@ -20,11 +26,7 @@ def load_model(model_path, device='cuda', load_for_combo=False):
             data = f.read()
         json_config = json.loads(data)
         model_state_dict = torch.load(model_path, map_location=device)
-        out_dict = {
-            "config": json_config,
-            "model": model_state_dict
-        }
-        return out_dict
+        return json_config, model_state_dict
 
     # 如果model_path是字典，说明传入的是config + model
     if type(model_path) == dict:
@@ -41,6 +43,7 @@ def load_model(model_path, device='cuda', load_for_combo=False):
     generator.remove_weight_norm()
     del cp_dict
     return generator, h
+
 
 def load_config(model_path):
     config_file = os.path.join(os.path.split(model_path)[0], 'config.json')
@@ -86,10 +89,12 @@ class ResBlock1(torch.nn.Module):
         return x
 
     def remove_weight_norm(self):
-        for l in self.convs1:
-            remove_weight_norm(l)
-        for l in self.convs2:
-            remove_weight_norm(l)
+        global _OLD_WEIGHT_NORM
+        if _OLD_WEIGHT_NORM:
+            for l in self.convs1:
+                remove_weight_norm(l)
+            for l in self.convs2:
+                remove_weight_norm(l)
 
 
 class ResBlock2(torch.nn.Module):
@@ -112,8 +117,10 @@ class ResBlock2(torch.nn.Module):
         return x
 
     def remove_weight_norm(self):
-        for l in self.convs:
-            remove_weight_norm(l)
+        global _OLD_WEIGHT_NORM
+        if _OLD_WEIGHT_NORM:
+            for l in self.convs:
+                remove_weight_norm(l)
 
 
 class SineGen(torch.nn.Module):
@@ -290,12 +297,14 @@ class Generator(torch.nn.Module):
 
     def remove_weight_norm(self):
         print('Removing weight norm...')
-        for l in self.ups:
-            remove_weight_norm(l)
-        for l in self.resblocks:
-            l.remove_weight_norm()
-        remove_weight_norm(self.conv_pre)
-        remove_weight_norm(self.conv_post)
+        global _OLD_WEIGHT_NORM
+        if _OLD_WEIGHT_NORM:
+            for l in self.ups:
+                remove_weight_norm(l)
+            for l in self.resblocks:
+                l.remove_weight_norm()
+            remove_weight_norm(self.conv_pre)
+            remove_weight_norm(self.conv_post)
 
 
 class DiscriminatorP(torch.nn.Module):
