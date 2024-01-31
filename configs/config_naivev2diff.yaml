@@ -31,7 +31,7 @@ model:
     type: 'NaiveV2Diff'
     cn_layers: 6
     cn_chans: 512
-    use_mlp: true # is use MLP in cond_emb and output_proj
+    use_mlp: false # is use MLP in cond_emb and output_proj
     mlp_factor: 4
     expansion_factor: 2
     kernel_size: 31
