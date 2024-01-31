@@ -67,7 +67,8 @@ class NaiveAndDiffModel:
         if self.is_combo_trained_model:
             save_dict = {
                 "diff_model": self.diff_model,
-                "diff_config_dict": self.diff_config_dict
+                "diff_config_dict": self.diff_config_dict,
+                "_is_comb_diff_model": True
             }
         else:
             save_dict = {
@@ -77,7 +78,7 @@ class NaiveAndDiffModel:
                 "naive_config_dict": self.naive_config_dict
             }
         if self.vocoder is not None:
-            print(self.vocoder['model'])
+            print(" [INFO] Saving vocoder model")
             save_dict["vocoder"] = self.vocoder
             save_dict["vocoder_type"] = self.vocoder_type
         torch.save(save_dict, out_path)
