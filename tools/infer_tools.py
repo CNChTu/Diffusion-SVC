@@ -258,7 +258,12 @@ class DiffusionSVC:
 
         if self.args.model.k_step_max is not None:
             if k_step is None:
-                raise ValueError("k_step must not None when Shallow Diffusion Model inferring")
+                if self.model.combo_trained_model:
+                    k_step = int(self.args.model.k_step_max)
+                    gt_spec = 0
+                    print(f'   [WARN] get k_step=None, make k_step=k_step_max of Combo Shallow Diffusion Model')
+                else:
+                    raise ValueError("k_step must not None when Shallow Diffusion Model inferring")
             if k_step > int(self.args.model.k_step_max):
                 raise ValueError(f"k_step must <= k_step_max of Shallow Diffusion Model")
             if gt_spec is None:
@@ -304,7 +309,7 @@ class DiffusionSVC:
                                                 aug_shift=aug_shift, spk_emb=spk_emb)
                 print(f" [INFO] get mel from naive model out.")
             assert gt_spec is not None
-            if (self.naive_model is None) and (not self.enable_gt_mel):
+            if ((self.naive_model is None) and (not self.model.combo_trained_model)) and (not self.enable_gt_mel):
                 print(f" [INFO] get mel from input wav.")
                 if input(" [WARN] You are attempting shallow diffusion "
                          "on the mel of the input source,"
@@ -336,10 +341,13 @@ class DiffusionSVC:
             volume = volume[:, start_frame:, :]
 
         if k_step is not None:
-            assert audio_t is not None
-            k_step = int(k_step)
-            gt_spec = self.vocoder.extract(audio_t, self.args.data.sampling_rate)
-            # 如果缺帧再开这行gt_spec = torch.cat((gt_spec, gt_spec[:, -1:, :]), 1)
+            if self.model.combo_trained_model:
+                gt_spec = 0
+            else:
+                assert audio_t is not None
+                k_step = int(k_step)
+                gt_spec = self.vocoder.extract(audio_t, self.args.data.sampling_rate)
+                # 如果缺帧再开这行gt_spec = torch.cat((gt_spec, gt_spec[:, -1:, :]), 1)
         else:
             gt_spec = None
 
@@ -365,9 +373,12 @@ class DiffusionSVC:
         if k_step is not None:
             assert 0 < int(k_step) <= 1000
             k_step = int(k_step)
-            audio_t = torch.from_numpy(audio).float().unsqueeze(0).to(self.device)
-            gt_spec = self.vocoder.extract(audio_t, sr)
-            gt_spec = torch.cat((gt_spec, gt_spec[:, -1:, :]), 1)
+            if self.model.combo_trained_model:
+                gt_spec = 0
+            else:
+                audio_t = torch.from_numpy(audio).float().unsqueeze(0).to(self.device)
+                gt_spec = self.vocoder.extract(audio_t, sr)
+                gt_spec = torch.cat((gt_spec, gt_spec[:, -1:, :]), 1)
         else:
             gt_spec = None
         output = self.infer(units, f0, volume, gt_spec=gt_spec, spk_id=spk_id, spk_mix_dict=spk_mix_dict,
@@ -396,9 +407,12 @@ class DiffusionSVC:
         if k_step is not None:
             assert 0 < int(k_step) <= 1000
             k_step = int(k_step)
-            audio_t = torch.from_numpy(audio).float().unsqueeze(0).to(self.device)
-            gt_spec = self.vocoder.extract(audio_t, sr)
-            gt_spec = torch.cat((gt_spec, gt_spec[:, -1:, :]), 1)
+            if self.model.combo_trained_model:
+                gt_spec = None
+            else:
+                audio_t = torch.from_numpy(audio).float().unsqueeze(0).to(self.device)
+                gt_spec = self.vocoder.extract(audio_t, sr)
+                gt_spec = torch.cat((gt_spec, gt_spec[:, -1:, :]), 1)
         else:
             gt_spec = None
 
@@ -416,7 +430,10 @@ class DiffusionSVC:
             if gt_spec is not None:
                 seg_gt_spec = gt_spec[:, start_frame: start_frame + seg_units.size(1), :]
             else:
-                seg_gt_spec = None
+                if self.model.combo_trained_model:
+                    seg_gt_spec = 0
+                else:
+                    seg_gt_spec = None
             seg_output = self.infer(seg_units, seg_f0, seg_volume, gt_spec=seg_gt_spec, spk_id=spk_id,
                                     spk_mix_dict=spk_mix_dict,
                                     aug_shift=aug_shift, infer_speedup=infer_speedup, method=method, k_step=k_step,
@@ -492,12 +509,15 @@ class DiffusionSVC:
             if int(k_step / infer_speedup) < 3:
                 infer_speedup = int(k_step / 4)
                 print(f" [WARN] diffusion step must > 4 (3 when qndm), not set to{infer_speedup}")
-            if self.naive_model is not None:
-                gt_spec = self.naive_model_call(units, f0, volume, spk_id=spk_id, spk_mix_dict=spk_mix_dict,
-                                                aug_shift=aug_shift, spk_emb=spk_emb)
+            if self.model.combo_trained_model:
+                gt_spec = 0
             else:
-                gt_spec = self.vocoder.extract(audio_t, self.args.data.sampling_rate)
-                gt_spec = torch.cat((gt_spec, gt_spec[:, -1:, :]), 1)
+                if self.naive_model is not None:
+                    gt_spec = self.naive_model_call(units, f0, volume, spk_id=spk_id, spk_mix_dict=spk_mix_dict,
+                                                    aug_shift=aug_shift, spk_emb=spk_emb)
+                else:
+                    gt_spec = self.vocoder.extract(audio_t, self.args.data.sampling_rate)
+                    gt_spec = torch.cat((gt_spec, gt_spec[:, -1:, :]), 1)
 
         else:
             gt_spec = None
