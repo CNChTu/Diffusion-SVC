@@ -3,10 +3,7 @@ import torch.nn as nn
 import numpy as np
 import torch.nn.functional as F
 
-try:
-    from torch.nn.utils.parametrizations import weight_norm
-except ImportError:
-    from torch.nn.utils import weight_norm
+from torch.nn.utils.parametrizations import weight_norm
 from .model_conformer_naive import ConformerNaiveEncoder
 
 
