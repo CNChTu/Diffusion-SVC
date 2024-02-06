@@ -102,8 +102,13 @@ def test(args, model, vocoder, loader_test, saver):
                         clip_val=1e-5)
                 audio = audio.unsqueeze(0)
                 pre_mel = WAV_TO_MEL.get_mel(signal[0, ...])
+                pre_mel = pre_mel.transpose(-1, -2)
                 gt_mel = WAV_TO_MEL.get_mel(audio[0, ...])
-                saver.log_spec(data['name'][0], gt_mel.transpose(-1, -2), pre_mel.transpose(-1, -2))
+                gt_mel = gt_mel.transpose(-1, -2)
+                # 如果形状不同,裁剪使得形状相同
+                if pre_mel.shape[1] != gt_mel.shape[1]:
+                    gt_mel = gt_mel[:, :pre_mel.shape[1], :]
+                saver.log_spec(data['name'][0], gt_mel, pre_mel)
             else:
                 saver.log_spec(data['name'][0], data['mel'], mel)
 
