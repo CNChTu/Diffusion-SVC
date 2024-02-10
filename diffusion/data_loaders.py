@@ -42,7 +42,8 @@ def get_data_loaders(args, whole_audio=False, accelerator=None):
         root_path=root_path,
         accelerator=accelerator,
         is_vaegan=True if args.vocoder.type == "hifi-vaegan" else False,
-        only_mean=args.vocoder.only_mean
+        only_mean=args.vocoder.only_mean,
+        clamp = args.vocoder.clamp
     )
     loader_train = torch.utils.data.DataLoader(
         data_train,
@@ -77,7 +78,8 @@ def get_data_loaders(args, whole_audio=False, accelerator=None):
         root_path=root_path,
         accelerator=None,
         is_vaegan=True if args.vocoder.type == "hifi-vaegan" else False,
-        only_mean=args.vocoder.only_mean
+        only_mean=args.vocoder.only_mean,
+        clamp = args.vocoder.clamp
     )
     loader_valid = torch.utils.data.DataLoader(
         data_valid,
@@ -112,7 +114,8 @@ class AudioDataset(Dataset):
             root_path=None,
             accelerator=None,
             is_vaegan=False,
-            only_mean=False
+            only_mean=False,
+            clamp = -1
     ):
         super().__init__()
 
@@ -143,6 +146,7 @@ class AudioDataset(Dataset):
         self.n_spk = n_spk
         self.spk_name_id_map = {}
         self.only_mean = only_mean
+        self.clamp = clamp
 
         if accelerator is not None:
             self.paths = self.paths[accelerator.process_index::accelerator.num_processes]
@@ -310,7 +314,8 @@ class AudioDataset(Dataset):
                 mel = m
             else:
                 mel = m + torch.randn_like(m) * torch.exp(logs)
-        
+            if self.clamp:
+                mel = torch.clamp(mel, -self.clamp, self.clamp)
         # load units
         units = data_buffer.get('units')
         if units is None:

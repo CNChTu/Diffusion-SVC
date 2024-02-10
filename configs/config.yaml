@@ -84,6 +84,7 @@ vocoder:
   type: 'hifi-vaegan'
   ckpt: 'pretrain/vaegan'
   only_mean: true # If true, only use the mean of the distribution (only vaegan use it)
+  clamp: 10.0 # If you want to clamp the output of the vocoder, set it here (only vaegan use it), if -1 means no clamp
 infer:
   speedup: 10
   method: 'dpm-solver' # 'ddim', 'pndm', 'dpm-solver' or 'unipc'
