@@ -27,7 +27,7 @@ def traverse_dir(
         return file_list
     
     for file in tqdm(os.scandir(root_dir)):
-        if file.is_file():
+        if file.is_file() or file.is_symlink():
             if any([file.path.endswith(f".{ext}") for ext in extensions]):
                 # path
                 mix_path = file.path
