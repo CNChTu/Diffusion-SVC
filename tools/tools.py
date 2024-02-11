@@ -16,7 +16,6 @@ import scipy.signal
 from torch.nn.modules.utils import consume_prefix_in_state_dict_if_present
 from torchaudio.transforms import Resample
 from torch.optim.lr_scheduler import StepLR
-from encoder.funasr.model import SpeechEncoder
 from encoder.whisper.audio import log_mel_spectrogram, pad_or_trim
 from encoder.whisper.model import ModelDimensions, Whisper
 
@@ -553,6 +552,7 @@ class Audio2HubertSoft(torch.nn.Module):
 
 class FunASR(torch.nn.Module):
     def __init__(self, path, device='cpu'):
+        from encoder.funasr.model import SpeechEncoder
         super().__init__()
         print(' [Encoder Model] ASR')
         print(' [Loading] ' + path)
