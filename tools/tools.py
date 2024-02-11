@@ -499,7 +499,8 @@ class Units_Encoder:
 def units_forced_alignment(units, audio = None, sample_rate = None, hop_size = None, n_frames = None, scale_factor = None, units_forced_mode = 'nearest'):
     # alignment
     assert (audio is not None and sample_rate is not None and hop_size is not None) or n_frames is not None or scale_factor is not None
-    n_frames = int(audio.size(-1) // hop_size + 1) if n_frames is None else n_frames
+    if scale_factor is None:
+        n_frames = int(audio.size(-1) // hop_size + 1) if n_frames is None else n_frames
     unit_is_tensor = True
     units_dim = len(units.shape)
     if isinstance(units, np.ndarray):
@@ -509,8 +510,15 @@ def units_forced_alignment(units, audio = None, sample_rate = None, hop_size = N
         units = units.unsqueeze(0)
     if units_forced_mode == 'left':
         assert scale_factor is not None
-        index = torch.clamp(torch.round(scale_factor * torch.arange(n_frames).to(self.device)).long(), max=units.size(1) - 1)
+        index = torch.clamp(torch.round(scale_factor * torch.arange(n_frames)).long(), max=units.size(1) - 1)
         units_aligned = torch.gather(units, 1, index.unsqueeze(0).unsqueeze(-1).repeat([1, 1, units.size(-1)]))
+    elif units_forced_mode == 'fold':
+        B, T, D = units.shape
+        scale_factor_inv = 1 / scale_factor if scale_factor < 1 else scale_factor
+        if T % scale_factor_inv != 0:
+            units = F.pad(units.transpose(-1, -2), (0, int(scale_factor_inv - T % scale_factor_inv))).transpose(-1, -2)
+            T = units.shape[-2]
+        units_aligned = units.reshape(B, int(T*scale_factor), int(D//scale_factor))
     elif units_forced_mode in ('rfa441to512', 'rfa512to441'):
         units = units.transpose(1, 2)
         units_aligned = torch.nn.functional.interpolate(units, size=n_frames, scale_factor=scale_factor, mode='nearest')

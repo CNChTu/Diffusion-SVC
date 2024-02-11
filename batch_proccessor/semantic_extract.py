@@ -3,10 +3,10 @@ import argparse
 import torch
 from train_log import utils
 from batch_proccessor.dataloader import get_data_loaders, lenth_to_mask
-from tools.tools import F0_Extractor, Units_Encoder
+from tools.tools import Units_Encoder
 import accelerate
 import itertools
-from tools.tools import StepLRWithWarmUp
+from tools.tools import units_forced_alignment
 from tqdm import tqdm
 from concurrent.futures import ThreadPoolExecutor
 import numpy as np
@@ -94,8 +94,8 @@ if __name__ == '__main__':
         semantic = units_encoder.encode(audios, int(args.data.encoder_sample_rate), args.data.encoder_hop_size, padding_mask)
         
         if args.data.force_units_interpolation:
-            units_t = torch.nn.functional.interpolate(units_t.transpose(-1,-2), scale_factor=args.data.encoder_hop_size/args.data.source_encoder_hop_size, mode='linear', align_corners=False).transpose(-1,-2)
-        
+            # units_t = torch.nn.functional.interpolate(units_t.transpose(-1,-2), scale_factor=args.data.encoder_hop_size/args.data.source_encoder_hop_size, mode='linear', align_corners=False).transpose(-1,-2)
+            units_t = units_forced_alignment(semantic, None, None, None, None, args.data.encoder_hop_size/args.data.source_encoder_hop_size ,units_forced_mode=args.data.units_forced_mode)
         audio_lenth = audio_lenth.cpu().numpy()
         ac_len = np.ceil(audio_lenth / args.data.encoder_hop_size)
         with ThreadPoolExecutor(max_workers=10) as executor:

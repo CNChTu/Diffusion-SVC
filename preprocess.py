@@ -7,9 +7,10 @@ import argparse
 import shutil
 from train_log import utils
 from tqdm import tqdm
-from tools.tools import F0_Extractor, Volume_Extractor, Units_Encoder, SpeakerEncoder
+from tools.tools import F0_Extractor, Volume_Extractor, Units_Encoder
 from diffusion.vocoder import Vocoder
 from train_log.utils import traverse_dir, filelist_path_to_file_list
+from tools.tools import units_forced_alignment
 from text.cleaner import text_to_sequence
 import torch.multiprocessing as mp
 import traceback
@@ -258,7 +259,8 @@ def preprocess(path, f0_extractor, volume_extractor, mel_extractor, units_encode
         if units_encoder is not None:
             units_t = units_encoder.encode(audio_t, sample_rate, hop_size)
             if force_units_interpolation:
-                units_t = torch.nn.functional.interpolate(units_t.transpose(-1,-2), scale_factor=target_encoder_hop_size/source_encoder_hop_size, mode='linear', align_corners=False).transpose(-1,-2)
+                # units_t = torch.nn.functional.interpolate(units_t.transpose(-1,-2), scale_factor=target_encoder_hop_size/source_encoder_hop_size, mode='linear', align_corners=False).transpose(-1,-2)
+                units_t = units_forced_alignment(units_t, None, None, None, None, args.data.encoder_hop_size/args.data.source_encoder_hop_size ,units_forced_mode=args.data.units_forced_mode)
             units = units_t.squeeze().to('cpu').numpy()
         
         # extract f0
