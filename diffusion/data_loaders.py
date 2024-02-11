@@ -244,11 +244,6 @@ class AudioDataset(Dataset):
         if data_buffer['duration'] < (self.waveform_sec + 0.1):
             return self.__getitem__((file_idx + 1) % len(self.paths))
 
-        # check shape and max min value
-        if len(data_buffer['mel'].shape) != 2:
-            if data_buffer['mel'].max() > 16 or data_buffer['mel'].min() < -16:
-                return self.__getitem__((file_idx + 1) % len(self.paths))
-
         # get item
         return self.get_data(name_ext, data_buffer)
 
@@ -290,6 +285,10 @@ class AudioDataset(Dataset):
             mel = torch.from_numpy(mel).float()
         else:
             mel = mel[start_frame: start_frame + units_frame_len]
+
+        if len(mel.shape) != 2:
+            if mel.max() > 10.0 or mel.min() < -10.0:
+                mel = torch.clamp(mel, -10.0, 10.0)
 
         # load units
         units = data_buffer.get('units')
