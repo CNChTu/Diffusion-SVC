@@ -14,6 +14,7 @@ from convnext import ConvNext
 from naive.naive_onnx import Unit2MelNaive
 from naive_v2.naive_v2_onnx import Unit2MelNaiveV2
 from naive_v2.naive_v2_diff import NaiveV2Diff
+from naive_v2.naive_v2 import Unit2MelNaiveV2ForDiff
 
 parser = argparse.ArgumentParser(description='Onnx Export')
 parser.add_argument('--project', type=str, help='Project Name')
@@ -70,7 +71,9 @@ def load_model_vocoder(
             mask_cond_ratio=args.model.mask_cond_ratio,
             sampling_rate=args.data.sampling_rate,
             block_size=args.data.block_size, 
-            hop_size=args.data.encoder_hop_size)
+            hop_size=args.data.encoder_hop_size,
+            naive_fn=args.model.naive_fn
+            )
     
     print(' [Loading] ' + model_path)
     ckpt = torch.load(model_path, map_location=torch.device(device))
@@ -344,7 +347,7 @@ class Unit2Mel(nn.Module):
 class Unit2MelV2(nn.Module):
     def __init__(self, input_channel, n_spk, use_pitch_aug=False, out_dims=128, n_hidden=256, use_speaker_encoder=False, speaker_encoder_out_channels=256, 
     z_rate=None, mean_only=False, max_beta=0.02, spec_min=-12, spec_max=2, denoise_fn=None, mask_cond_ratio=None, sampling_rate=44100,
-    block_size=512, hop_size=320):
+    block_size=512, hop_size=320, naive_fn=None):
         super().__init__()
         if mask_cond_ratio is not None:
             mask_cond_ratio = float(mask_cond_ratio) if (str(mask_cond_ratio) != 'NOTUSE') else None
@@ -360,6 +363,23 @@ class Unit2MelV2(nn.Module):
         self.hop_size = hop_size
         self.hubert_channel = input_channel
         self.hidden_size = n_hidden
+
+        # check naive_fn
+        if naive_fn is None:
+            self.combo_trained_model = False
+            self.naive_stack = None
+            self.naive_proj = None
+        else:
+            self.combo_trained_model = True
+            if not isinstance(naive_fn, DotDict):
+                assert isinstance(naive_fn, dict)
+                naive_fn = DotDict(naive_fn)
+                self.naive_stack = Unit2MelNaiveV2ForDiff(
+                    input_channel=n_hidden,
+                    out_dims=out_dims,
+                    net_fn=naive_fn
+                )
+                self.naive_proj = nn.Linear(out_dims, n_hidden)
 
         if denoise_fn is None:
             # catch None
@@ -495,10 +515,16 @@ class Unit2MelV2(nn.Module):
             g = g * self.speaker_map  # [N, S, B, 1, H]
             g = torch.sum(g, dim=1) # [N, 1, B, 1, H]
             g = g.transpose(0, -1).transpose(0, -2).squeeze(0) # [B, H, N]
-            x = x.transpose(1, 2) + g
-            return x
-        else:
-            return x.transpose(1, 2)
+            x = (x.transpose(1, 2) + g).transpose(1, 2)
+        
+        if self.combo_trained_model:
+            x = self.naive_stack(x)
+            gt_spec = x
+            x = self.naive_proj(x)
+            gt_spec = (gt_spec - self.spec_min) / (self.spec_max - self.spec_min) * 2 - 1
+            return x.transpose(1, 2), f0, gt_spec.transpose(1, 2).unsqueeze(0)
+
+        return x.transpose(1, 2)
 
     def init_spkembed(self, units, f0, volume, spk_id = None, spk_mix_dict = None, aug_shift = None,
                 gt_spec=None, infer=True, infer_speedup=10, method='dpm-solver', k_step=300, use_tqdm=True):
@@ -552,7 +578,7 @@ class Unit2MelV2(nn.Module):
                 (hubert, mel2ph, f0, volume, spk_mix),
                 f"checkpoints/{project_name}/{project_name}_encoder.onnx",
                 input_names=["hubert", "mel2ph", "f0", "volume", "spk_mix"],
-                output_names=["mel_pred"],
+                output_names=["mel_pred", "f0_pred", "init_noise"] if self.combo_trained_model else ["mel_pred"],
                 dynamic_axes={
                     "hubert": [1],
                     "f0": [1],
