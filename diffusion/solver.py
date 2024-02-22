@@ -238,6 +238,11 @@ def train(args, initial_global_step, model, optimizer, scheduler, vocoder, loade
             if accelerator.is_main_process and saver.global_step % args.train.interval_val == 0:
                 optimizer_save = optimizer if args.model.text2semantic.train.save_opt else None
                 unwrap_model = accelerator.unwrap_model(model)
+                
+                if isinstance(quantizer, torch.nn.Module):
+                    unwrap_quantizer = accelerator.unwrap_model(quantizer)
+                else:
+                    unwrap_quantizer = quantizer
 
                 # save latest
                 if saver.global_step % args.train.interval_force_save == 0:
@@ -251,16 +256,16 @@ def train(args, initial_global_step, model, optimizer, scheduler, vocoder, loade
                 if args.train.units_quantize_type == "vq" and quantizer is not None:
                     # save latest
                     if saver.global_step % args.train.interval_force_save == 0:
-                        saver.save_model(quantizer, None, postfix=f'{saver.global_step}_semantic_codebook_Force')
+                        saver.save_model(unwrap_quantizer, None, postfix=f'{saver.global_step}_semantic_codebook_Force')
                     else:
-                        saver.save_model(quantizer, None, postfix=f'{saver.global_step}_semantic_codebook')
+                        saver.save_model(unwrap_quantizer, None, postfix=f'{saver.global_step}_semantic_codebook')
                     
                     last_val_step = saver.global_step - args.train.interval_val * (args.train.last_save_model_num + 1)
                     saver.delete_model(postfix=f'{last_val_step}_semantic_codebook')
 
                 # run testing set
-                test_loss = test(args, unwrap_model, vocoder, loader_test, f0_extractor, quantizer, saver, accelerator)
-                
+                test_loss = test(args, unwrap_model, vocoder, loader_test, f0_extractor, unwrap_quantizer, saver, accelerator)
+
                 # log loss
                 saver.log_info(
                     ' --- <validation> --- \nloss: {:.3f}. '.format(
