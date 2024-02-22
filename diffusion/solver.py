@@ -10,7 +10,8 @@ from tools.tools import clip_grad_value_
 def test(args, model, vocoder, loader_test, f0_extractor, quantizer, saver, accelerator):
     print(' [*] testing...')
     model.eval()
-
+    if isinstance(quantizer, torch.nn.Module):
+        quantizer.eval()
     test_loss = 0.
 
     # intialization
@@ -151,6 +152,8 @@ def train(args, initial_global_step, model, optimizer, scheduler, vocoder, loade
     num_batches = len(loader_train)
     start_epoch = initial_global_step // num_batches
     model.train()
+    if isinstance(quantizer, torch.nn.Module):
+        quantizer.train()
     saver.log_info('======= start training =======')
     
     for epoch in range(start_epoch, args.train.epochs):
@@ -245,7 +248,7 @@ def train(args, initial_global_step, model, optimizer, scheduler, vocoder, loade
                 last_val_step = saver.global_step - args.train.interval_val * (args.train.last_save_model_num + 1)
                 saver.delete_model(postfix=f'{last_val_step}')
 
-                if args.train.units_quantize_type == "vq":
+                if args.train.units_quantize_type == "vq" and quantizer is not None:
                     # save latest
                     if saver.global_step % args.train.interval_force_save == 0:
                         saver.save_model(quantizer, None, postfix=f'{saver.global_step}_semantic_codebook_Force')
