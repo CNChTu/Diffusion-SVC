@@ -273,4 +273,6 @@ def train(args, initial_global_step, model, optimizer, scheduler, vocoder, loade
                 })
 
                 model.train()
+                if isinstance(quantizer, torch.nn.Module):
+                    quantizer.train()
             accelerator.wait_for_everyone()
