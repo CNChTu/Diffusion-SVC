@@ -787,6 +787,7 @@ class AdaIN(nn.Module):
             self.fc = nn.Linear(style_dim, in_channel * 2)
         else:
             self.fc = nn.Linear(style_dim, in_channel)
+            
     def forward(self, x, style):
         style = self.fc(style).unsqueeze(1)
         if self.only_scale:
@@ -888,7 +889,7 @@ class Wav2Vec2ConformerEncoder(nn.Module):
         else:
             self.embed_positions = None
 
-        self.pos_conv_embed = Wav2Vec2ConformerPositionalConvEmbedding(config)
+        # self.pos_conv_embed = Wav2Vec2ConformerPositionalConvEmbedding(config)
         self.layer_norm = nn.LayerNorm(config.hidden_size, eps=config.layer_norm_eps)
         self.dropout = nn.Dropout(config.hidden_dropout)
         self.layers = nn.ModuleList([Wav2Vec2ConformerEncoderLayer(config) for _ in range(config.num_hidden_layers)])
@@ -924,39 +925,29 @@ class Wav2Vec2ConformerEncoder(nn.Module):
         else:
             relative_position_embeddings = None
 
-        deepspeed_zero3_is_enabled = is_deepspeed_zero3_enabled()
-
         for i, layer in enumerate(self.layers):
             if output_hidden_states:
                 all_hidden_states = all_hidden_states + (hidden_states,)
 
-            # add LayerDrop (see https://arxiv.org/abs/1909.11556 for description)
-            dropout_probability = torch.rand([])
-
-            skip_the_layer = True if self.training and (dropout_probability < self.config.layerdrop) else False
-            if not skip_the_layer or deepspeed_zero3_is_enabled:
-                # under deepspeed zero3 all gpus must run in sync
-                if self.gradient_checkpointing and self.training:
-                    layer_outputs = self._gradient_checkpointing_func(
-                        layer.__call__,
-                        hidden_states,
-                        timestep_emb,
-                        attention_mask,
-                        relative_position_embeddings,
-                        output_attentions,
-                    )
-                else:
-                    layer_outputs = layer(
-                        hidden_states,
-                        timestep_emb,
-                        attention_mask=attention_mask,
-                        relative_position_embeddings=relative_position_embeddings,
-                        output_attentions=output_attentions,
-                    )
-                hidden_states = layer_outputs[0]
-
-            if skip_the_layer:
-                layer_outputs = (None, None)
+            # under deepspeed zero3 all gpus must run in sync
+            if self.gradient_checkpointing and self.training:
+                layer_outputs = self._gradient_checkpointing_func(
+                    layer.__call__,
+                    hidden_states,
+                    timestep_emb,
+                    attention_mask,
+                    relative_position_embeddings,
+                    output_attentions,
+                )
+            else:
+                layer_outputs = layer(
+                    hidden_states,
+                    timestep_emb,
+                    attention_mask=attention_mask,
+                    relative_position_embeddings=relative_position_embeddings,
+                    output_attentions=output_attentions,
+                )
+            hidden_states = layer_outputs[0]
 
             if output_attentions:
                 all_self_attentions = all_self_attentions + (layer_outputs[1],)
