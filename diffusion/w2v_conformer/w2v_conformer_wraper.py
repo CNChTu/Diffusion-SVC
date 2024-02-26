@@ -9,15 +9,14 @@ class Wav2Vec2ConformerWrapper(torch.nn.Module):
         self.timestep_embedding = Embedding(1000, config.hidden_size)
         self.input_proj = torch.nn.Linear(in_channels, config.hidden_size)
         self.output_proj = torch.nn.Linear(config.hidden_size, out_channels)
-        self.final_layer_norm = torch.nn.LayerNorm(config.hidden_size, eps=config.layer_norm_eps)
 
     def forward(self, input_values, timestep, attention_mask=None):
         timestep = timestep.to(torch.long)
         input_values = input_values.transpose(1, 2)
         x = self.input_proj(input_values)
         timestep_emb = self.timestep_embedding(timestep)
+        x = x + timestep_emb[:,None,:]
         x = self.model(x, timestep_emb, attention_mask=attention_mask).last_hidden_state
-        x = self.final_layer_norm(x)
         x = self.output_proj(x).transpose(1, 2)
         return Wav2Vec2ConformerWrapperOutPut(x)
 

@@ -828,6 +828,7 @@ class Wav2Vec2ConformerEncoderLayer(nn.Module):
         self.time_scale_and_shift_3 = AdaIN(embed_dim, embed_dim, only_scale=False)
         self.ffn2 = Wav2Vec2ConformerFeedForward(config)
         self.time_scale_3 = AdaIN(embed_dim, embed_dim, only_scale=True)
+        self.final_layer_norm = nn.LayerNorm(embed_dim)
 
     def forward(
         self,
@@ -873,7 +874,8 @@ class Wav2Vec2ConformerEncoderLayer(nn.Module):
         hidden_states = self.ffn2(hidden_states)
         hidden_states = hidden_states * 0.5 + residual
         hidden_states = self.time_scale_3(hidden_states, timestep_emb)
-
+        hidden_states = self.final_layer_norm(hidden_states)
+        
         return hidden_states, attn_weigts
 
 

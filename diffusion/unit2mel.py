@@ -157,48 +157,48 @@ class Unit2Mel(nn.Module):
             if n_spk is not None and n_spk > 1:
                 self.spk_embed = nn.Embedding(n_spk, n_hidden)
         # diffusion
-        # self.decoder = GaussianDiffusion(UNet1DConditionModel(in_channels=out_dims + n_hidden,
-        # out_channels=out_dims,
-        # block_out_channels=block_out_channels,
-        # norm_num_groups=8,
-        # cross_attention_dim = block_out_channels,
-        # attention_head_dim = n_heads,
-        # layers_per_block = n_layers,
-        # resnet_time_scale_shift='scale_shift'), 
-        # out_dims=out_dims,
-        # spec_norm=spec_norm,
-        # acoustic_scale=acoustic_scale)
-        
-        config = Wav2Vec2ConformerConfig(
-            hidden_size=n_hidden,
-            num_hidden_layers=n_layers,
-            num_attention_heads=n_heads,
-            intermediate_size=n_hidden*4,
-            hidden_act="gelu",
-            hidden_dropout=0.1,
-            activation_dropout=0.1,
-            attention_dropout=0.1,
-            feat_proj_dropout=0.0,
-            feat_quantizer_dropout=0.0,
-            final_dropout=0.1,
-            layerdrop=0.1,
-            initializer_range=0.02,
-            layer_norm_eps=1e-5,
-            feat_extract_norm="group",
-            feat_extract_activation="gelu",
-            conv_dim=block_out_channels,
-            conv_stride=(5, 2, 2, 2),
-            conv_kernel=(10, 3, 3, 3),
-            conv_bias=False
-        )
-
-        self.decoder = GaussianDiffusion(Wav2Vec2ConformerWrapper(in_channels=out_dims + n_hidden,
+        self.decoder = GaussianDiffusion(UNet1DConditionModel(in_channels=out_dims + n_hidden,
         out_channels=out_dims,
-        config=config
-        ), 
+        block_out_channels=block_out_channels,
+        norm_num_groups=8,
+        cross_attention_dim = block_out_channels,
+        attention_head_dim = n_heads,
+        layers_per_block = n_layers,
+        resnet_time_scale_shift='scale_shift'), 
         out_dims=out_dims,
         spec_norm=spec_norm,
         acoustic_scale=acoustic_scale)
+        
+        # config = Wav2Vec2ConformerConfig(
+        #     hidden_size=n_hidden,
+        #     num_hidden_layers=n_layers,
+        #     num_attention_heads=n_heads,
+        #     intermediate_size=n_hidden*4,
+        #     hidden_act="gelu",
+        #     hidden_dropout=0.1,
+        #     activation_dropout=0.1,
+        #     attention_dropout=0.1,
+        #     feat_proj_dropout=0.0,
+        #     feat_quantizer_dropout=0.0,
+        #     final_dropout=0.1,
+        #     layerdrop=0.1,
+        #     initializer_range=0.02,
+        #     layer_norm_eps=1e-5,
+        #     feat_extract_norm="group",
+        #     feat_extract_activation="gelu",
+        #     conv_dim=block_out_channels,
+        #     conv_stride=(5, 2, 2, 2),
+        #     conv_kernel=(10, 3, 3, 3),
+        #     conv_bias=False
+        # )
+
+        # self.decoder = GaussianDiffusion(Wav2Vec2ConformerWrapper(in_channels=out_dims + n_hidden,
+        # out_channels=out_dims,
+        # config=config
+        # ), 
+        # out_dims=out_dims,
+        # spec_norm=spec_norm,
+        # acoustic_scale=acoustic_scale)
 
     def forward(self, units, f0, volume, spk_id=None, spk_mix_dict=None, aug_shift=None,
                 gt_spec=None, infer=True, infer_speedup=10, method='dpm-solver', k_step=None, use_tqdm=True,
