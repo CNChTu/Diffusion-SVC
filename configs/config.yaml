@@ -57,6 +57,7 @@ model:
       start_lr: 1e-5
       clip_grad_norm: -1 # -1 means no clip
     model:
+      gradient_checkpointing: true
       encoder:
         num_hidden_layers: 6
         hidden_size: 512

@@ -3,12 +3,8 @@ from transformers.generation.logits_process import LogitsProcessor, LogitsProces
 import torch
 from torch import nn
 from text.symbols import *
-from torch.nn.utils.rnn import pad_sequence
 import torch.nn.functional as F
 from cluster import get_cluster_model
-
-
-from copy import deepcopy
 
 def get_model(mode = "phone", semantic_kmeans_num = 10000, codebook_path = "pretrain/semantic_codebook.pt", n_spk = 1, **kwargs):
     encoder_config = RoFormerConfig(
@@ -46,7 +42,8 @@ def get_model(mode = "phone", semantic_kmeans_num = 10000, codebook_path = "pret
         semantic_kmeans_num = semantic_kmeans_num,
         codebook_path = codebook_path,
         n_spk = n_spk,
-        use_flash_attn = kwargs["use_flash_attn"]
+        use_flash_attn = kwargs["use_flash_attn"],
+        gradient_checkpointing = kwargs["model"]["gradient_checkpointing"]
     )
 
     return model
@@ -74,11 +71,13 @@ class Roformer(nn.Module):
         codebook_path = "pretrain/semantic_codebook.pt",
         n_spk = 1,
         use_flash_attn = False,
+        gradient_checkpointing = False,
         **kwargs
         ):
         super().__init__()
         self.mode = mode
         self.n_spk = n_spk
+        self.gradient_checkpointing = gradient_checkpointing
         if "phone" in self.mode:
             token_size = len(symbols)
             # token_size += semantic_kmeans_num + num_tones
@@ -116,6 +115,10 @@ class Roformer(nn.Module):
         decoder_config.type_vocab_size = 1
         decoder_config.add_cross_attention = True
         self.semantic_decoder = RoFormerForCausalLM(decoder_config)
+        if self.gradient_checkpointing:
+            self.semantic_decoder.gradient_checkpointing_enable()
+            self.text_encoder.gradient_checkpointing_enable()
+
         self.semantic_decoder.prepare_inputs_for_generation = self.prepare_inputs_for_generation
         
         try:
