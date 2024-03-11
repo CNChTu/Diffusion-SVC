@@ -26,7 +26,7 @@ def preprocess_utterance(rank, units_path, model,in_dir, out_dir, num_workers, u
             out_path = os.path.join(out_dir, unit_path)
             os.makedirs(os.path.dirname(out_path), exist_ok=True)
             np.save(out_path, token)
-        elif units_quantize_type == "vq":
+        elif units_quantize_type == "vq" or units_quantize_type == "vqae":
             unit = torch.from_numpy(np.load(os.path.join(in_dir, "units" , unit_path))).to(f"cuda:{rank%gpu_num}")[None,:]
             _, token, _ = model(unit)
             token = token[0].detach().cpu().numpy()
@@ -86,6 +86,11 @@ if __name__ == "__main__":
             )
         model_para = torch.load(args.model.text2semantic.codebook_path)
         model.load_state_dict(model_para["model"])
+    elif args.train.units_quantize_type == "vqae":
+        from vq_ae.model import get_model
+        model = get_model(args)
+        model.load_state_dict(torch.load(args.model.text2semantic.codebook_path)["model"])
+        model.set_eval_mode()
     else:
         raise ValueError(' [x] Unknown quantize_type: ' + args.train.units_quantize_type)
     # preprocess training set
