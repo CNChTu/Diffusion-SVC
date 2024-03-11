@@ -248,7 +248,7 @@ def train(args, initial_global_step, model, optimizer, scheduler, vocoder, loade
                 last_val_step = saver.global_step - args.train.interval_val * (args.train.last_save_model_num + 1)
                 saver.delete_model(postfix=f'{last_val_step}')
 
-                if args.train.units_quantize_type == "vq" and quantizer is not None:
+                if args.train.units_quantize_type == "vq" and quantizer is not None and not args.train.vq_freeze:
                     # save latest
                     unwrap_quantizer = accelerator.unwrap_model(quantizer)
                     if saver.global_step % args.train.interval_force_save == 0:

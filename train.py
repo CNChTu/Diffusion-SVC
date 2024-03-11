@@ -103,7 +103,8 @@ if __name__ == '__main__':
                 codebook_dim = 32,
                 decay = 0.8,             
                 commitment_weight = 1.,
-                use_cosine_sim=True
+                use_cosine_sim=True,
+                freeze_codebook=args.train.vq_freeze
             ).to(device)
         else:
             raise ValueError(' [x] Unknown quantize_type: ' + args.train.units_quantize_type)

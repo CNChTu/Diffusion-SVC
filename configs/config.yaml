@@ -90,6 +90,7 @@ infer:
   method: 'dpm-solver' # 'ddim', 'pndm', 'dpm-solver' or 'unipc'
 env:
   expdir: exp/diffusion-test
+  vq_expdir: exp/vq
   gpu_id: 0
 train:
   num_workers: 2 # If your cpu and gpu are both very strong, set to 0 may be faster!
@@ -110,6 +111,7 @@ train:
   last_save_model_num: 3
   use_units_quantize: true # If you want to use your own quantization, set to true
   units_quantize_type: kmeans # 'kmean' or 'vq'
+  vq_freeze: true # If true, the vq layer will be frozen
   warm_up_steps: 1000
   start_lr: 1e-5
   clip_grad_norm: -1 # -1 means no clip
