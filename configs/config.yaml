@@ -102,7 +102,7 @@ train:
   only_load_token: false # If true, only load the token, not the semantic
   epochs: 100000
   interval_log: 10
-  interval_val: 20
+  interval_val: 2000
   interval_force_save: 10000
   lr: 0.0001
   decay_step: 100000
