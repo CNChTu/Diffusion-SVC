@@ -106,10 +106,21 @@ if __name__ == '__main__':
                 use_cosine_sim=True,
                 freeze_codebook=args.train.vq_freeze
             ).to(device)
+        elif args.train.units_quantize_type == "vqae":
+            from vq_ae.model import get_model
+            quantizer = get_model(args)
+            quantizer.load_state_dict(torch.load(args.model.text2semantic.codebook_path)["model"])
+            quantizer.set_eval_mode()
+            quantizer = quantizer.to(device)
+            if args.train.only_load_token:
+                quantizer = quantizer.quantizer
         else:
             raise ValueError(' [x] Unknown quantize_type: ' + args.train.units_quantize_type)
         # load parameters
-        optimizer = torch.optim.AdamW(itertools.chain(model.parameters(),quantizer.parameters()))
+        if args.train.vq_freeze:
+            optimizer = torch.optim.AdamW(model.parameters())
+        else:
+            optimizer = torch.optim.AdamW(itertools.chain(model.parameters(),quantizer.parameters()))
     else:
         quantizer = None
         # load parameters

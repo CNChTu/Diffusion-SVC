@@ -178,10 +178,18 @@ def train(args, initial_global_step, model, optimizer, scheduler, vocoder, loade
 
                 if quantizer is not None:
                     if args.train.units_quantize_type == "kmeans":
-                        data['units'] = quantizer(data['units']).detach()
-                        commit_loss = 0
-                    elif args.train.units_quantize_type == "vq":
-                        data['units'], indices, commit_loss = quantizer(data['units'])
+                        if args.train.only_load_token:
+                            data['units'] = quantizer.decode(data['units'])
+                            commit_loss = 0
+                        else:
+                            data['units'] = quantizer(data['units']).detach()
+                            commit_loss = 0
+                    elif args.train.units_quantize_type == "vq" or args.train.units_quantize_type == "vqae":
+                        if args.train.only_load_token:
+                            data['units'] = quantizer.project_out(quantizer.codebook[data['units']])
+                            commit_loss = 0
+                        else:
+                            data['units'], indices, commit_loss = quantizer(data['units'])
                     else:
                         raise ValueError(' [x] Unknown quantize_type: ' + args.train.units_quantize_type)
                 else:

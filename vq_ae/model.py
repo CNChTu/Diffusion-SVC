@@ -22,11 +22,22 @@ class VQTransformer(nn.Module):
         self.transformer_decoder = TransformerEncoder(encoder_layers, num_layers)
     
     def forward(self, units, **kwargs):
-        x = self.transformer_encoder(units)
-        x, indices, commit_loss = self.quantizer(x)
-        tgt = self.transformer_decoder(x)
-        l1_loss = F.smooth_l1_loss(tgt, units)
-        return l1_loss, commit_loss
+        training = kwargs.get('training', self.training)
+        if training:
+            x = self.transformer_encoder(units)
+            x, indices, commit_loss = self.quantizer(x)
+            tgt = self.transformer_decoder(x)
+            l1_loss = F.smooth_l1_loss(tgt, units)
+            return l1_loss, commit_loss
+        else:
+            x = self.transformer_encoder(units)
+            x, indices, commit_loss = self.quantizer(x)
+            return x, indices, commit_loss
+    
+    def set_eval_mode(self):
+        self.transformer_decoder = self.transformer_decoder.cpu()
+        del self.transformer_decoder
+        self.eval()
 
 def get_model(args):
     return VQTransformer(

@@ -12,16 +12,16 @@ from cluster import get_cluster_model
 from tools.tools import clip_grad_value_
 
 @torch.no_grad()
-def test(model, loader_test, accelerator):
+def test(args, model, loader_test, accelerator):
     print(' [*] testing...')
     model.eval()
 
     # losses
     test_loss = 0.
-    topk_acc = 0
     # intialization
     num_batches = len(loader_test)
-
+    count = torch.zeros(args.model.text2semantic.semantic_kmeans_num).to(accelerator.device)
+    
     # run
     with torch.no_grad():
         for bidx, data in enumerate(loader_test):
@@ -38,29 +38,29 @@ def test(model, loader_test, accelerator):
             # forward
             st_time = time.time()
 
-            if semantic_token[:,-1] == model.semantic_eos_token_id:
-                semantic_token = semantic_token[:,1:-1]
-            else:
-                semantic_token = semantic_token[:,1:]
+            # loss
+            loss_1, loss_2 = model(
+                training = True, **data
+            )
+            _, indices, _ = model(**data)
+            count += torch.bincount(indices.flatten(), minlength=args.model.text2semantic.semantic_kmeans_num)
 
             ed_time = time.time()
 
             run_time = ed_time - st_time
             print('Run time: {}'.format(run_time))
-
-            # loss
-            loss_1, loss_2 = model(
-                **data
-                )
+            
             test_loss += loss_1.item() + loss_2.item()
 
+    
+    utilization = torch.sum(count > 0).item() / args.model.text2semantic.semantic_kmeans_num
+    print(f' Codebook utilization: {utilization*100}%')
     # report
     test_loss /= num_batches
-    topk_acc /= num_batches
 
     # check
     print(' [test_loss] test_loss:', test_loss)
-    return test_loss, topk_acc
+    return test_loss
 
 def train(args, initial_global_step, model, optimizer, scheduler, loader_train, loader_valid, accelerator):
         # saver
@@ -72,7 +72,6 @@ def train(args, initial_global_step, model, optimizer, scheduler, loader_train, 
     params_count = utils.get_network_paras_amount({'model': model})
     saver.log_info('--- model size ---')
     saver.log_info(params_count)
-    saver.log_info('load semantic codebook')
     
     clip_grad_norm = float(args.train.clip_grad_norm) if args.train.clip_grad_norm is not -1 else None
 
@@ -153,7 +152,7 @@ def train(args, initial_global_step, model, optimizer, scheduler, loader_train, 
                 saver.delete_model(postfix=f'{last_val_step}_semantic_codebook')
 
                 # run testing set
-                test_loss = test(unwrap_model, loader_valid, accelerator)
+                test_loss = test(args, unwrap_model, loader_valid, accelerator)
 
                 # log loss
                 saver.log_info(

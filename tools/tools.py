@@ -507,6 +507,8 @@ def units_forced_alignment(units, audio = None, sample_rate = None, hop_size = N
         unit_is_tensor = False
     if units_dim == 2:
         units = units.unsqueeze(0)
+    if units_dim == 1:
+        units = units[None,:,None]
     if units_forced_mode == 'left':
         assert scale_factor is not None
         index = torch.clamp(torch.round(scale_factor * torch.arange(n_frames)).long(), max=units.size(1) - 1)
@@ -530,6 +532,8 @@ def units_forced_alignment(units, audio = None, sample_rate = None, hop_size = N
         units_aligned = units_aligned.numpy()
     if units_dim == 2:
         units_aligned = units_aligned.squeeze(0)
+    if units_dim == 1:
+        units_aligned = units_aligned.squeeze(0).squeeze(-1)
     return units_aligned
 
 class Audio2HubertSoft(torch.nn.Module):

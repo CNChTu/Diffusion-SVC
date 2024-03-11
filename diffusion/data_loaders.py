@@ -43,7 +43,8 @@ def get_data_loaders(args, whole_audio=False, accelerator=None):
         accelerator=accelerator,
         is_vaegan=True if args.vocoder.type == "hifi-vaegan" else False,
         only_mean=args.vocoder.only_mean,
-        clamp = args.vocoder.clamp
+        clamp = args.vocoder.clamp,
+        only_load_token = args.train.only_load_token
     )
     loader_train = torch.utils.data.DataLoader(
         data_train,
@@ -79,7 +80,8 @@ def get_data_loaders(args, whole_audio=False, accelerator=None):
         accelerator=None,
         is_vaegan=True if args.vocoder.type == "hifi-vaegan" else False,
         only_mean=args.vocoder.only_mean,
-        clamp = args.vocoder.clamp
+        clamp = args.vocoder.clamp,
+        only_load_token = args.train.only_load_token
     )
     loader_valid = torch.utils.data.DataLoader(
         data_valid,
@@ -115,7 +117,8 @@ class AudioDataset(Dataset):
             accelerator=None,
             is_vaegan=False,
             only_mean=False,
-            clamp = -1
+            clamp = -1,
+            only_load_token=False
     ):
         super().__init__()
 
@@ -127,6 +130,7 @@ class AudioDataset(Dataset):
         self.use_spk_encoder = use_spk_encoder
         self.spk_encoder_mode = spk_encoder_mode
         self.is_vaegan  = is_vaegan
+        self.only_load_token = only_load_token
 
         if file_list is not None:
             self.paths = file_list
@@ -218,10 +222,16 @@ class AudioDataset(Dataset):
                     aug_mel = torch.from_numpy(aug_mel).to(device)
                 else:
                     aug_mel = mel
-                path_units = os.path.join(self.path_root, 'units', name_ext) + '.npy'
-                units = np.load(path_units)
-                units_len = units.shape[0]
-                units = torch.from_numpy(units).to(device)
+                if only_load_token:
+                    path_units = os.path.join(self.path_root, 'semantic_token', name_ext) + '.npy'
+                    units = np.load(path_units).astype(np.float32)
+                    units_len = units.shape[0]
+                    units = torch.from_numpy(units).to(device)
+                else:
+                    path_units = os.path.join(self.path_root, 'units', name_ext) + '.npy'
+                    units = np.load(path_units)
+                    units_len = units.shape[0]
+                    units = torch.from_numpy(units).to(device)
 
                 spk_emb = torch.rand(1, 1)
                 if use_spk_encoder and (spk_encoder_mode == 'each_spk'):
@@ -319,17 +329,29 @@ class AudioDataset(Dataset):
         # load units
         units = data_buffer.get('units')
         if units is None:
-            units = os.path.join(self.path_root, 'units', name_ext) + '.npy'
-            units = np.load(units)
-            units = units_forced_alignment(units, n_frames=mel.shape[0], units_forced_mode=self.units_forced_mode)
-            units_len = units.shape[0]
-            units = torch.from_numpy(units).float()
+            if self.only_load_token:
+                path_units = os.path.join(self.path_root, 'semantic_token', name_ext) + '.npy'
+                units = np.load(path_units).astype(np.float32)
+                units = units_forced_alignment(units, n_frames=mel.shape[0], units_forced_mode="nearest")
+                units_len = units.shape[0]
+                units = torch.from_numpy(units).long()
+            else:
+                path_units = os.path.join(self.path_root, 'units', name_ext) + '.npy'
+                units = np.load(path_units)
+                units = units_forced_alignment(units, n_frames=mel.shape[0], units_forced_mode=self.units_forced_mode)
+                units_len = units.shape[0]
+                units = torch.from_numpy(units).float()
         else:
             units = units_forced_alignment(units, n_frames=mel.shape[0], units_forced_mode=self.units_forced_mode)
-        
-        units = units[start_frame: start_frame + units_frame_len, :]
+       
+        if self.only_load_token:
+            units = units[start_frame: start_frame + units_frame_len]
+        else:
+            units = units[start_frame: start_frame + units_frame_len, :]
+
         mel = mel[start_frame: start_frame + units_frame_len, :]
-        
+        if self.only_load_token:
+            units = units.long()
         # load spk_emb
         spk_emb = data_buffer.get('spk_emb')
         if self.use_spk_encoder:

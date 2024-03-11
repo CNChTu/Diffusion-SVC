@@ -99,9 +99,10 @@ train:
   cache_all_data: false # Save Internal-Memory or Graphics-Memory if it is false, but may be slow
   cache_device: 'cpu' # Set to 'cuda' to cache the data into the Graphics-Memory, fastest speed for strong gpu
   cache_fp16: true
+  only_load_token: false # If true, only load the token, not the semantic
   epochs: 100000
   interval_log: 10
-  interval_val: 2000
+  interval_val: 20
   interval_force_save: 10000
   lr: 0.0001
   decay_step: 100000
@@ -111,7 +112,7 @@ train:
   last_save_model_num: 3
   use_units_quantize: true # If you want to use your own quantization, set to true
   units_quantize_type: kmeans # 'kmean' or 'vq'
-  vq_freeze: true # If true, the vq layer will be frozen
+  vq_freeze: false # If true, the vq layer will be frozen
   warm_up_steps: 1000
   start_lr: 1e-5
   clip_grad_norm: -1 # -1 means no clip

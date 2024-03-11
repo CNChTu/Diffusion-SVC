@@ -9,7 +9,6 @@ import yaml
 import datetime
 import torch
 import matplotlib.pyplot as plt
-from . import utils
 from torch.utils.tensorboard import SummaryWriter
 
 
@@ -20,7 +19,7 @@ class Saver(object):
             initial_global_step=-1
             ):
 
-        self.expdir = args.train.vq_expdir
+        self.expdir = args.env.vq_expdir
         self.sample_rate = args.data.sampling_rate
 
         # cold start
@@ -134,11 +133,6 @@ class Saver(object):
                 'global_step': self.global_step,
                 'model': model.state_dict()}, path_pt)
 
-        # to json
-        if to_json:
-            path_json = os.path.join(
-                self.expdir, name + '.json')
-            utils.to_json(path_pt, path_json)
 
     def delete_model(self, name='model', postfix=''):
         # path
