@@ -45,6 +45,9 @@ if __name__ == '__main__':
     if args.model.text2semantic.type == "roformer":
         from text2semantic.roformer.train import train
         from text2semantic.roformer.roformer import get_model
+    if args.model.text2semantic.type == "llama":
+        from text2semantic.llama.train import train
+        from text2semantic.llama.llama import get_model
     else:
         raise ValueError(f" [x] Unknown Model: {args.model.text2semantic.type}")
     

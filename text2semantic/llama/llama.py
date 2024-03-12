@@ -8,6 +8,33 @@ from cluster import get_cluster_model, get_cluster_result, get_cluster_center_re
 
 from torch.nn.utils.rnn import pad_sequence, pack_sequence
 
+def get_model(mode = "phone", semantic_kmeans_num = 10000, codebook_path = "pretrain/semantic_codebook.pt", n_spk = 1, **kwargs):
+    decoder_config = LlamaConfig(
+            hidden_size=kwargs["model"]["decoder"]["hidden_size"],
+            num_attention_heads=kwargs["model"]["decoder"]["num_attention_heads"],
+            num_hidden_layers=kwargs["model"]["decoder"]["num_hidden_layers"],
+            intermediate_size=kwargs["model"]["decoder"]["intermediate_size"],
+            hidden_act=kwargs["model"]["decoder"]["hidden_act"],
+            hidden_dropout_prob=kwargs["model"]["decoder"]["hidden_dropout_prob"],
+            attention_probs_dropout_prob=kwargs["model"]["decoder"]["attention_probs_dropout_prob"],
+            initializer_range=kwargs["model"]["decoder"]["initializer_range"],
+            layer_norm_eps=float(kwargs["model"]["decoder"]["layer_norm_eps"]),
+            max_position_embeddings = kwargs["model"]["decoder"]["max_position_embeddings"],
+            is_decoder = True
+    )
+
+    model = Llama(
+        config = decoder_config,
+        mode = mode,
+        semantic_kmeans_num = semantic_kmeans_num,
+        codebook_path = codebook_path,
+        n_spk = n_spk,
+        use_flash_attn = kwargs["use_flash_attn"],
+        gradient_checkpointing = kwargs["model"]["gradient_checkpointing"]
+    )
+
+    return model
+
 class EndGateLogitsProcessor(LogitsProcessor):
     def __init__(self, end_gate_threshold: float, eos_token_id: int):
         
@@ -28,6 +55,7 @@ class Llama(nn.Module):
         semantic_kmeans_num = 10000,
         codebook_path = "pretrain/semantic_codebook.pt",
         use_flash_attn = False,
+        gradient_checkpointing = False
         ):
         super().__init__()
         self.mode = mode
@@ -39,7 +67,12 @@ class Llama(nn.Module):
             self.BOS = token_size
             self.EOS = token_size + 1
             self.PAD = token_size + 2
+            self.tone_token_shift = token_size + 3
             self.num_tones = num_tones
+            self.TONE_BOS = self.tone_token_shift + self.num_tones
+            self.TONE_EOS = self.tone_token_shift + self.num_tones + 1
+            self.TONE_PAD = self.tone_token_shift + self.num_tones + 2
+            token_size += self.num_tones + 3
             # self.tone_emb = nn.Embedding(num_tones, config.hidden_size)
             # self.phone_emb = nn.Embedding(token_size + 2, config.hidden_size)
         if "text" in self.mode:
@@ -56,6 +89,11 @@ class Llama(nn.Module):
         config.bos_token_id = self.semantic_token_shift + semantic_kmeans_num
         config.eos_token_id = self.semantic_token_shift + semantic_kmeans_num + 1
         config.pad_token_id = self.semantic_token_shift + semantic_kmeans_num + 2
+
+        self.semantic_bos_token_id = config.bos_token_id
+        self.semantic_eos_token_id = config.eos_token_id
+        self.semantic_pad_token_id = config.pad_token_id
+
         token_size += semantic_kmeans_num + 3
 
         config.vocab_size = token_size
@@ -63,7 +101,9 @@ class Llama(nn.Module):
         if use_flash_attn:
             config._attn_implementation = "flash_attention_2"
         self.llama = LlamaForCausalLM(config=config)
-        
+        if gradient_checkpointing:
+            self.llama.gradient_checkpointing_enable()
+            
         try:
             self.quantizer = get_cluster_model(codebook_path)
 
@@ -93,7 +133,8 @@ class Llama(nn.Module):
         if input_ids == None:
             B,T = phone.shape
             if self.mode == "phone":
-                phone = torch.cat([torch.tensor([[self.BOS]]), phone, torch.tensor([[self.EOS]])], dim=1)
+                tone += self.tone_token_shift
+                phone = torch.cat([torch.tensor([[self.BOS]]), phone, torch.tensor([[self.EOS]]), torch.tensor([[self.TONE_BOS]]), tone, torch.tensor([[self.TONE_EOS]])], dim=1)
             elif self.mode == "text":
                 phone = phone
                 
@@ -101,7 +142,7 @@ class Llama(nn.Module):
             semantic = torch.cat([torch.tensor([[self.config.bos_token_id]]), semantic, torch.tensor([[self.config.eos_token_id]])], dim=1)
 
             input_ids = torch.cat([phone, semantic], dim=1)
-            
+        
         outputs = self.llama(
             input_ids=input_ids,
             attention_mask=attention_mask,
@@ -124,7 +165,7 @@ class Llama(nn.Module):
                  phone,
                  tone,
                  attention_mask=None,
-                 use_cache=None,
+                 use_cache=True,
                  max_length=1024,
                  do_sample=True,
                  temperature=1.0,
@@ -147,7 +188,8 @@ class Llama(nn.Module):
             logits_processor = None
 
         if self.mode == "phone":
-            phone = torch.cat([torch.tensor([[self.BOS]]), phone, torch.tensor([[self.EOS]])], dim=1)
+            tone += self.tone_token_shift
+            phone = torch.cat([torch.tensor([[self.BOS]]), phone, torch.tensor([[self.EOS]]), torch.tensor([[self.TONE_BOS]]), tone, torch.tensor([[self.TONE_EOS]])], dim=1)
         elif self.mode == "text":
             phone = phone
             
@@ -196,7 +238,7 @@ if __name__ == '__main__':
     phone = torch.LongTensor([[1,2,3,4,5,6,7,8,9,10,11,12,13,14,15]])
     tone = torch.LongTensor([[1,1,1,1,1,1,1,1,1,1,1,1,1,1,1]])
     semantic = torch.LongTensor([[1,2,3,4,5,6,7,8,9,10,11,12,13,14,15]])
-    labels = torch.LongTensor([[1,2,3,4,5,6,7,8,9,10,11,1,2,3,4,5,6,7,8,9,10,11,1,2,3,8,9,10,11,-100,-100,-100,-100,-100]])
+    labels = torch.cat([torch.tensor([[b.BOS]]), phone, torch.tensor([[b.EOS]]), torch.tensor([[b.TONE_BOS]]), tone, torch.tensor([[b.TONE_EOS]]), torch.tensor([[b.config.bos_token_id]]), semantic, torch.tensor([[b.config.eos_token_id]])], dim=1)
     outputs = b(phone=phone, tone=tone, semantic=semantic,labels=labels)
     print(outputs)
     generate = b.generate(phone=phone, tone=tone,end_gate_threshold=0.9)

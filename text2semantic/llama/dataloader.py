@@ -107,7 +107,9 @@ class TextDataset(Dataset):
                     semantic_tokens = np.load(path_semantic_token)
                     semantic_tokens = semantic_tokens + self.model.semantic_token_shift
                     semantic_tokens = np.concatenate([[self.model.semantic_bos_token_id],semantic_tokens,[self.model.semantic_eos_token_id]] ,axis=-1)
-                    phones = np.concatenate(([self.model.BOS],phones,[self.model.EOS]),axis=-1)
+                    if self.model.mode == "phone":
+                        tones += self.model.tone_token_shift
+                        phones = np.concatenate((np.array([self.model.BOS]), phones ,np.array([self.model.EOS]), np.array([self.model.TONE_BOS]), tones , np.array([self.model.TONE_EOS])),axis=-1)
                     input_ids = np.concatenate((phones,semantic_tokens),axis=-1)
 
                     input_length = len(input_ids)
@@ -229,8 +231,18 @@ def colle_fn(batch):
 
 if __name__  == '__main__':
     from train_log import utils
+    from transformers import LlamaConfig
+    from text2semantic.llama.llama import Llama
+    a = LlamaConfig(
+         hidden_size=768,
+            num_attention_heads=4,
+            num_hidden_layers=4,
+            num_hidden_groups=1,
+            intermediate_size=512,
+    )
+    b = Llama(config=a,semantic_kmeans_num=2048)
     args = utils.load_config("configs/config.yaml")
     print(args)
-    loader_train, loader_valid = get_data_loaders(args)
+    loader_train, loader_valid = get_data_loaders(args, b)
     for batch in loader_train:
-        print(batch["phone"].shape)
+        print(batch["input_ids"].shape)
