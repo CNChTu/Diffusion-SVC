@@ -53,6 +53,7 @@ class Llama(nn.Module):
         config: LlamaConfig,
         mode = "phone",
         semantic_kmeans_num = 10000,
+        n_spk = 1,
         codebook_path = "pretrain/semantic_codebook.pt",
         use_flash_attn = False,
         gradient_checkpointing = False
@@ -114,9 +115,9 @@ class Llama(nn.Module):
 
     def forward(
         self,
-        phone,
-        tone,
-        semantic,
+        phone=None,
+        tone=None,
+        semantic=None,
         input_ids=None,
         attention_mask=None,
         token_type_ids=None,
@@ -124,13 +125,13 @@ class Llama(nn.Module):
         head_mask=None,
         inputs_embeds=None,
         labels=None,
-        use_cache=None,
+        use_cache=False,
         output_attentions=None,
         output_hidden_states=None,
         return_dict=None,
         **kwargs
     ):
-        if input_ids == None:
+        if input_ids is None:
             B,T = phone.shape
             if self.mode == "phone":
                 tone += self.tone_token_shift
@@ -162,8 +163,9 @@ class Llama(nn.Module):
     
     @torch.no_grad()
     def generate(self,
-                 phone,
-                 tone,
+                 phone=None,
+                 tone=None,
+                 input_ids=None,
                  attention_mask=None,
                  use_cache=True,
                  max_length=1024,
@@ -186,14 +188,14 @@ class Llama(nn.Module):
 
         if len(logits_processor) == 0:
             logits_processor = None
-
-        if self.mode == "phone":
-            tone += self.tone_token_shift
-            phone = torch.cat([torch.tensor([[self.BOS]]), phone, torch.tensor([[self.EOS]]), torch.tensor([[self.TONE_BOS]]), tone, torch.tensor([[self.TONE_EOS]])], dim=1)
-        elif self.mode == "text":
-            phone = phone
-            
-        input_ids = torch.cat([phone, torch.tensor([[self.config.bos_token_id]])], dim=1)
+        
+        if phone is not None:
+            if self.mode == "phone":
+                tone += self.tone_token_shift
+                phone = torch.cat([torch.tensor([[self.BOS]]), phone, torch.tensor([[self.EOS]]), torch.tensor([[self.TONE_BOS]]), tone, torch.tensor([[self.TONE_EOS]])], dim=1)
+            elif self.mode == "text":
+                phone = phone
+            input_ids = torch.cat([phone, torch.tensor([[self.config.bos_token_id]])], dim=1)
         
         if num_beams == 1:
             early_stopping = False

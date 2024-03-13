@@ -5,6 +5,8 @@ def get_data_loaders(args, model, accelerate = None):
     model_type = args.model.text2semantic.type
     if model_type == "roformer":
         from text2semantic.roformer.dataloader import get_data_loaders
+    elif model_type == "llama":
+        from text2semantic.llama.dataloader import get_data_loaders
     else:
         raise ValueError(f" [x] Unknown Model: {model_type}")
     
@@ -23,6 +25,8 @@ def get_language_model(**args):
     model_type = args["type"]
     if model_type == "roformer":
         from text2semantic.roformer.roformer import get_model
+    elif model_type == "llama":
+        from text2semantic.llama.llama import get_model
     else:
         raise ValueError(f" [x] Unknown Model: {model_type}")
     

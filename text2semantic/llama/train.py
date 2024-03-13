@@ -101,7 +101,7 @@ def train(args, initial_global_step, model, optimizer, scheduler, diffusion_mode
     saver.log_info(params_count)
     saver.log_info('load semantic codebook')
     
-    clip_grad_norm = float(args.model.text2semantic.train.clip_grad_norm) if args.model.text2semantic.train.clip_grad_norm is not -1 else None
+    clip_grad_norm = float(args.model.text2semantic.train.clip_grad_norm) if args.model.text2semantic.train.clip_grad_norm != -1 else None
 
     if args.train.units_quantize_type == "kmeans":
         codebook = get_cluster_model(args.model.text2semantic.codebook_path)
@@ -162,17 +162,17 @@ def train(args, initial_global_step, model, optimizer, scheduler, diffusion_mode
                             data[k][data[k] == -100] = accelerator.unwrap_model(model).num_tones
                         if k == "semantic":
                             data[k][data[k] == -100] = accelerator.unwrap_model(model).semantic_pad_token_id
+                        if k == "input_ids":
+                            data[k][data[k] == -100] = accelerator.unwrap_model(model).semantic_pad_token_id
                 # forward
                 loss = model(**data).loss
-                grad_norm = clip_grad_value_(model.parameters(), clip_grad_norm)
-
-                loss += grad_norm
 
                 # handle nan loss
                 if torch.isnan(loss):
                     raise ValueError(' [x] nan loss ')
                 else:
                     accelerator.backward(loss)
+                    grad_norm = clip_grad_value_(model.parameters(), clip_grad_norm)
                     optimizer.step()
                     scheduler.step()
 

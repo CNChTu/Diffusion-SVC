@@ -121,7 +121,8 @@ if __name__ == '__main__':
             semantic_embedding = semantic_embedding.to(device)
         else:
             raise ValueError(' [x] Unknown quantize_type: ' + args.train.units_quantize_type)
-
+        
+        args.model.text2semantic.model.gradient_checkpointing = False
         lm = get_language_model(**args.model.text2semantic).to(device)
         lm.load_state_dict(torch.load(cmd.language_model, map_location=torch.device(device))["model"])
         lm.eval()

@@ -33,7 +33,8 @@ def get_data_loaders(args,model, accelerate = None):
         use_cache = args.model.text2semantic.train.cache_all_data,
         n_spk = args.model.text2semantic.model.n_spk,
         model = model,
-        accelerate = None
+        accelerate = None,
+        is_eval=True
     )
     loader_valid = torch.utils.data.DataLoader(
         data_valid,
@@ -54,7 +55,8 @@ class TextDataset(Dataset):
             extensions=['npy'],
             accelerate=None,
             model = None,
-            n_spk = None
+            n_spk = None,
+            is_eval = False
     ):
         super().__init__()
 
@@ -64,6 +66,7 @@ class TextDataset(Dataset):
         self.use_cache = use_cache
         self.n_spk = n_spk
         self.model = model
+        self.is_eval = is_eval
 
         self.paths = traverse_dir(
             self.path_utt_root,
@@ -108,15 +111,19 @@ class TextDataset(Dataset):
                     semantic_tokens = semantic_tokens + self.model.semantic_token_shift
                     semantic_tokens = np.concatenate([[self.model.semantic_bos_token_id],semantic_tokens,[self.model.semantic_eos_token_id]] ,axis=-1)
                     if self.model.mode == "phone":
-                        tones += self.model.tone_token_shift
-                        phones = np.concatenate((np.array([self.model.BOS]), phones ,np.array([self.model.EOS]), np.array([self.model.TONE_BOS]), tones , np.array([self.model.TONE_EOS])),axis=-1)
-                    input_ids = np.concatenate((phones,semantic_tokens),axis=-1)
+                        phones_be = np.concatenate(([self.model.BOS],phones,[self.model.EOS]),axis=-1)
+                        tones_be = np.concatenate(([self.model.TONE_BOS],(tones + self.model.tone_token_shift),[self.model.TONE_EOS]),axis=-1)
+                    else:
+                        phones_be = phones
+                        tones_be = []
+                    input_ids = np.concatenate((phones_be,tones_be,semantic_tokens),axis=-1)
 
                     input_length = len(input_ids)
 
                     self.data_buffer[name_ext] = {
                         'input_ids': input_ids,
                         'tones': tones,
+                        'phones': phones,
                         'lang_ids': lang_ids,
                         'word2ph': word2ph,
                         'input_length': input_length,
@@ -161,14 +168,20 @@ class TextDataset(Dataset):
                 semantic_tokens = np.load(path_semantic_token)
                 semantic_tokens = semantic_tokens + self.model.semantic_token_shift
                 semantic_tokens = np.concatenate([[self.model.semantic_bos_token_id],semantic_tokens,[self.model.semantic_eos_token_id]] ,axis=-1)
-                phones = np.concatenate(([self.model.BOS],phones,[self.model.EOS]),axis=-1)
-                input_ids = np.concatenate((phones,semantic_tokens),axis=-1)
+                if self.model.mode == "phone":
+                    phones_be = np.concatenate(([self.model.BOS],phones,[self.model.EOS]),axis=-1)
+                    tones_be = np.concatenate(([self.model.TONE_BOS],(tones + self.model.tone_token_shift),[self.model.TONE_EOS]),axis=-1)
+                else:
+                    phones_be = phones
+                    tones_be = []
+                input_ids = np.concatenate((phones_be,tones_be,semantic_tokens),axis=-1)
 
                 input_length = len(input_ids)
 
                 data_buffer = {
                     'input_ids': input_ids,
                     'tones': tones,
+                    'phones': phones,
                     'lang_ids': lang_ids,
                     'word2ph': word2ph,
                     'input_length': input_length,
@@ -186,13 +199,24 @@ class TextDataset(Dataset):
     def get_data(self, data_buffer):
         attention_mask = self.get_attention_mask(data_buffer['input_length'])
         
-        rtn = {
-            'input_ids': torch.LongTensor(data_buffer['input_ids'].astype(np.int64)),
-            'labels': torch.LongTensor(data_buffer['input_ids'].astype(np.int64)),
-            'attention_mask': attention_mask,
-            'spk_id': data_buffer['spk_id'],
-            'name':data_buffer['name_ext']
-        }
+        if self.is_eval:
+            rtn = {
+                'input_ids': torch.LongTensor(data_buffer['input_ids'].astype(np.int64)),
+                'phone': torch.LongTensor(data_buffer['phones'].astype(np.int64)),
+                'tone': torch.LongTensor(data_buffer['tones'].astype(np.int64)),
+                'labels': torch.LongTensor(data_buffer['input_ids'].astype(np.int64)),
+                'attention_mask': attention_mask,
+                'spk_id': data_buffer['spk_id'],
+                'name':data_buffer['name_ext']
+            }
+        else:
+            rtn = {
+                'input_ids': torch.LongTensor(data_buffer['input_ids'].astype(np.int64)),
+                'labels': torch.LongTensor(data_buffer['input_ids'].astype(np.int64)),
+                'attention_mask': attention_mask,
+                'spk_id': data_buffer['spk_id'],
+                'name':data_buffer['name_ext']
+            }
 
         return rtn
 
@@ -210,6 +234,9 @@ def colle_fn(batch):
     attention_mask = []
     spk_id_seq = []
     name = []
+    phone = []
+    tone = []
+
     for batch_item in batch:
         input_ids.append(batch_item['input_ids'])
         labels.append(batch_item['labels'])
@@ -219,8 +246,13 @@ def colle_fn(batch):
         else:
             spk_id_seq = None
         name.append(batch_item['name'])
+        if 'phone' in batch_item:
+            phone.append(batch_item['phone'])
+            tone.append(batch_item['tone'])
     rtn = {
             'input_ids': pad_sequence(input_ids, batch_first=True, padding_value=-100),
+            'phone': pad_sequence(phone, batch_first=True, padding_value=-100) if len(phone) > 0 else None,
+            'tone': pad_sequence(tone, batch_first=True, padding_value=-100) if len(tone) > 0 else None,
             'labels': pad_sequence(labels, batch_first=True, padding_value=-100),
             'attention_mask': pad_sequence(attention_mask, batch_first=True, padding_value=0),
             'spk_id': pad_sequence(spk_id_seq, batch_first=True, padding_value=0) if spk_id_seq is not None else None,
