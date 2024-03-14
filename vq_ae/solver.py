@@ -93,7 +93,6 @@ def train(args, initial_global_step, model, optimizer, scheduler, loader_train, 
                         data[k] = data[k].to(accelerator.device)
                 # forward
                 l1_loss, com_loss = model(**data)
-                grad_norm = clip_grad_value_(model.parameters(), clip_grad_norm)
                 loss = l1_loss + com_loss
 
                 # handle nan loss
@@ -101,6 +100,7 @@ def train(args, initial_global_step, model, optimizer, scheduler, loader_train, 
                     raise ValueError(' [x] nan loss ')
                 else:
                     accelerator.backward(loss)
+                    grad_norm = clip_grad_value_(model.parameters(), clip_grad_norm)
                     optimizer.step()
                     scheduler.step()
 
