@@ -87,6 +87,7 @@ class TextDataset(Dataset):
 
                     self.data_buffer[name_ext] = {
                         'units': units,
+                        'mask': self.get_attention_mask(units.shape[-2]),
                         'name_ext':name_ext
                     }
                 except Exception as e:
@@ -111,8 +112,6 @@ class TextDataset(Dataset):
                 # get item
             return data_buffer
         except Exception as e:
-            import traceback
-            traceback.print_exc()
             return self.__getitem__((file_idx+1)%len(self.paths))
 
     def get_attention_mask(self,length):
