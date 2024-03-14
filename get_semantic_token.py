@@ -17,7 +17,7 @@ from tqdm import tqdm
 def preprocess_utterance(rank, units_path, model,in_dir, out_dir, num_workers, units_quantize_type = "kmeans"):
     gpu_num = torch.cuda.device_count()
     units_path = units_path[rank::num_workers]
-    if units_quantize_type == "vq":
+    if units_quantize_type == "vq" or units_quantize_type == "vqae":
         model = model.to(f"cuda:{rank%gpu_num}")
     for unit_path in tqdm(units_path,position=rank):
         if units_quantize_type == "kmeans":
