@@ -38,7 +38,7 @@ class VQTransformer(nn.Module):
             if mask is not None:
                 x = x * mask[:, 0, 0, :, None]
             x, indices, commit_loss = self.quantizer(x)
-            tgt = self.transformer_decoder(hidden_states = units, attention_mask = mask).last_hidden_state
+            tgt = self.transformer_decoder(hidden_states = x, attention_mask = mask).last_hidden_state
             if mask is not None:
                 mask = mask[:, 0, 0, :]
                 tgt = tgt * mask[:, :, None]
