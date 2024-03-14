@@ -105,6 +105,7 @@ class TextDataset(Dataset):
 
                 data_buffer = {
                     'units': units,
+                    'mask': self.get_attention_mask(units.shape[-2]),
                     'name_ext':name_ext
                 }
                 # get item
@@ -125,12 +126,14 @@ class TextDataset(Dataset):
 def colle_fn(batch):
     units = []
     name = []
+    mask = []
     for batch_item in batch:
         units.append(batch_item['units'])
         name.append(batch_item['name_ext'])
-
+        mask.append(batch_item['mask'])
     rtn = {
             'units': pad_sequence(units, batch_first=True, padding_value=0.),
+            'mask': pad_sequence(mask, batch_first=True, padding_value=0),
             'name':name
     }
     return rtn

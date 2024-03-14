@@ -1,4 +1,4 @@
-from torch.nn import TransformerEncoderLayer, TransformerEncoder
+from transformers.models.bert.modeling_bert import BertEncoder, BertConfig, BertModel
 from vector_quantize_pytorch import VectorQuantize
 from torch import nn
 import torch.nn.functional as F
@@ -7,8 +7,15 @@ import torch
 class VQTransformer(nn.Module):
     def __init__(self, d_model, nhead, dim_feedforward, num_layers, num_codebook):
         super(VQTransformer, self).__init__()
-        encoder_layers = TransformerEncoderLayer(d_model, nhead, dim_feedforward, 0.)
-        self.transformer_encoder = TransformerEncoder(encoder_layers, num_layers)
+        config = BertConfig(
+            hidden_size = d_model,
+            num_hidden_layers = num_layers,
+            num_attention_heads = nhead,
+            intermediate_size = dim_feedforward
+        )
+
+
+        self.transformer_encoder = BertEncoder(config)
         
         self.quantizer = VectorQuantize(
             dim = d_model,
@@ -19,18 +26,21 @@ class VQTransformer(nn.Module):
             use_cosine_sim=True
         )
 
-        self.transformer_decoder = TransformerEncoder(encoder_layers, num_layers)
+        self.transformer_decoder = BertEncoder(config)
     
     def forward(self, units, **kwargs):
         training = kwargs.get('training', self.training)
+        mask = kwargs.get('mask', None)
+        if mask is not None:
+            mask = mask[:, None, None, :]
         if training:
-            x = self.transformer_encoder(units)
+            x = self.transformer_encoder(hidden_states = units, attention_mask = mask).last_hidden_state
             x, indices, commit_loss = self.quantizer(x)
-            tgt = self.transformer_decoder(x)
+            tgt = self.transformer_decoder(hidden_states = units, attention_mask = mask).last_hidden_state
             l1_loss = F.smooth_l1_loss(tgt, units)
             return l1_loss, commit_loss
         else:
-            x = self.transformer_encoder(units)
+            x = self.transformer_encoder(hidden_states = units).last_hidden_state
             x, indices, commit_loss = self.quantizer(x)
             return x, indices, commit_loss
     
