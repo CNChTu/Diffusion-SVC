@@ -1,4 +1,4 @@
-from transformers.models.bert.modeling_bert import BertEncoder, BertConfig, BertModel
+from transformers.models.bert.modeling_bert import BertEncoder, BertConfig
 from vector_quantize_pytorch import VectorQuantize
 from torch import nn
 import torch.nn.functional as F
@@ -27,7 +27,7 @@ class VQTransformer(nn.Module):
         )
 
         self.transformer_decoder = BertEncoder(config)
-    
+
     def forward(self, units, **kwargs):
         training = kwargs.get('training', self.training)
         mask = kwargs.get('mask', None)
@@ -35,9 +35,18 @@ class VQTransformer(nn.Module):
             mask = mask[:, None, None, :]
         if training:
             x = self.transformer_encoder(hidden_states = units, attention_mask = mask).last_hidden_state
+            if mask is not None:
+                x = x * mask[:, 0, 0, :, None]
             x, indices, commit_loss = self.quantizer(x)
             tgt = self.transformer_decoder(hidden_states = units, attention_mask = mask).last_hidden_state
-            l1_loss = F.smooth_l1_loss(tgt, units)
+            if mask is not None:
+                mask = mask[:, 0, 0, :]
+                tgt = tgt * mask[:, :, None]
+            l1_loss = F.smooth_l1_loss(tgt, units, reduction = 'none')
+            if mask is not None:
+                l1_loss = l1_loss.sum() / mask.sum()
+            else:
+                l1_loss = l1_loss.mean()
             return l1_loss, commit_loss
         else:
             x = self.transformer_encoder(hidden_states = units).last_hidden_state
