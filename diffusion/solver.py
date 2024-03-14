@@ -123,7 +123,7 @@ def test(args, model, vocoder, loader_test, f0_extractor, quantizer, saver, acce
     # report
     test_loss /= num_batches
     utilization = torch.sum(count > 0).item() / args.model.text2semantic.semantic_kmeans_num
-    test_loss = test_loss.item()
+    
     # check
     print(' [test_loss] test_loss:', test_loss)
     print(' Real Time Factor', np.mean(rtf_all))
