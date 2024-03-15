@@ -87,7 +87,7 @@ if __name__ == "__main__":
         model_para = torch.load(args.model.text2semantic.codebook_path)
         model.load_state_dict(model_para["model"])
     elif args.train.units_quantize_type == "vqae":
-        from vq_ae.model import get_model
+        from vq_ae import get_model
         model = get_model(args)
         model.load_state_dict(torch.load(args.model.text2semantic.codebook_path)["model"])
         model.set_eval_mode()

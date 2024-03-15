@@ -107,7 +107,7 @@ if __name__ == '__main__':
                 freeze_codebook=args.train.vq_freeze
             ).to(device)
         elif args.train.units_quantize_type == "vqae":
-            from vq_ae.model import get_model
+            from vq_ae import get_model
             quantizer = get_model(args)
             quantizer.load_state_dict(torch.load(args.model.text2semantic.codebook_path)["model"])
             quantizer.set_eval_mode()

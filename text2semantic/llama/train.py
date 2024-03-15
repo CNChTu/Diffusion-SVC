@@ -129,7 +129,7 @@ def train(args, initial_global_step, model, optimizer, scheduler, diffusion_mode
         semantic_embedding.load_state_dict(model_para["model"])
         semantic_embedding = semantic_embedding.to(accelerator.device)
     elif args.train.units_quantize_type == "vqae":
-        from vq_ae.model import get_model
+        from vq_ae import get_model
         quantizer = get_model(args)
         quantizer.load_state_dict(torch.load(args.model.text2semantic.codebook_path)["model"])
         quantizer.set_eval_mode()
