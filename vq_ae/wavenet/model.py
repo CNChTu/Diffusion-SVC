@@ -63,6 +63,7 @@ class VQCNN(nn.Module):
         del self.transformer_decoder
         for param in self.parameters():
             param.requires_grad = False
+        self.transformer_encoder.remove_weight_norm()
         self.eval()
 
 def get_model(args):
