@@ -7,7 +7,6 @@ import accelerate
 from tools.infer_tools import DiffusionSVC
 from tools.tools import StepLRWithWarmUp
 from vq_ae.dataloader import get_data_loaders
-from vq_ae.model import get_model
 from vq_ae.solver import train
 def parse_args(args=None, namespace=None):
     """Parse command-line arguments."""
@@ -31,17 +30,24 @@ if __name__ == '__main__':
     device = accelerator.device
     if accelerator.is_main_process:
         print(' > config:', cmd.config)
-        print(' >    exp:', args.env.vq_expdir)
+        print(' >    exp:', args.vqae.expdir)
     
     # load vocoder
     # vocoder = Vocoder(args.vocoder.type, args.vocoder.ckpt, device=args.device)
     
     # load model
-    model = get_model(args)
+    if args.vqae.type == 'transformer':
+        from vq_ae.transformer.model import get_model
+        model = get_model(args)
+    elif args.vqae.type == 'cnn':
+        from vq_ae.wavenet.model import get_model
+        model = get_model(args)
+    else:
+        raise ValueError(' [!] Unkown model type: {}'.format(args.vqae.type))
     
     # load parameters
     optimizer = torch.optim.AdamW(model.parameters())
-    initial_global_step, model, optimizer = utils.load_model(args.env.vq_expdir, model, optimizer, device=device)
+    initial_global_step, model, optimizer = utils.load_model(args.vqae.expdir, model, optimizer, device=device)
     for param_group in optimizer.param_groups:
         param_group['initial_lr'] = args.train.lr
         param_group['lr'] = args.train.lr * args.train.gamma ** max((initial_global_step - 2) // args.train.decay_step, 0)

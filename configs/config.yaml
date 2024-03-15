@@ -91,8 +91,12 @@ infer:
   method: 'dpm-solver' # 'ddim', 'pndm', 'dpm-solver' or 'unipc'
 env:
   expdir: exp/diffusion-test
-  vq_expdir: exp/vq
   gpu_id: 0
+vqae:
+  type: "cnn" # 'cnn' or 'transformer'
+  n_layers: 3
+  n_heads: 8
+  expdir: exp/vq
 train:
   num_workers: 2 # If your cpu and gpu are both very strong, set to 0 may be faster!
   amp_dtype: fp32 # fp32, fp16 or bf16 (fp16 or bf16 may be faster if it is supported by your gpu)
