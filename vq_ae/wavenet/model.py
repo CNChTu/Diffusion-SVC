@@ -44,8 +44,6 @@ class VQCNN(nn.Module):
             x = x.transpose(1, 2)
             x, indices, commit_loss = self.quantizer(x)
             # 如果indices所有的数相同，打印indices
-            if indices[0, :50].unique().shape[0] == 1:
-                print(indices)
             x = x.transpose(1, 2)
             tgt = self.transformer_decoder(x, mask)
             tgt = tgt.transpose(1, 2)

@@ -19,7 +19,7 @@ class Saver(object):
             initial_global_step=-1
             ):
 
-        self.expdir = args.env.vq_expdir
+        self.expdir = args.vqae.expdir
         self.sample_rate = args.data.sampling_rate
 
         # cold start
