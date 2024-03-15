@@ -56,6 +56,8 @@ class VQTransformer(nn.Module):
     def set_eval_mode(self):
         self.transformer_decoder = self.transformer_decoder.cpu()
         del self.transformer_decoder
+        for param in self.parameters():
+            param.requires_grad = False
         self.eval()
 
 def get_model(args):
