@@ -68,7 +68,7 @@ def test(args, model, loader_test, diffusion_model, saver,semantic_embedding, ac
                 **data
                 )
             test_loss += result.loss.item()
-            topk_acc += get_topk_acc(data["input_ids"][0][1:], result.logits[0][:-1,:], k = 5)
+            topk_acc += get_topk_acc(data["input_ids"][0], result.logits[0], k = 5)
             
 
             # log audio

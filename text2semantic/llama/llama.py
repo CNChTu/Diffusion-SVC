@@ -213,7 +213,7 @@ class Llama(nn.Module):
             bos_token_id = self.config.bos_token_id,
             eos_token_id = self.config.eos_token_id,
             pad_token_id = self.config.pad_token_id,
-            bad_words_ids = [[i] for i in range(0, self.semantic_token_shift)]
+            bad_words_ids = [[i] for i in range(self.semantic_token_shift, self.config.vocab_size)]
         )
 
         outputs = self.llama.generate(
