@@ -119,6 +119,13 @@ if __name__ == '__main__':
             model_para = torch.load(args.model.text2semantic.codebook_path)
             semantic_embedding.load_state_dict(model_para["model"])
             semantic_embedding = semantic_embedding.to(device)
+        elif args.train.units_quantize_type == "vqae":
+            from vq_ae import get_model
+            quantizer = get_model(args)
+            quantizer.load_state_dict(torch.load(args.model.text2semantic.codebook_path)["model"])
+            quantizer.set_eval_mode()
+            quantizer = quantizer.to(device)
+            quantizer = quantizer.quantizer
         else:
             raise ValueError(' [x] Unknown quantize_type: ' + args.train.units_quantize_type)
         
@@ -162,8 +169,8 @@ if __name__ == '__main__':
 
         if args.train.units_quantize_type == "kmeans":
             semantic_emb = semantic_embedding(semantic_token)
-        elif args.train.units_quantize_type == "vq":
-            semantic_emb = semantic_embedding.get_codes_from_indices(semantic_token)
+        elif args.train.units_quantize_type == "vq" or args.train.units_quantize_type == "vqae":
+            semantic_emb = semantic_embedding.project_out(semantic_embedding.get_codes_from_indices(semantic_token))
 
         semantic_emb = units_forced_alignment(semantic_emb, scale_factor=(diffusion_svc.args.data.sampling_rate/diffusion_svc.args.data.block_size)/(diffusion_svc.args.data.encoder_sample_rate/args.data.encoder_hop_size),units_forced_mode=diffusion_svc.args.data.units_forced_mode)
 
