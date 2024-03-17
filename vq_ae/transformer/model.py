@@ -5,7 +5,7 @@ import torch.nn.functional as F
 import torch
 
 class VQTransformer(nn.Module):
-    def __init__(self, d_model, nhead, dim_feedforward, num_layers, num_codebook):
+    def __init__(self, d_model, nhead, dim_feedforward, num_layers, num_codebook, units_scale):
         super(VQTransformer, self).__init__()
         config = BertConfig(
             hidden_size = d_model,
@@ -27,8 +27,10 @@ class VQTransformer(nn.Module):
         )
 
         self.transformer_decoder = BertEncoder(config)
+        self.units_scale = units_scale
 
     def forward(self, units, **kwargs):
+        units = units/self.units_scale
         training = kwargs.get('training', self.training)
         mask = kwargs.get('mask', None)
         if mask is not None:
@@ -66,7 +68,8 @@ def get_model(args):
         nhead = args.vqae.n_heads,
         dim_feedforward = args.data.encoder_out_channels * 2,
         num_layers = args.vqae.n_layers,
-        num_codebook = args.model.text2semantic.semantic_kmeans_num
+        num_codebook = args.model.text2semantic.semantic_kmeans_num,
+        units_scale = args.vqae.units_scale
     )
 
 if __name__ == '__main__':
