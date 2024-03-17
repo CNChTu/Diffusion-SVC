@@ -52,7 +52,7 @@ def test(args, model, loader_test, diffusion_model, saver,semantic_embedding, ac
 
             if args.train.units_quantize_type == "kmeans":
                 semantic_emb = semantic_embedding(semantic_token)
-            elif args.train.units_quantize_type == "vq":
+            elif args.train.units_quantize_type == "vq" or args.train.units_quantize_type == "vqae":
                 semantic_emb = semantic_embedding.project_out(semantic_embedding.get_codes_from_indices(semantic_token[:,:,None]))
 
             if diffusion_model is not None:

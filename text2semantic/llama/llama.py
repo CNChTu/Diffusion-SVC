@@ -192,10 +192,10 @@ class Llama(nn.Module):
         if phone is not None:
             if self.mode == "phone":
                 tone += self.tone_token_shift
-                phone = torch.cat([torch.tensor([[self.BOS]]), phone, torch.tensor([[self.EOS]]), torch.tensor([[self.TONE_BOS]]), tone, torch.tensor([[self.TONE_EOS]])], dim=1)
+                phone = torch.cat([torch.tensor([[self.BOS]],device=phone.device), phone, torch.tensor([[self.EOS]],device=phone.device), torch.tensor([[self.TONE_BOS]],device=phone.device), tone, torch.tensor([[self.TONE_EOS]],device=phone.device)], dim=1)
             elif self.mode == "text":
                 phone = phone
-            input_ids = torch.cat([phone, torch.tensor([[self.config.bos_token_id]])], dim=1)
+            input_ids = torch.cat([phone, torch.tensor([[self.config.bos_token_id]],device=phone.device)], dim=1)
         
         if num_beams == 1:
             early_stopping = False
