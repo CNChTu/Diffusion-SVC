@@ -1,4 +1,5 @@
-from transformers import RoFormerForCausalLM, RoFormerModel, RoFormerConfig, GenerationConfig
+from text2semantic.roformer.roformer_model import RoFormerForCausalLM, RoFormerModel, RoFormerConfig
+from transformers import GenerationConfig
 from transformers.generation.logits_process import LogitsProcessor, LogitsProcessorList
 import torch
 from torch import nn
