@@ -6,6 +6,7 @@ from typing import Optional, Tuple
 import torch
 import torch.utils.checkpoint
 from transformers.cache_utils import Cache
+from torch.nn.functional import normalize
 import torch.nn.functional as F
 import logging
 
@@ -93,8 +94,8 @@ class RoFormerlashAttention2(RoFormerSelfAttention):
         # TODO: These transpose are quite inefficient but Flash Attention requires the layout [batch_size, sequence_length, num_heads, head_dim]. We would need to refactor the KV cache
         # to be able to avoid many of these transpose/reshape/view.
         # [b,h,l,d] -> [b,l,h,d]
-        query_states = query_layer.transpose(1, 2)
-        key_states = key_layer.transpose(1, 2)
+        query_states = normalize(query_layer,dim=-1).transpose(1, 2)
+        key_states = normalize(key_layer,dim=-1).transpose(1, 2)
         value_states = value_layer.transpose(1, 2)
 
         dropout_rate = self.dropout.p if self.training else 0.0
