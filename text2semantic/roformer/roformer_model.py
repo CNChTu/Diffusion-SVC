@@ -791,6 +791,7 @@ class RoFormerModel(RoFormerPreTrainedModel):
 
         if config.embedding_size != config.hidden_size:
             self.embeddings_project = nn.Linear(config.embedding_size, config.hidden_size)
+        self.final_norm = nn.LayerNorm(config.hidden_size, eps=config.layer_norm_eps)
 
         self.encoder = RoFormerEncoder(config)
 
@@ -924,6 +925,7 @@ class RoFormerModel(RoFormerPreTrainedModel):
             return_dict=return_dict,
         )
         sequence_output = encoder_outputs[0]
+        sequence_output = self.final_norm(sequence_output)
 
         if not return_dict:
             return (sequence_output,) + encoder_outputs[1:]
