@@ -227,6 +227,8 @@ class Llama(nn.Module):
         if (outputs >= self.config.bos_token_id).any():
             outputs[outputs >= self.config.bos_token_id] = self.config.bos_token_id - 1
         outputs = outputs[:, input_ids.shape[1]:] - self.semantic_token_shift
+        if (outputs < 0).any():
+            outputs[outputs < 0] = 0
 
         return outputs
 if __name__ == '__main__':
