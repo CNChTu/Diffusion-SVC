@@ -24,7 +24,7 @@ import torch
 import torch.utils.checkpoint
 from torch import nn
 from torch.nn import BCEWithLogitsLoss, CrossEntropyLoss, MSELoss
-from torch.nn.functional import normalize
+
 from transformers.activations import ACT2FN
 from transformers.modeling_outputs import (
     BaseModelOutputWithPastAndCrossAttentions,
@@ -62,6 +62,22 @@ ROFORMER_PRETRAINED_MODEL_ARCHIVE_LIST = [
     # See all RoFormer models at https://huggingface.co/models?filter=roformer
 ]
 
+
+class LlamaRMSNorm(nn.Module):
+    def __init__(self, hidden_size, eps=1e-6):
+        """
+        LlamaRMSNorm is equivalent to T5LayerNorm
+        """
+        super().__init__()
+        self.weight = nn.Parameter(torch.ones(hidden_size))
+        self.variance_epsilon = eps
+
+    def forward(self, hidden_states):
+        input_dtype = hidden_states.dtype
+        hidden_states = hidden_states.to(torch.float32)
+        variance = hidden_states.pow(2).mean(-1, keepdim=True)
+        hidden_states = hidden_states * torch.rsqrt(variance + self.variance_epsilon)
+        return self.weight * hidden_states.to(input_dtype)
 
 # Copied from transformers.models.marian.modeling_marian.MarianSinusoidalPositionalEmbedding with Marian->RoFormer
 class RoFormerSinusoidalPositionalEmbedding(nn.Embedding):
@@ -218,9 +234,10 @@ class RoFormerSelfAttention(nn.Module):
         self.attention_head_size = int(config.hidden_size / config.num_attention_heads)
         self.all_head_size = self.num_attention_heads * self.attention_head_size
 
-        self.query = nn.Linear(config.hidden_size, self.all_head_size)
-        self.key = nn.Linear(config.hidden_size, self.all_head_size)
-        self.value = nn.Linear(config.hidden_size, self.all_head_size)
+        self.query = nn.Linear(config.hidden_size, self.all_head_size, bias=False)
+        self.key = nn.Linear(config.hidden_size, self.all_head_size, bias=False)
+        self.value = nn.Linear(config.hidden_size, self.all_head_size, bias=False)
+        self.o_proj = nn.Linear(config.hidden_size, config.hidden_size, bias=False)
 
         self.dropout = nn.Dropout(config.attention_probs_dropout_prob)
 
@@ -285,8 +302,8 @@ class RoFormerSelfAttention(nn.Module):
             past_key_value = (key_layer, value_layer)
 
         # Take the dot product between "query" and "key" to get the raw attention scores.
-        attention_scores = torch.matmul(normalize(query_layer, dim=-1), normalize(key_layer, dim=-1).transpose(-1, -2))
-
+        attention_scores = torch.matmul(query_layer, key_layer.transpose(-1, -2))
+        
         attention_scores = attention_scores / math.sqrt(self.attention_head_size)
         if attention_mask is not None:
             # Apply the attention mask is (precomputed for all layers in RoFormerModel forward() function)
@@ -308,7 +325,7 @@ class RoFormerSelfAttention(nn.Module):
         context_layer = context_layer.permute(0, 2, 1, 3).contiguous()
         new_context_layer_shape = context_layer.size()[:-2] + (self.all_head_size,)
         context_layer = context_layer.view(*new_context_layer_shape)
-
+        context_layer = self.o_proj(context_layer)
         outputs = (context_layer, attention_probs) if output_attentions else (context_layer,)
 
         if self.is_decoder:
@@ -343,26 +360,11 @@ class RoFormerSelfAttention(nn.Module):
         return query_layer, key_layer
 
 
-# Copied from transformers.models.bert.modeling_bert.BertSelfOutput with Bert->RoFormer
-class RoFormerSelfOutput(nn.Module):
-    def __init__(self, config):
-        super().__init__()
-        self.dense = nn.Linear(config.hidden_size, config.hidden_size)
-        self.LayerNorm = nn.LayerNorm(config.hidden_size, eps=config.layer_norm_eps)
-        self.dropout = nn.Dropout(config.hidden_dropout_prob)
-
-    def forward(self, hidden_states: torch.Tensor, input_tensor: torch.Tensor) -> torch.Tensor:
-        hidden_states = self.dense(hidden_states)
-        hidden_states = self.dropout(hidden_states)
-        hidden_states = self.LayerNorm(hidden_states) + input_tensor
-        return hidden_states
-
-
 class RoFormerAttention(nn.Module):
     def __init__(self, config):
         super().__init__()
         self.self = RoFormerSelfAttention(config)
-        self.output = RoFormerSelfOutput(config)
+        self.output = LlamaRMSNorm(config.hidden_size, eps=config.layer_norm_eps)
         self.pruned_heads = set()
 
     # Copied from transformers.models.bert.modeling_bert.BertAttention.prune_heads
@@ -396,6 +398,7 @@ class RoFormerAttention(nn.Module):
         past_key_value=None,
         output_attentions=False,
     ):
+        r_input_1 = hidden_states
         self_outputs = self.self(
             hidden_states,
             attention_mask,
@@ -406,7 +409,7 @@ class RoFormerAttention(nn.Module):
             past_key_value,
             output_attentions,
         )
-        attention_output = self.output(self_outputs[0], hidden_states)
+        attention_output = self.output(self_outputs[0]) + r_input_1
         outputs = (attention_output,) + self_outputs[1:]  # add attentions if we output them
         return outputs
 
@@ -426,6 +429,20 @@ class RoFormerIntermediate(nn.Module):
         hidden_states = self.intermediate_act_fn(hidden_states)
         return hidden_states
 
+class LlamaMLP(nn.Module):
+    def __init__(self, config):
+        super().__init__()
+        self.config = config
+        self.hidden_size = config.hidden_size
+        self.intermediate_size = config.intermediate_size
+        self.gate_proj = nn.Linear(self.hidden_size, self.intermediate_size, bias=False)
+        self.up_proj = nn.Linear(self.hidden_size, self.intermediate_size, bias=False)
+        self.down_proj = nn.Linear(self.intermediate_size, self.hidden_size, bias=False)
+        self.act_fn = ACT2FN[config.hidden_act]
+
+    def forward(self, x):
+        return self.down_proj(self.act_fn(self.gate_proj(x)) * self.up_proj(x))
+
 
 # Copied from transformers.models.bert.modeling_bert.BertOutput with Bert->RoFormer
 class RoFormerOutput(nn.Module):
@@ -438,7 +455,7 @@ class RoFormerOutput(nn.Module):
     def forward(self, hidden_states: torch.Tensor, input_tensor: torch.Tensor) -> torch.Tensor:
         hidden_states = self.dense(hidden_states)
         hidden_states = self.dropout(hidden_states)
-        hidden_states = self.LayerNorm(hidden_states) + input_tensor
+        hidden_states = self.LayerNorm(hidden_states + input_tensor)
         return hidden_states
 
 
@@ -454,8 +471,8 @@ class RoFormerLayer(nn.Module):
             if not self.is_decoder:
                 raise ValueError(f"{self} should be used as a decoder model if cross attention is added")
             self.crossattention = RoFormerAttention(config)
-        self.intermediate = RoFormerIntermediate(config)
-        self.output = RoFormerOutput(config)
+        self.intermediate = LlamaMLP(config)
+        self.post_attention_layernorm = LlamaRMSNorm(config.hidden_size, eps=config.layer_norm_eps)
 
     def forward(
         self,
@@ -526,9 +543,9 @@ class RoFormerLayer(nn.Module):
         return outputs
 
     def feed_forward_chunk(self, attention_output):
-        intermediate_output = self.intermediate(attention_output)
-        layer_output = self.output(intermediate_output, attention_output)
-        return layer_output
+        attention_norm_output = self.post_attention_layernorm(attention_output)
+        intermediate_output = self.intermediate(attention_norm_output)
+        return intermediate_output + attention_output
 
 
 class RoFormerEncoder(nn.Module):
@@ -791,10 +808,9 @@ class RoFormerModel(RoFormerPreTrainedModel):
 
         if config.embedding_size != config.hidden_size:
             self.embeddings_project = nn.Linear(config.embedding_size, config.hidden_size)
-        self.final_norm = nn.LayerNorm(config.hidden_size, eps=config.layer_norm_eps)
 
         self.encoder = RoFormerEncoder(config)
-
+        self.norm = LlamaRMSNorm(config.hidden_size, eps=config.layer_norm_eps)
         # Initialize weights and apply final processing
         self.post_init()
 
@@ -925,8 +941,7 @@ class RoFormerModel(RoFormerPreTrainedModel):
             return_dict=return_dict,
         )
         sequence_output = encoder_outputs[0]
-        sequence_output = self.final_norm(sequence_output)
-
+        sequence_output = self.norm(sequence_output)
         if not return_dict:
             return (sequence_output,) + encoder_outputs[1:]
 
