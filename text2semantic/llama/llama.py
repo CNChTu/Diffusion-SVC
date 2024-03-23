@@ -16,9 +16,9 @@ def get_model(mode = "phone", semantic_kmeans_num = 10000, codebook_path = "pret
             intermediate_size=kwargs["model"]["decoder"]["intermediate_size"],
             hidden_act=kwargs["model"]["decoder"]["hidden_act"],
             hidden_dropout_prob=kwargs["model"]["decoder"]["hidden_dropout_prob"],
-            attention_probs_dropout_prob=kwargs["model"]["decoder"]["attention_probs_dropout_prob"],
+            attention_dropout=kwargs["model"]["decoder"]["attention_probs_dropout_prob"],
             initializer_range=kwargs["model"]["decoder"]["initializer_range"],
-            layer_norm_eps=float(kwargs["model"]["decoder"]["layer_norm_eps"]),
+            rms_norm_eps=float(kwargs["model"]["decoder"]["layer_norm_eps"]),
             max_position_embeddings = kwargs["model"]["decoder"]["max_position_embeddings"],
             is_decoder = True
     )
