@@ -34,7 +34,7 @@ model:
   n_spk: 1 # max number of different speakers
   is_tts: true # If TTS or VC, it is true, if SVC, it is false
   text2semantic:
-    type: 'roformer'
+    type: 'llama'
     mode: 'phone' # choice: phone, text, phone+text, phone+bert, phone+text+bert
     semantic_kmeans_num: 2048
     codebook_path: 'pretrain/semantic_codebook.pt'
