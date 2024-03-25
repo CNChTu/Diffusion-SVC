@@ -3,7 +3,7 @@ from transformers.generation.logits_process import LogitsProcessor, LogitsProces
 import torch
 from torch import nn
 from text.symbols import *
-
+import random
 from cluster import get_cluster_model, get_cluster_result, get_cluster_center_result, get_center
 
 from torch.nn.utils.rnn import pad_sequence, pack_sequence
@@ -30,7 +30,8 @@ def get_model(mode = "phone", semantic_kmeans_num = 10000, codebook_path = "pret
         codebook_path = codebook_path,
         n_spk = n_spk,
         use_flash_attn = kwargs["use_flash_attn"],
-        gradient_checkpointing = kwargs["model"]["gradient_checkpointing"]
+        gradient_checkpointing = kwargs["model"]["gradient_checkpointing"],
+        condition_drop_out = kwargs["train"]["condition_drop_out"]
     )
 
     return model
@@ -56,7 +57,8 @@ class Llama(nn.Module):
         n_spk = 1,
         codebook_path = "pretrain/semantic_codebook.pt",
         use_flash_attn = False,
-        gradient_checkpointing = False
+        gradient_checkpointing = False,
+        condition_drop_out = 0.0
         ):
         super().__init__()
         self.mode = mode
@@ -86,16 +88,16 @@ class Llama(nn.Module):
             self.num_tones = 0
         token_shift = token_size
         self.semantic_token_shift = token_shift
-
+        self.condition_drop_out = condition_drop_out
         config.bos_token_id = self.semantic_token_shift + semantic_kmeans_num
         config.eos_token_id = self.semantic_token_shift + semantic_kmeans_num + 1
         config.pad_token_id = self.semantic_token_shift + semantic_kmeans_num + 2
+        self.MASK = self.semantic_token_shift + semantic_kmeans_num + 3
 
         self.semantic_bos_token_id = config.bos_token_id
         self.semantic_eos_token_id = config.eos_token_id
         self.semantic_pad_token_id = config.pad_token_id
-
-        token_size += semantic_kmeans_num + 3
+        token_size += semantic_kmeans_num + 4
 
         config.vocab_size = token_size
         # llama用flash attention 2.0
@@ -138,7 +140,10 @@ class Llama(nn.Module):
                 phone = torch.cat([torch.tensor([[self.BOS]]), phone, torch.tensor([[self.EOS]]), torch.tensor([[self.TONE_BOS]]), tone, torch.tensor([[self.TONE_EOS]])], dim=1)
             elif self.mode == "text":
                 phone = phone
-                
+
+            if random.random() < self.condition_drop_out:
+                semantic = torch.ones_like(semantic) * self.MASK
+            
             semantic += self.semantic_token_shift
             semantic = torch.cat([torch.tensor([[self.config.bos_token_id]]), semantic, torch.tensor([[self.config.eos_token_id]])], dim=1)
 
@@ -179,6 +184,7 @@ class Llama(nn.Module):
                  early_stopping = True,
                  spk_id = None,
                  end_gate_threshold = None,
+                 cfg_scale = 1.0,
                  **kwargs
                  ):
         
@@ -197,6 +203,11 @@ class Llama(nn.Module):
                 phone = phone
             input_ids = torch.cat([phone, torch.tensor([[self.config.bos_token_id]],device=phone.device)], dim=1)
         
+        if cfg_scale != 1.0:
+            negative_prompt_ids = torch.cat([torch.full_like(input_ids[:,:-1], self.MASK), torch.tensor([[self.config.bos_token_id]])] ,device=phone.device)
+        else:
+            negative_prompt_ids = None
+
         if num_beams == 1:
             early_stopping = False
 
@@ -212,7 +223,8 @@ class Llama(nn.Module):
             early_stopping = early_stopping,
             bos_token_id = self.config.bos_token_id,
             eos_token_id = self.config.eos_token_id,
-            pad_token_id = self.config.pad_token_id
+            pad_token_id = self.config.pad_token_id,
+            guidance_scale = cfg_scale
         )
 
         outputs = self.llama.generate(
@@ -221,7 +233,8 @@ class Llama(nn.Module):
             attention_mask = None,
             use_cache = use_cache,
             generation_config=generation_config,
-            logits_processor = logits_processor
+            logits_processor = logits_processor,
+            negative_prompt_ids = negative_prompt_ids
         )
 
         if (outputs >= self.config.bos_token_id).any():

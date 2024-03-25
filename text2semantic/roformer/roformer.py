@@ -5,6 +5,7 @@ import torch
 from torch import nn
 from text.symbols import *
 import torch.nn.functional as F
+import random
 from cluster import get_cluster_model
 
 def get_model(mode = "phone", semantic_kmeans_num = 10000, codebook_path = "pretrain/semantic_codebook.pt", n_spk = 1, **kwargs):
@@ -44,7 +45,8 @@ def get_model(mode = "phone", semantic_kmeans_num = 10000, codebook_path = "pret
         codebook_path = codebook_path,
         n_spk = n_spk,
         use_flash_attn = kwargs["use_flash_attn"],
-        gradient_checkpointing = kwargs["model"]["gradient_checkpointing"]
+        gradient_checkpointing = kwargs["model"]["gradient_checkpointing"],
+        condition_drop_out = kwargs["train"]["condition_drop_out"]
     )
 
     return model
@@ -73,12 +75,14 @@ class Roformer(nn.Module):
         n_spk = 1,
         use_flash_attn = False,
         gradient_checkpointing = False,
+        condition_drop_out = 0.0,
         **kwargs
         ):
         super().__init__()
         self.mode = mode
         self.n_spk = n_spk
         self.gradient_checkpointing = gradient_checkpointing
+        self.condition_drop_out = condition_drop_out
         if "phone" in self.mode:
             token_size = len(symbols)
             # token_size += semantic_kmeans_num + num_tones
@@ -178,6 +182,10 @@ class Roformer(nn.Module):
             use_cache = use_cache
         ).last_hidden_state
         
+        if self.training:
+            if random.random() < self.condition_drop_out:
+                encoder_hidden_states = encoder_hidden_states * 0
+
         outputs = self.semantic_decoder(
             semantic,
             encoder_hidden_states = encoder_hidden_states,
@@ -208,6 +216,7 @@ class Roformer(nn.Module):
                  early_stopping = True,
                  spk_id = None,
                  end_gate_threshold = None,
+                 cfg_scale = 1.0,
                  **kwargs
                  ):
         logits_processor = LogitsProcessorList()

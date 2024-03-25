@@ -73,6 +73,46 @@ def parse_args(args=None, namespace=None):
         default='dpm-solver',
         help="ddim, pndm, dpm-solver or unipc | default: dpm-solver",
     )
+    parser.add_argument(
+        "-tk",
+        "--topk",
+        type=int,
+        required=False,
+        default=5,
+        help="topk",
+    )
+    parser.add_argument(
+        "-tp",
+        "--topp",
+        type=float,
+        required=False,
+        default=1.0,
+        help="topp",
+    )
+    parser.add_argument(
+        "-rp",
+        "--repetition_penalty",
+        type=float,
+        required=False,
+        default=1.1,
+        help="repetition_penalty",
+    )
+    parser.add_argument(
+        "-t",
+        "--temperature",
+        type=float,
+        required=False,
+        default=1.1,
+        help="temperature",
+    )
+    parser.add_argument(
+        "-cfg",
+        "--cfg_sclae",
+        type=float,
+        required=False,
+        default=1.1,
+        help="temperature",
+    )
     return parser.parse_args(args=args, namespace=namespace)
 
 
@@ -140,6 +180,12 @@ if __name__ == '__main__':
         speedup = cmd.speedup
         method = cmd.method
         
+        top_k = cmd.topk
+        top_p = cmd.topp
+        repetition_penalty = cmd.repetition_penalty
+        temperature = cmd.temperature
+        cfg_sclae = cmd.cfg_sclae
+
         (phones, tones, lang_ids), (norm_text, word2ph) = text_to_sequence(text, 'ZH')
         
         phones, tones = torch.from_numpy(np.array(phones)).unsqueeze(0).long().to(device), torch.from_numpy(np.array(tones)).long().unsqueeze(0).to(device)
@@ -151,15 +197,16 @@ if __name__ == '__main__':
                             use_cache=True,
                             max_length=1024,
                             do_sample=True,
-                            temperature=1.0,
-                            top_k=5,
-                            top_p=1.0,
-                            repetition_penalty=1.0,
+                            temperature=temperature,
+                            top_k=top_k,
+                            top_p=top_p,
+                            repetition_penalty=repetition_penalty,
                             num_beams=1,
                             no_repeat_ngram_size = 0,
                             early_stopping = True,
                             spk_id = spk_id_seq,
-                            end_gate_threshold = None
+                            end_gate_threshold = None,
+                            cfg_scale = cfg_sclae
                             )
 
         if semantic_token[:,-1] == lm.semantic_eos_token_id:
