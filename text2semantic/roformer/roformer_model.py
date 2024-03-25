@@ -364,7 +364,7 @@ class RoFormerAttention(nn.Module):
     def __init__(self, config):
         super().__init__()
         self.self = RoFormerSelfAttention(config)
-        self.output = LlamaRMSNorm(config.hidden_size, eps=config.layer_norm_eps)
+        self.norm = LlamaRMSNorm(config.hidden_size, eps=config.layer_norm_eps)
         self.pruned_heads = set()
 
     # Copied from transformers.models.bert.modeling_bert.BertAttention.prune_heads
@@ -399,6 +399,7 @@ class RoFormerAttention(nn.Module):
         output_attentions=False,
     ):
         r_input_1 = hidden_states
+        hidden_states = self.norm(hidden_states)
         self_outputs = self.self(
             hidden_states,
             attention_mask,
@@ -409,7 +410,7 @@ class RoFormerAttention(nn.Module):
             past_key_value,
             output_attentions,
         )
-        attention_output = self.output(self_outputs[0]) + r_input_1
+        attention_output = self_outputs[0] + r_input_1
         outputs = (attention_output,) + self_outputs[1:]  # add attentions if we output them
         return outputs
 
