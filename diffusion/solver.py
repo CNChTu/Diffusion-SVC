@@ -125,13 +125,13 @@ def test(args, model, vocoder, loader_test, f0_extractor, quantizer, saver, acce
     utilization = torch.sum(count > 0).item() / args.model.text2semantic.semantic_kmeans_num
     
     # check
-    print(' [test_loss] test_loss:', test_loss)
+    print(' [test_loss] test_loss:', test_loss.item())
     print(' Real Time Factor', np.mean(rtf_all))
     print(f' Codebook utilization: {utilization*100}%')
     saver.log_value({
         'valid/utilization': utilization
     })
-    return test_loss
+    return test_loss.item()
 
 
 def train(args, initial_global_step, model, optimizer, scheduler, vocoder, loader_train, loader_test,quantizer, accelerator):
