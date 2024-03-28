@@ -35,6 +35,7 @@ model:
     conv_only: true # use Transformer block with conv block, if false
     conv_dropout: 0.0
     atten_dropout: 0.1
+    use_weight_norm: false
 device: cuda
 vocoder:
   type: 'nsf-hifigan'
