@@ -143,7 +143,8 @@ def load_svc_model(args, vocoder_dimension):
             denoise_fn=args.model.denoise_fn,
             mask_cond_ratio=args.model.mask_cond_ratio,
             naive_fn=args.model.naive_fn,
-            naive_fn_grad_not_by_diffusion=args.model.naive_fn_grad_not_by_diffusion,)
+            naive_fn_grad_not_by_diffusion=args.model.naive_fn_grad_not_by_diffusion,
+            naive_out_mel_cond_diff=args.model.naive_out_mel_cond_diff)
 
     elif args.model.type == 'Naive':
         model = Unit2MelNaive(
@@ -193,6 +194,66 @@ def load_svc_model(args, vocoder_dimension):
 
     else:
         raise TypeError(" [X] Unknow model")
+
+    # check compile
+    if args.model.torch_compile_args is not None:
+        if str(args.model.torch_compile_args.use_copile).lower() == 'true':
+            print(" [INFO] Compile model with torch.compile().")
+
+            # check torch version >= 2.3.0
+            if torch.__version__ >= '2.3.0':
+                raise ValueError(" [X] torch version must >= 2.3.0 to use torch.compile() in DiffusionSVC.")
+
+            # dynamic
+            if str(args.model.torch_compile_args.dynamic).lower() == 'none':
+                _dynamic = None
+            elif str(args.model.torch_compile_args.dynamic).lower() == 'true':
+                _dynamic = True
+            elif str(args.model.torch_compile_args.dynamic).lower() == 'false':
+                _dynamic = False
+            else:
+                raise ValueError(" [X] Unknow model.torch_compile_args.dynamic config")
+
+            # options
+            if str(args.model.torch_compile_args.use_options).lower() == 'true':
+                if args.model.torch_compile_args.options is None:
+                    raise ValueError(" [X] model.torch_compile_args.options is None,"
+                                     " but model.torch_compile_args.use_options is True.")
+                _options = dict(args.model.torch_compile_args.options)
+            else:
+                _options = None
+
+            # fullgraph, backend, mode
+            if args.model.torch_compile_args.fullgraph is None:
+                _fullgraph = False
+            else:
+                _fullgraph = args.model.torch_compile_args.fullgraph
+            if args.model.torch_compile_args.backend is None:
+                _backend = 'inductor'
+            else:
+                _backend = args.model.torch_compile_args.backend
+            if args.model.torch_compile_args.mode is None:
+                _mode = 'default'
+            else:
+                _mode = args.model.torch_compile_args.mode
+                if _backend != 'inductor':
+                    _mode = None
+
+            # compile
+            if _options is not None:
+                model = torch.compile(
+                    model, dynamic=_dynamic, fullgraph=_fullgraph, backend=_backend, mode=_mode,options=_options
+                )
+            else:
+                model = torch.compile(
+                    model, dynamic=_dynamic, fullgraph=_fullgraph, backend=_backend, mode=_mode
+                )
+
+        else:
+            print(" [INFO] Not compile this model.")
+    else:
+        print(" [INFO] Not compile this model.")
+
     return model
 
 
@@ -215,6 +276,7 @@ class Unit2MelV2(nn.Module):
             mask_cond_ratio=None,
             naive_fn=None,
             naive_fn_grad_not_by_diffusion=False,
+            naive_out_mel_cond_diff=True
     ):
         super().__init__()
         if mask_cond_ratio is not None:
@@ -246,12 +308,20 @@ class Unit2MelV2(nn.Module):
             self.naive_stack = None
             self.naive_proj = None
             self.naive_fn_grad_not_by_diffusion = False
+            self.naive_out_mel_cond_diff = False
         else:
+            # check naive_fn_grad_not_by_diffusion with naive_fn
             self.combo_trained_model = True
             if naive_fn_grad_not_by_diffusion is not None:
                 self.naive_fn_grad_not_by_diffusion = bool(naive_fn_grad_not_by_diffusion)
             else:
                 self.naive_fn_grad_not_by_diffusion = False
+            # check naive_out_mel_cond_diff with naive_fn
+            if naive_out_mel_cond_diff is not None:
+                self.naive_out_mel_cond_diff = bool(naive_out_mel_cond_diff)
+            else:
+                self.naive_out_mel_cond_diff = True
+            # init naive_fn
             if not isinstance(naive_fn, DotDict):
                 assert isinstance(naive_fn, dict)
                 naive_fn = DotDict(naive_fn)
@@ -410,15 +480,20 @@ class Unit2MelV2(nn.Module):
 
         # combo trained model
         if self.combo_trained_model:
-            x = self.naive_stack(x)
+            # forward naive_fn, get _x from input x
+            _x = self.naive_stack(x)
             if infer:
-                gt_spec = x
+                gt_spec = _x
                 naive_loss = 0
             else:
-                naive_loss = F.mse_loss(x, gt_spec)
-            x = self.naive_proj(x)
+                naive_loss = F.mse_loss(_x, gt_spec)
+            _x = self.naive_proj(_x)  # project _x to n_hidden matching x
+            # if naive_fn_grad_not_by_diffusion is True, then detach _x, make it not grad by diffusion
             if self.naive_fn_grad_not_by_diffusion:
-                x = x.detach()
+                _x = _x.detach()
+            # if naive_out_mel_cond_diff is True, then use _x as cond for diffusion, else use x
+            if self.naive_out_mel_cond_diff:
+                x = _x
         else:
             naive_loss = 0
 
