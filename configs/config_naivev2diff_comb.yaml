@@ -59,6 +59,7 @@ model:
     atten_dropout: 0.1
     use_weight_norm: false
   naive_fn_grad_not_by_diffusion: false # dont change if dont understand; more info:diffusion/unit2mel.py
+  naive_out_mel_cond_diff: false # mel condition diffusion is a test function, maybe can make the model learn faster but less quality and pitch range.
 device: cuda
 vocoder:
   type: 'nsf-hifigan'

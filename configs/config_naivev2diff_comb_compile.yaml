@@ -18,6 +18,15 @@ data:
   extensions: # List of extension included in the data collection
     - wav
 model:
+  torch_compile_args:
+    use_copile: true
+    fullgraph: false
+    dynamic: 'none' # 'none',false or true
+    backend: 'inductor' # 'cudagraphs', 'inductor', 'onnxrt', 'openxla', 'openxla_eval', 'tvm'
+    mode: 'reduce-overhead' # 'default','reduce-overhead','max-autotune' or 'max-autotune-no-cudagraphs'
+    use_options: false # if use options, should be true
+    options:
+      k: 'v'
   k_step_max: 100
   type: 'DiffusionV2'
   n_hidden: 256
@@ -29,15 +38,19 @@ model:
   spec_min: -12
   spec_max: 2
   denoise_fn:
-    type: 'WaveNet'
-    wn_layers: 20
-    wn_chans: 512
-    wn_dilation: 1 # dont change
-    wn_kernel: 3 # dont change
-    wn_tf_use: false # use WaveNet with Transformer
-    wn_tf_rf: false # only wn_tf_use is true and here is true will use RoFormer
-    wn_tf_n_layers: 2
-    wn_tf_n_head: 4
+    type: 'NaiveV2Diff'
+    cn_layers: 6
+    cn_chans: 512
+    use_mlp: false # is use MLP in cond_emb and output_proj
+    mlp_factor: 4
+    expansion_factor: 2
+    kernel_size: 31
+    conv_only: true # use Transformer block with conv block, if false
+    wavenet_like: false # dont change if dont understand; more info:diffusion/naive_v2/naive_v2_diff.py
+    use_norm: false # pre-norm for every layers
+    conv_model_type: 'mode1' # dont change
+    conv_dropout: 0.0
+    atten_dropout: 0.1
   mask_cond_ratio: 'NOTUSE' # input 'NOTUSE' if not use
   naive_fn:
     type: 'LYNXNet' # LYNXNet is thr other name of ConformerNaiveEncoder(NaiveNet)
@@ -64,11 +77,11 @@ infer:
   speedup: 1
   method: 'pndm' # 'ddim', 'pndm', 'dpm-solver' or 'unipc'
 env:
-  expdir: exp/v2diffcombo
+  expdir: exp/naivev2diffcombocompile
   gpu_id: 0
 train:
   num_workers: 0 # If your cpu and gpu are both very strong, set to 0 may be faster!
-  amp_dtype: fp32 # fp32, fp16 or bf16 (fp16 or bf16 may be faster if it is supported by your gpu)
+  amp_dtype: fp16 # fp32, fp16 or bf16 (fp16 or bf16 may be faster if it is supported by your gpu)
   batch_size: 48
   cache_all_data: true # Save Internal-Memory or Graphics-Memory if it is false, but may be slow
   cache_device: 'cuda' # Set to 'cuda' to cache the data into the Graphics-Memory, fastest speed for strong gpu
