@@ -130,7 +130,7 @@ if __name__ == '__main__':
     initial_global_step, model, optimizer = utils.load_model(args.env.expdir, model, optimizer, device=args.device)
     if quantizer is not None and args.train.units_quantize_type == "vq":
         try:
-            _, quantizer, _ = utils.load_model(args.env.expdir, quantizer, optimizer, device=args.device, postfix=f'{initial_global_step}_semantic_codebook')
+            _, quantizer, _ = utils.load_model(args.env.expdir, quantizer, optimizer, device=args.device, postfix=f'_semantic_codebook')
         except:
             print(" [x] No semantic codebook found, use random codebook instead.")
     for param_group in optimizer.param_groups:

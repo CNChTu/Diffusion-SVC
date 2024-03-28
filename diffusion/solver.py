@@ -267,12 +267,12 @@ def train(args, initial_global_step, model, optimizer, scheduler, vocoder, loade
                     # save latest
                     unwrap_quantizer = accelerator.unwrap_model(quantizer)
                     if saver.global_step % args.train.interval_force_save == 0:
-                        saver.save_model(unwrap_quantizer, None, postfix=f'{saver.global_step}_semantic_codebook_Force')
+                        saver.save_model(unwrap_quantizer, None, postfix=f'semantic_codebook_{saver.global_step}_Force')
                     else:
-                        saver.save_model(unwrap_quantizer, None, postfix=f'{saver.global_step}_semantic_codebook')
+                        saver.save_model(unwrap_quantizer, None, postfix=f'semantic_codebook_{saver.global_step}')
                     
                     last_val_step = saver.global_step - args.train.interval_val * (args.train.last_save_model_num + 1)
-                    saver.delete_model(postfix=f'{last_val_step}_semantic_codebook')
+                    saver.delete_model(postfix=f'semantic_codebook_{last_val_step}')
 
                 # run testing set
                 test_loss = test(args, unwrap_model, vocoder, loader_test, f0_extractor, unwrap_quantizer, saver, accelerator)
