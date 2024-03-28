@@ -146,6 +146,7 @@ class Unit2MelNaiveV2ForDiff(nn.Module):
         self.n_chans = net_fn.n_chans if (net_fn.n_chans is not None) else 256
         self.out_put_norm = net_fn.out_put_norm if (net_fn.out_put_norm is not None) else False
         self.simple_stack = net_fn.simple_stack if (net_fn.simple_stack is not None) else False
+        self.use_weight_norm = net_fn.use_weight_norm if (net_fn.use_weight_norm is not None) else True
 
         if net_fn.type == 'LYNXNet' or net_fn.type == 'NaiveNet':
             self.expansion_factor = net_fn.expansion_factor if (net_fn.expansion_factor is not None) else 2
@@ -186,8 +187,11 @@ class Unit2MelNaiveV2ForDiff(nn.Module):
         if self.out_put_norm:
             self.norm = nn.LayerNorm(self.n_chans)
             self.n_out = out_dims
-            self.dense_out = weight_norm(
-                nn.Linear(self.n_chans, self.n_out))
+            dense_out = nn.Linear(self.n_chans, self.n_out)
+            if self.use_weight_norm:
+                self.dense_out = weight_norm(dense_out)
+            else:
+                self.dense_out = dense_out
         else:
             self.out_proj = nn.Linear(self.n_chans, out_dims)
 
