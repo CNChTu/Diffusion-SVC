@@ -279,6 +279,7 @@ class Unit2MelV2(nn.Module):
             naive_out_mel_cond_diff=True
     ):
         super().__init__()
+        # check and init mask_cond_ratio
         if mask_cond_ratio is not None:
             mask_cond_ratio = float(mask_cond_ratio) if (str(mask_cond_ratio) != 'NOTUSE') else -99
             if mask_cond_ratio > 0:
@@ -481,7 +482,7 @@ class Unit2MelV2(nn.Module):
         # combo trained model
         if self.combo_trained_model:
             # forward naive_fn, get _x from input x
-            _x = self.naive_stack(x)
+            _x = self.naive_stack(x, use_vae=use_vae)
             if infer:
                 gt_spec = _x
                 naive_loss = 0
