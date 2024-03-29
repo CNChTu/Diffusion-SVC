@@ -13,22 +13,32 @@ class RectifiedFlow(nn.Module):
                  velocity_fn,
                  out_dims=128,
                  spec_min=-12,
-                 spec_max=2):
+                 spec_max=2,
+                 loss_type='l2'):
         super().__init__()
         self.velocity_fn = velocity_fn
         self.out_dims = out_dims
         self.spec_min = spec_min
         self.spec_max = spec_max
+        self.loss_type = loss_type
 
-    def reflow_loss(self, x_1, t, cond, loss_type='l2'):
+    def reflow_loss(self, x_1, t, cond, loss_type=None):
         x_0 = torch.randn_like(x_1)
         x_t = x_0 + t[:, None, None, None] * (x_1 - x_0)
         v_pred = self.velocity_fn(x_t, 1000 * t, cond)
+
+        if loss_type is None:
+            loss_type = self.loss_type
+        else:
+            loss_type = loss_type
 
         if loss_type == 'l1':
             loss = (x_1 - x_0 - v_pred).abs().mean()
         elif loss_type == 'l2':
             loss = F.mse_loss(x_1 - x_0, v_pred)
+        elif loss_type == 'l2_lognorm':
+            weights = 0.398942 / t / (1 - t) * torch.exp(-0.5 * torch.log(t / ( 1 - t)) ** 2)
+            loss = torch.mean(weights[:, None, None, None] * F.mse_loss(x_1 - x_0, v_pred, reduction='none'))
         else:
             raise NotImplementedError()
 
