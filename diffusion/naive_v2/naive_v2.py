@@ -199,7 +199,10 @@ class Unit2MelNaiveV2ForDiff(nn.Module):
         else:
             self.out_proj = nn.Linear(self.n_chans, out_dims)
 
-    def forward(self, in_x):
+    def forward(self, in_x, use_vae=False):
+
+        if use_vae:
+            raise ValueError('naive_v2 does not support latent variable vocoder.')
 
         # input proj
         x = self.stack(in_x.transpose(1, 2)).transpose(1, 2)
