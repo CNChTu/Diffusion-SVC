@@ -6,6 +6,7 @@ import numpy as np
 import torch.nn.functional as F
 from torch.nn.utils import weight_norm
 import random
+from .reflow.reflow import RectifiedFlow
 from .diffusion import GaussianDiffusion
 from .wavenet import WaveNet
 from .convnext import ConvNext
@@ -22,6 +23,85 @@ class DotDict(dict):
 
     __setattr__ = dict.__setitem__
     __delattr__ = dict.__delitem__
+
+
+def get_network_from_dot(netdot, out_dims, cond_dims):
+    # check type
+    if not isinstance(netdot, DotDict):
+        assert isinstance(netdot, dict)
+        netdot = DotDict(netdot)
+
+    # get network
+    if netdot.type == 'WaveNet':
+        # catch None
+        wn_layers = netdot.wn_layers if (netdot.wn_layers is not None) else 20
+        wn_chans = netdot.wn_chans if (netdot.wn_chans is not None) else 384
+        wn_dilation = netdot.wn_dilation if (netdot.wn_dilation is not None) else 1
+        wn_kernel = netdot.wn_kernel if (netdot.wn_kernel is not None) else 3
+        wn_tf_use = netdot.wn_tf_use if (netdot.wn_tf_use is not None) else False
+        wn_tf_rf = netdot.wn_tf_rf if (netdot.wn_tf_rf is not None) else False
+        wn_tf_n_layers = netdot.wn_tf_n_layers if (netdot.wn_tf_n_layers is not None) else 2
+        wn_tf_n_head = netdot.wn_tf_n_head if (netdot.wn_tf_n_head is not None) else 4
+
+        # init wavenet denoiser
+        denoiser = WaveNet(out_dims, wn_layers, wn_chans, cond_dims, wn_dilation, wn_kernel,
+                           wn_tf_use, wn_tf_rf, wn_tf_n_layers, wn_tf_n_head)
+
+    elif netdot.type == 'ConvNext':
+        # catch None
+        cn_layers = netdot.cn_layers if (netdot.cn_layers is not None) else 20
+        cn_chans = netdot.cn_chans if (netdot.cn_chans is not None) else 384
+        cn_dilation_cycle = netdot.cn_dilation_cycle if (netdot.cn_dilation_cycle is not None) else 4
+        mlp_factor = netdot.mlp_factor if (netdot.mlp_factor is not None) else 4
+        gradient_checkpointing = netdot.gradient_checkpointing if (
+                netdot.gradient_checkpointing is not None) else False
+        # init convnext denoiser
+        denoiser = ConvNext(
+            mel_channels=out_dims,
+            dim=cn_chans,
+            mlp_factor=mlp_factor,
+            condition_dim=cond_dims,
+            num_layers=cn_layers,
+            dilation_cycle=cn_dilation_cycle,
+            gradient_checkpointing=gradient_checkpointing
+        )
+
+    elif (netdot.type == 'NaiveV2Diff') or (netdot.type == 'LYNXNetDiff'):
+        # catch None
+        cn_layers = netdot.cn_layers if (netdot.cn_layers is not None) else 20
+        cn_chans = netdot.cn_chans if (netdot.cn_chans is not None) else 384
+        use_mlp = netdot.use_mlp if (netdot.use_mlp is not None) else True
+        mlp_factor = netdot.mlp_factor if (netdot.mlp_factor is not None) else 4
+        expansion_factor = netdot.expansion_factor if (netdot.expansion_factor is not None) else 2
+        kernel_size = netdot.kernel_size if (netdot.kernel_size is not None) else 31
+        conv_only = netdot.conv_only if (netdot.conv_only is not None) else True
+        wavenet_like = netdot.wavenet_like if (netdot.wavenet_like is not None) else False
+        use_norm = netdot.use_norm if (netdot.use_norm is not None) else False
+        conv_model_type = netdot.conv_model_type if (netdot.conv_model_type is not None) else 'mode1'
+        conv_dropout = netdot.conv_dropout if (netdot.conv_dropout is not None) else 0.0
+        atten_dropout = netdot.atten_dropout if (netdot.atten_dropout is not None) else 0.1
+        # init convnext denoiser
+        denoiser = NaiveV2Diff(
+            mel_channels=out_dims,
+            dim=cn_chans,
+            use_mlp=use_mlp,
+            mlp_factor=mlp_factor,
+            condition_dim=cond_dims,
+            num_layers=cn_layers,
+            expansion_factor=expansion_factor,
+            kernel_size=kernel_size,
+            conv_only=conv_only,
+            wavenet_like=wavenet_like,
+            use_norm=use_norm,
+            conv_model_type=conv_model_type,
+            conv_dropout=conv_dropout,
+            atten_dropout=atten_dropout,
+        )
+
+    else:
+        raise TypeError(" [X] Unknow netdot.type")
+
+    return denoiser
 
 
 def get_z(stack_tensor, mean_only=False):
@@ -144,6 +224,26 @@ def load_svc_model(args, vocoder_dimension):
             mask_cond_ratio=args.model.mask_cond_ratio,
             naive_fn=args.model.naive_fn,
             naive_fn_grad_not_by_diffusion=args.model.naive_fn_grad_not_by_diffusion,
+            naive_out_mel_cond_diff=args.model.naive_out_mel_cond_diff)
+
+    elif args.model.type == 'ReFlow':
+        model = Unit2MelV2ReFlow(
+            args.data.encoder_out_channels,
+            args.model.n_spk,
+            args.model.use_pitch_aug,
+            vocoder_dimension,
+            args.model.n_hidden,
+            use_speaker_encoder=args.model.use_speaker_encoder,
+            speaker_encoder_out_channels=args.data.speaker_encoder_out_channels,
+            z_rate=args.model.z_rate,
+            mean_only=args.model.mean_only,
+            max_beta=args.model.max_beta,
+            spec_min=args.model.spec_min,
+            spec_max=args.model.spec_max,
+            velocity_fn=args.model.velocity_fn,
+            mask_cond_ratio=args.model.mask_cond_ratio,
+            naive_fn=args.model.naive_fn,
+            naive_fn_grad_not_by_reflow=args.model.naive_fn_grad_not_by_reflow,
             naive_out_mel_cond_diff=args.model.naive_out_mel_cond_diff)
 
     elif args.model.type == 'Naive':
@@ -291,16 +391,6 @@ class Unit2MelV2(nn.Module):
 
         if denoise_fn is None:
             # catch None
-            denoise_fn = {'type': 'WaveNet',
-                          'wn_layers': 20,
-                          'wn_chans': 384,
-                          'wn_dilation': 1,
-                          'wn_kernel': 3,
-                          'wn_tf_use': False,
-                          'wn_tf_rf': False,
-                          'wn_tf_n_layers': 2,
-                          'wn_tf_n_head': 4}
-            denoise_fn = DotDict(denoise_fn)
             raise ValueError(" [X] denoise_fn is None, please check config file")
 
         # check naive_fn
@@ -333,74 +423,9 @@ class Unit2MelV2(nn.Module):
             )
             self.naive_proj = nn.Linear(out_dims, n_hidden)
 
-        if denoise_fn.type == 'WaveNet':
-            # catch None
-            self.wn_layers = denoise_fn.wn_layers if (denoise_fn.wn_layers is not None) else 20
-            self.wn_chans = denoise_fn.wn_chans if (denoise_fn.wn_chans is not None) else 384
-            self.wn_dilation = denoise_fn.wn_dilation if (denoise_fn.wn_dilation is not None) else 1
-            self.wn_kernel = denoise_fn.wn_kernel if (denoise_fn.wn_kernel is not None) else 3
-            self.wn_tf_use = denoise_fn.wn_tf_use if (denoise_fn.wn_tf_use is not None) else False
-            self.wn_tf_rf = denoise_fn.wn_tf_rf if (denoise_fn.wn_tf_rf is not None) else False
-            self.wn_tf_n_layers = denoise_fn.wn_tf_n_layers if (denoise_fn.wn_tf_n_layers is not None) else 2
-            self.wn_tf_n_head = denoise_fn.wn_tf_n_head if (denoise_fn.wn_tf_n_head is not None) else 4
+        # init denoiser
+        denoiser = get_network_from_dot(denoise_fn, out_dims, n_hidden)
 
-            # init wavenet denoiser
-            denoiser = WaveNet(out_dims, self.wn_layers, self.wn_chans, n_hidden, self.wn_dilation, self.wn_kernel,
-                               self.wn_tf_use, self.wn_tf_rf, self.wn_tf_n_layers, self.wn_tf_n_head)
-
-        elif denoise_fn.type == 'ConvNext':
-            # catch None
-            self.cn_layers = denoise_fn.cn_layers if (denoise_fn.cn_layers is not None) else 20
-            self.cn_chans = denoise_fn.cn_chans if (denoise_fn.cn_chans is not None) else 384
-            self.cn_dilation_cycle = denoise_fn.cn_dilation_cycle if (denoise_fn.cn_dilation_cycle is not None) else 4
-            self.mlp_factor = denoise_fn.mlp_factor if (denoise_fn.mlp_factor is not None) else 4
-            self.gradient_checkpointing = denoise_fn.gradient_checkpointing if (
-                    denoise_fn.gradient_checkpointing is not None) else False
-            # init convnext denoiser
-            denoiser = ConvNext(
-                mel_channels=out_dims,
-                dim=self.cn_chans,
-                mlp_factor=self.mlp_factor,
-                condition_dim=n_hidden,
-                num_layers=self.cn_layers,
-                dilation_cycle=self.cn_dilation_cycle,
-                gradient_checkpointing=self.gradient_checkpointing
-            )
-
-        elif (denoise_fn.type == 'NaiveV2Diff') or (denoise_fn.type == 'LYNXNetDiff'):
-            # catch None
-            self.cn_layers = denoise_fn.cn_layers if (denoise_fn.cn_layers is not None) else 20
-            self.cn_chans = denoise_fn.cn_chans if (denoise_fn.cn_chans is not None) else 384
-            self.use_mlp = denoise_fn.use_mlp if (denoise_fn.use_mlp is not None) else True
-            self.mlp_factor = denoise_fn.mlp_factor if (denoise_fn.mlp_factor is not None) else 4
-            self.expansion_factor = denoise_fn.expansion_factor if (denoise_fn.expansion_factor is not None) else 2
-            self.kernel_size = denoise_fn.kernel_size if (denoise_fn.kernel_size is not None) else 31
-            self.conv_only = denoise_fn.conv_only if (denoise_fn.conv_only is not None) else True
-            self.wavenet_like = denoise_fn.wavenet_like if (denoise_fn.wavenet_like is not None) else False
-            self.use_norm = denoise_fn.use_norm if (denoise_fn.use_norm is not None) else False
-            self.conv_model_type = denoise_fn.conv_model_type if (denoise_fn.conv_model_type is not None) else 'mode1'
-            self.conv_dropout = denoise_fn.conv_dropout if (denoise_fn.conv_dropout is not None) else 0.0
-            self.atten_dropout = denoise_fn.atten_dropout if (denoise_fn.atten_dropout is not None) else 0.1
-            # init convnext denoiser
-            denoiser = NaiveV2Diff(
-                mel_channels=out_dims,
-                dim=self.cn_chans,
-                use_mlp=self.use_mlp,
-                mlp_factor=self.mlp_factor,
-                condition_dim=n_hidden,
-                num_layers=self.cn_layers,
-                expansion_factor=self.expansion_factor,
-                kernel_size=self.kernel_size,
-                conv_only=self.conv_only,
-                wavenet_like=self.wavenet_like,
-                use_norm=self.use_norm,
-                conv_model_type=self.conv_model_type,
-                conv_dropout=self.conv_dropout,
-                atten_dropout=self.atten_dropout,
-            )
-
-        else:
-            raise TypeError(" [X] Unknow denoise_fn")
         self.denoise_fn_type = denoise_fn.type
 
         # catch None
@@ -427,12 +452,16 @@ class Unit2MelV2(nn.Module):
                 self.spk_embed = nn.Embedding(n_spk, n_hidden)
 
         # init diffusion
-        self.decoder = GaussianDiffusion(
+        self.decoder = self.spawn_decoder(denoiser, out_dims)
+
+    def spawn_decoder(self,denoiser, out_dims):
+        decoder = GaussianDiffusion(
             denoiser,
             out_dims=out_dims,
             max_beta=self.max_beta,
             spec_min=self.spec_min,
             spec_max=self.spec_max)
+        return decoder
 
     def forward(self, units, f0, volume, spk_id=None, spk_mix_dict=None, aug_shift=None,
                 gt_spec=None, infer=True, infer_speedup=10, method='dpm-solver', k_step=None, use_tqdm=True,
@@ -446,24 +475,7 @@ class Unit2MelV2(nn.Module):
 
         # embed
         x = self.unit_embed(units) + self.f0_embed((1 + f0 / 700).log()) + self.volume_embed(volume)
-        if self.use_speaker_encoder:
-            if spk_mix_dict is not None:
-                assert spk_emb_dict is not None
-                for k, v in spk_mix_dict.items():
-                    spk_id_torch = spk_emb_dict[str(k)]
-                    spk_id_torch = np.tile(spk_id_torch, (len(units), 1))
-                    spk_id_torch = torch.from_numpy(spk_id_torch).float().to(units.device)
-                    x = x + v * self.spk_embed(spk_id_torch)
-            else:
-                x = x + self.spk_embed(spk_emb)
-        else:
-            if self.n_spk is not None and self.n_spk > 1:
-                if spk_mix_dict is not None:
-                    for k, v in spk_mix_dict.items():
-                        spk_id_torch = torch.LongTensor(np.array([[k]])).to(units.device)
-                        x = x + v * self.spk_embed(spk_id_torch - 1)
-                else:
-                    x = x + self.spk_embed(spk_id - 1)
+        x = self.emb_spk(x, spk_id, len(units), units.device, spk_mix_dict, spk_emb_dict, spk_emb)
         if self.aug_shift_embed is not None and aug_shift is not None:
             x = x + self.aug_shift_embed(aug_shift / 5)
 
@@ -473,28 +485,13 @@ class Unit2MelV2(nn.Module):
             if (self.z_rate is not None) and (self.z_rate != 0):
                 gt_spec = gt_spec * self.z_rate  # scale z
 
-        # conditional mask
-        if self.mask_cond_ratio is not None:
-            if not infer:
-                if self.denoise_fn_type == 'NaiveV2Diff':
-                    self.decoder.denoise_fn.mask_cond_ratio = self.mask_cond_ratio
+        # mask cpmd start
+        if not infer:
+            self.mask_cond_train_start()
 
         # combo trained model
         if self.combo_trained_model:
-            # forward naive_fn, get _x from input x
-            _x = self.naive_stack(x, use_vae=use_vae)
-            if infer:
-                gt_spec = _x
-                naive_loss = 0
-            else:
-                naive_loss = F.mse_loss(_x, gt_spec)
-            _x = self.naive_proj(_x)  # project _x to n_hidden matching x
-            # if naive_fn_grad_not_by_diffusion is True, then detach _x, make it not grad by diffusion
-            if self.naive_fn_grad_not_by_diffusion:
-                _x = _x.detach()
-            # if naive_out_mel_cond_diff is True, then use _x as cond for diffusion, else use x
-            if self.naive_out_mel_cond_diff:
-                x = _x
+            x, gt_spec, naive_loss = self.naive_fn_forward_for_combo_trained_model(x, gt_spec, infer, use_vae)
         else:
             naive_loss = 0
 
@@ -502,16 +499,170 @@ class Unit2MelV2(nn.Module):
         x = self.decoder(x, gt_spec=gt_spec, infer=infer, infer_speedup=infer_speedup, method=method, k_step=k_step,
                          use_tqdm=use_tqdm)
 
-        if self.mask_cond_ratio is not None:
-            if self.denoise_fn_type == 'NaiveV2Diff':
-                self.decoder.denoise_fn.mask_cond_ratio = None
+        # mask cond end
+        self.mask_cond_train_end()
 
         if infer:
             if (self.z_rate is not None) and (self.z_rate != 0):
                 x = x / self.z_rate  # scale z
 
         if not infer:
-            x = x + naive_loss
+            if self.combo_trained_model:
+                return {'diff_loss': x, 'naive_loss': naive_loss}
+            else:
+                return {'diff_loss': (x + naive_loss)}
+
+        return x
+
+    def mask_cond_train_start(self):
+        if self.mask_cond_ratio is not None:
+            if self.denoise_fn_type == 'NaiveV2Diff':
+                self.decoder.denoise_fn.mask_cond_ratio = self.mask_cond_ratio
+
+    def mask_cond_train_end(self):
+        if self.mask_cond_ratio is not None:
+            if self.denoise_fn_type == 'NaiveV2Diff':
+                self.decoder.denoise_fn.mask_cond_ratio = None
+
+    def naive_fn_forward_for_combo_trained_model(self, x, gt_spec, infer, use_vae):
+        # forward naive_fn, get _x from input x
+        _x = self.naive_stack(x, use_vae=use_vae)
+        if infer:
+            gt_spec = _x
+            naive_loss = 0
+        else:
+            naive_loss = F.mse_loss(_x, gt_spec)
+        _x = self.naive_proj(_x)  # project _x to n_hidden matching x
+        # if naive_fn_grad_not_by_diffusion is True, then detach _x, make it not grad by diffusion
+        if self.naive_fn_grad_not_by_diffusion:
+            _x = _x.detach()
+        # if naive_out_mel_cond_diff is True, then use _x as cond for diffusion, else use x
+        if self.naive_out_mel_cond_diff:
+            x = _x
+        return x, gt_spec, naive_loss
+
+    def emb_spk(self, x, spk_id, units_len, units_device, spk_mix_dict, spk_emb_dict , spk_emb):
+        if self.use_speaker_encoder:
+            if spk_mix_dict is not None:
+                assert spk_emb_dict is not None
+                for k, v in spk_mix_dict.items():
+                    spk_id_torch = spk_emb_dict[str(k)]
+                    spk_id_torch = np.tile(spk_id_torch, (units_len, 1))
+                    spk_id_torch = torch.from_numpy(spk_id_torch).float().to(units_device)
+                    x = x + v * self.spk_embed(spk_id_torch)
+            else:
+                x = x + self.spk_embed(spk_emb)
+        else:
+            if self.n_spk is not None and self.n_spk > 1:
+                if spk_mix_dict is not None:
+                    for k, v in spk_mix_dict.items():
+                        spk_id_torch = torch.LongTensor(np.array([[k]])).to(units_device)
+                        x = x + v * self.spk_embed(spk_id_torch - 1)
+                else:
+                    x = x + self.spk_embed(spk_id - 1)
+        return x
+
+
+class Unit2MelV2ReFlow(Unit2MelV2):
+    def spawn_decoder(self, velocity_fn, out_dims):
+        decoder = RectifiedFlow(
+            velocity_fn,
+            out_dims=out_dims,
+            spec_min=self.spec_min,
+            spec_max=self.spec_max)
+        return decoder
+
+    def __init__(
+            self,
+            input_channel,
+            n_spk,
+            use_pitch_aug=False,
+            out_dims=128,
+            n_hidden=256,
+            use_speaker_encoder=False,
+            speaker_encoder_out_channels=256,
+            z_rate=None,
+            mean_only=False,
+            max_beta=0.02,  # 暂时废弃，但是极有可能未来会有用吧，所以先不删除, 可以为None
+            spec_min=-12,
+            spec_max=2,
+            velocity_fn=None,
+            mask_cond_ratio=None,
+            naive_fn=None,
+            naive_fn_grad_not_by_reflow=False,
+            naive_out_mel_cond_diff=True
+    ):
+        super().__init__(
+            input_channel,
+            n_spk,
+            use_pitch_aug=use_pitch_aug,
+            out_dims=out_dims,
+            n_hidden=n_hidden,
+            use_speaker_encoder=use_speaker_encoder,
+            speaker_encoder_out_channels=speaker_encoder_out_channels,
+            z_rate=z_rate,
+            mean_only=mean_only,
+            max_beta=max_beta,
+            spec_min=spec_min,
+            spec_max=spec_max,
+            denoise_fn=velocity_fn,
+            mask_cond_ratio=mask_cond_ratio,
+            naive_fn=naive_fn,
+            naive_fn_grad_not_by_diffusion=naive_fn_grad_not_by_reflow,
+            naive_out_mel_cond_diff=naive_out_mel_cond_diff
+        )
+
+    def forward(self, units, f0, volume, spk_id=None, spk_mix_dict=None, aug_shift=None,
+                gt_spec=None, infer=True, infer_step=10, method='euler', t_start=0.0, use_tqdm=True,
+                spk_emb=None, spk_emb_dict=None, use_vae=False):
+        '''
+        input:
+            B x n_frames x n_unit
+        return:
+            dict of B x n_frames x feat
+        '''
+
+        # embed
+        x = self.unit_embed(units) + self.f0_embed((1 + f0 / 700).log()) + self.volume_embed(volume)
+        x = self.emb_spk(x, spk_id, len(units), units.device, spk_mix_dict, spk_emb_dict, spk_emb)
+        if self.aug_shift_embed is not None and aug_shift is not None:
+            x = x + self.aug_shift_embed(aug_shift / 5)
+
+        # sample z or mean only
+        if use_vae and (gt_spec is not None):
+            gt_spec = get_z(gt_spec, mean_only=self.mean_only)
+            if (self.z_rate is not None) and (self.z_rate != 0):
+                gt_spec = gt_spec * self.z_rate  # scale z
+
+        # mask cpmd start
+        if not infer:
+            self.mask_cond_train_start()
+
+        # combo trained model
+        if self.combo_trained_model:
+            x, gt_spec, naive_loss = self.naive_fn_forward_for_combo_trained_model(x, gt_spec, infer, use_vae)
+        else:
+            naive_loss = 0
+
+        # reflow
+        if infer:
+            x = self.decoder(x, gt_spec=gt_spec, infer=True, infer_step=infer_step, method=method, t_start=t_start,
+                             use_tqdm=use_tqdm)
+        else:
+            x = self.decoder(x, gt_spec=gt_spec, t_start=t_start, infer=False)
+
+        # mask cond end
+        self.mask_cond_train_end()
+
+        if infer:
+            if (self.z_rate is not None) and (self.z_rate != 0):
+                x = x / self.z_rate  # scale z
+
+        if not infer:
+            if self.combo_trained_model:
+                return {'diff_loss': x, 'naive_loss': naive_loss}
+            else:
+                return {'diff_loss': (x + naive_loss)}
 
         return x
 

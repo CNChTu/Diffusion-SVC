@@ -45,9 +45,9 @@ def test(args, model, vocoder, loader_test, saver):
                 data['spk_id'],
                 gt_spec=data['mel'],
                 infer=True,
-                infer_speedup=args.infer.speedup,
+                infer_step=args.infer.infer_step,
                 method=args.infer.method,
-                k_step=args.model.k_step_max,
+                t_start=args.model.t_start,
                 spk_emb=data['spk_emb'])
             signal = vocoder.infer(mel, data['f0'])
             ed_time = time.time()
@@ -61,18 +61,21 @@ def test(args, model, vocoder, loader_test, saver):
 
             # loss
             for i in range(args.train.batch_size):
-                loss = model(
+                loss_dict = model(
                     data['units'],
                     data['f0'],
                     data['volume'],
                     data['spk_id'],
                     gt_spec=data['mel'],
                     infer=False,
-                    k_step=args.model.k_step_max,
+                    t_start=args.model.t_start,
                     spk_emb=data['spk_emb'],
                     use_vae=(args.vocoder.type == 'hifivaegan')
                 )
-                test_loss += loss.item()
+                _loss = 0
+                for k in loss_dict.keys():
+                    _loss += loss_dict[k].item()
+                test_loss += _loss
 
             # log audio
             path_audio = os.path.join(args.data.valid_path, 'audio', data['name_ext'][0])
@@ -111,7 +114,6 @@ def test(args, model, vocoder, loader_test, saver):
                 saver.log_spec(data['name'][0], gt_mel, pre_mel)
             else:
                 saver.log_spec(data['name'][0], data['mel'], mel)
-
 
     # report
     test_loss /= args.train.batch_size
@@ -161,19 +163,50 @@ def train(args, initial_global_step, model, optimizer, scheduler, vocoder, loade
                     data[k] = data[k].to(args.device)
 
             # forward
-            if dtype == torch.float32:
-                loss = model(data['units'].float(), data['f0'], data['volume'], data['spk_id'],
-                             aug_shift=data['aug_shift'], gt_spec=data['mel'].float(), infer=False, k_step=args.model.k_step_max,
-                             spk_emb=data['spk_emb'], use_vae=use_vae)
+            if args.model.type == 'ReFlow':
+                if dtype == torch.float32:
+                    loss_dict = model(data['units'].float(), data['f0'], data['volume'], data['spk_id'],
+                                      aug_shift=data['aug_shift'],
+                                      gt_spec=data['mel'].float(), infer=False,
+                                      t_start=args.model.t_start,
+                                      spk_emb=data['spk_emb'], use_vae=use_vae)
+                else:
+                    with autocast(device_type=args.device, dtype=dtype):
+                        loss_dict = model(data['units'], data['f0'], data['volume'], data['spk_id'],
+                                          aug_shift=data['aug_shift'], gt_spec=data['mel'], infer=False,
+                                          t_start=args.model.t_start,
+                                          spk_emb=data['spk_emb'], use_vae=use_vae)
+
             else:
-                with autocast(device_type=args.device, dtype=dtype):
-                    loss = model(data['units'], data['f0'], data['volume'], data['spk_id'],
-                                 aug_shift=data['aug_shift'], gt_spec=data['mel'], infer=False, k_step=args.model.k_step_max,
-                                 spk_emb=data['spk_emb'], use_vae=use_vae)
+                if dtype == torch.float32:
+                    loss_dict = model(data['units'].float(), data['f0'], data['volume'], data['spk_id'],
+                                      aug_shift=data['aug_shift'], gt_spec=data['mel'].float(), infer=False,
+                                      k_step=args.model.k_step_max,
+                                      spk_emb=data['spk_emb'], use_vae=use_vae)
+                else:
+                    with autocast(device_type=args.device, dtype=dtype):
+                        loss_dict = model(data['units'], data['f0'], data['volume'], data['spk_id'],
+                                          aug_shift=data['aug_shift'], gt_spec=data['mel'], infer=False,
+                                          k_step=args.model.k_step_max,
+                                          spk_emb=data['spk_emb'], use_vae=use_vae)
+
+            # sum loss
+            if not isinstance(loss_dict, dict):
+                loss_dict = {f'{args.model.type}_loss': loss_dict}
+
+            loss = None
+            loss_float_dict = {}
+            for k in loss_dict.keys():
+                _loss = loss_dict[k]
+                if loss is None:
+                    loss = _loss
+                else:
+                    loss += _loss
+                loss_float_dict[k] = int(_loss.item())
 
             # handle nan loss
             if torch.isnan(loss):
-                #raise ValueError(' [x] nan loss ')
+                # raise ValueError(' [x] nan loss ')
                 # 如果是nan,则跳过这个batch,并清理以防止内存泄漏
                 print(' [x] nan loss ')
                 optimizer.zero_grad()
@@ -211,6 +244,11 @@ def train(args, initial_global_step, model, optimizer, scheduler, vocoder, loade
                     'train/loss': loss.item()
                 })
 
+                for k in loss_float_dict.keys():
+                    saver.log_value({
+                        'train/' + k: loss_float_dict[k]
+                    })
+
                 saver.log_value({
                     'train/lr': current_lr
                 })
@@ -238,5 +276,10 @@ def train(args, initial_global_step, model, optimizer, scheduler, vocoder, loade
                 saver.log_value({
                     'validation/loss': test_loss
                 })
+
+                for k in loss_float_dict.keys():
+                    saver.log_value({
+                        'validation/' + k: loss_float_dict[k]
+                    })
 
                 model.train()
