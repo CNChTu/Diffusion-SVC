@@ -73,6 +73,8 @@ def test(args, model, vocoder, loader_test, saver):
                     use_vae=(args.vocoder.type == 'hifivaegan')
                 )
                 _loss = 0
+                if not isinstance(loss_dict, dict):
+                    loss_dict = {f'{args.model.type}_loss': loss_dict}
                 for k in loss_dict.keys():
                     _loss += loss_dict[k].item()
                 test_loss += _loss
