@@ -198,11 +198,11 @@ def train(args, initial_global_step, model, optimizer, scheduler, vocoder, loade
             loss_float_dict = {}
             for k in loss_dict.keys():
                 _loss = loss_dict[k]
+                loss_float_dict[k] = _loss.item()
                 if loss is None:
                     loss = _loss
                 else:
                     loss += _loss
-                loss_float_dict[k] = _loss.item()
 
             # handle nan loss
             if torch.isnan(loss):
