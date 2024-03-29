@@ -244,7 +244,8 @@ def load_svc_model(args, vocoder_dimension):
             mask_cond_ratio=args.model.mask_cond_ratio,
             naive_fn=args.model.naive_fn,
             naive_fn_grad_not_by_reflow=args.model.naive_fn_grad_not_by_reflow,
-            naive_out_mel_cond_diff=args.model.naive_out_mel_cond_diff)
+            naive_out_mel_cond_reflow=args.model.naive_out_mel_cond_reflow,
+            loss_type=args.model.loss_type,)
 
     elif args.model.type == 'Naive':
         model = Unit2MelNaive(
@@ -569,7 +570,8 @@ class Unit2MelV2ReFlow(Unit2MelV2):
             velocity_fn,
             out_dims=out_dims,
             spec_min=self.spec_min,
-            spec_max=self.spec_max)
+            spec_max=self.spec_max,
+            loss_type=self.loss_type)
         return decoder
 
     def __init__(
@@ -590,8 +592,10 @@ class Unit2MelV2ReFlow(Unit2MelV2):
             mask_cond_ratio=None,
             naive_fn=None,
             naive_fn_grad_not_by_reflow=False,
-            naive_out_mel_cond_diff=True
+            naive_out_mel_cond_reflow=True,
+            loss_type='l2'
     ):
+        self.loss_type = loss_type if (loss_type is not None) else 'l2'
         super().__init__(
             input_channel,
             n_spk,
@@ -609,7 +613,7 @@ class Unit2MelV2ReFlow(Unit2MelV2):
             mask_cond_ratio=mask_cond_ratio,
             naive_fn=naive_fn,
             naive_fn_grad_not_by_diffusion=naive_fn_grad_not_by_reflow,
-            naive_out_mel_cond_diff=naive_out_mel_cond_diff
+            naive_out_mel_cond_diff=naive_out_mel_cond_reflow
         )
 
     def forward(self, units, f0, volume, spk_id=None, spk_mix_dict=None, aug_shift=None,
@@ -660,9 +664,9 @@ class Unit2MelV2ReFlow(Unit2MelV2):
 
         if not infer:
             if self.combo_trained_model:
-                return {'diff_loss': x, 'naive_loss': naive_loss}
+                return {'reflow_loss': x, 'naive_loss': naive_loss}
             else:
-                return {'diff_loss': (x + naive_loss)}
+                return {'reflow_loss': (x + naive_loss)}
 
         return x
 
