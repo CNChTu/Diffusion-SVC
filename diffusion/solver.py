@@ -107,8 +107,13 @@ def test(args, model, vocoder, loader_test, saver):
                     loss_dict = {f'{args.model.type}_loss': loss_dict}
                 for k in loss_dict.keys():
                     _loss += loss_dict[k].item()
-                    test_loss_dict[k] = loss_dict[k].item()
+                    if k not in test_loss_dict:
+                        test_loss_dict[k] = loss_dict[k].item()
+                    else:
+                        test_loss_dict[k] += loss_dict[k].item()
                 test_loss += _loss
+            for k in test_loss_dict.keys():
+                test_loss_dict[k] /= args.train.batch_size
 
             # log audio
             path_audio = os.path.join(args.data.valid_path, 'audio', data['name_ext'][0])
