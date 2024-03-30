@@ -25,6 +25,7 @@ def test(args, model, vocoder, loader_test, saver):
 
     # mel mse val
     mel_val_mse_all = 0
+    mel_val_mse_all_num = 0
 
     # run
     with torch.no_grad():
@@ -41,6 +42,7 @@ def test(args, model, vocoder, loader_test, saver):
 
             # forward
             test_loss_dict = {}
+            test_loss_dict_num = 0
             st_time = time.time()
             if args.model.type == 'ReFlow':
                 mel = model(
@@ -111,9 +113,8 @@ def test(args, model, vocoder, loader_test, saver):
                         test_loss_dict[k] = loss_dict[k].item()
                     else:
                         test_loss_dict[k] += loss_dict[k].item()
+                test_loss_dict_num += 1
                 test_loss += _loss
-            for k in test_loss_dict.keys():
-                test_loss_dict[k] /= args.train.batch_size
 
             # log audio
             path_audio = os.path.join(args.data.valid_path, 'audio', data['name_ext'][0])
@@ -151,14 +152,18 @@ def test(args, model, vocoder, loader_test, saver):
                     gt_mel = gt_mel[:, :pre_mel.shape[1], :]
                 saver.log_spec(data['name'][0], gt_mel, pre_mel)
                 mel_val_mse_all += torch.nn.functional.mse_loss(pre_mel, gt_mel).detach().cpu().numpy()
+                mel_val_mse_all_num += 1
             else:
                 saver.log_spec(data['name'][0], data['mel'], mel)
                 mel_val_mse_all += torch.nn.functional.mse_loss(mel, data['mel']).detach().cpu().numpy()
+                mel_val_mse_all_num += 1
 
     # report
     test_loss /= args.train.batch_size
     test_loss /= num_batches
-    mel_val_mse_all /= num_batches
+    mel_val_mse_all /= mel_val_mse_all_num
+    for k in test_loss_dict.keys():
+        test_loss_dict[k] /= test_loss_dict_num
 
 
     # check
