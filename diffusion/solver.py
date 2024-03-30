@@ -23,6 +23,9 @@ def test(args, model, vocoder, loader_test, saver):
     num_batches = len(loader_test)
     rtf_all = []
 
+    # mel mse val
+    mel_val_mse_all = 0
+
     # run
     with torch.no_grad():
         for bidx, data in enumerate(loader_test):
@@ -37,18 +40,32 @@ def test(args, model, vocoder, loader_test, saver):
             print('>>', data['name'][0])
 
             # forward
+            test_loss_dict = {}
             st_time = time.time()
-            mel = model(
-                data['units'],
-                data['f0'],
-                data['volume'],
-                data['spk_id'],
-                gt_spec=data['mel'],
-                infer=True,
-                infer_step=args.infer.infer_step,
-                method=args.infer.method,
-                t_start=args.model.t_start,
-                spk_emb=data['spk_emb'])
+            if args.model.type == 'ReFlow':
+                mel = model(
+                    data['units'],
+                    data['f0'],
+                    data['volume'],
+                    data['spk_id'],
+                    gt_spec=data['mel'],
+                    infer=True,
+                    infer_step=args.infer.infer_step,
+                    method=args.infer.method,
+                    t_start=args.model.t_start,
+                    spk_emb=data['spk_emb'])
+            else:
+                mel = model(
+                    data['units'],
+                    data['f0'],
+                    data['volume'],
+                    data['spk_id'],
+                    gt_spec=data['mel'],
+                    infer=True,
+                    infer_speedup=args.infer.speedup,
+                    k_step=args.model.k_step_max,
+                    method=args.infer.method,
+                    spk_emb=data['spk_emb'])
             signal = vocoder.infer(mel, data['f0'])
             ed_time = time.time()
 
@@ -61,22 +78,36 @@ def test(args, model, vocoder, loader_test, saver):
 
             # loss
             for i in range(args.train.batch_size):
-                loss_dict = model(
-                    data['units'],
-                    data['f0'],
-                    data['volume'],
-                    data['spk_id'],
-                    gt_spec=data['mel'],
-                    infer=False,
-                    t_start=args.model.t_start,
-                    spk_emb=data['spk_emb'],
-                    use_vae=(args.vocoder.type == 'hifivaegan')
-                )
+                if args.model.type == 'ReFlow':
+                    loss_dict = model(
+                        data['units'],
+                        data['f0'],
+                        data['volume'],
+                        data['spk_id'],
+                        gt_spec=data['mel'],
+                        infer=False,
+                        t_start=args.model.t_start,
+                        spk_emb=data['spk_emb'],
+                        use_vae=(args.vocoder.type == 'hifivaegan')
+                    )
+                else:
+                    loss_dict = model(
+                        data['units'],
+                        data['f0'],
+                        data['volume'],
+                        data['spk_id'],
+                        gt_spec=data['mel'],
+                        infer=False,
+                        k_step=args.model.k_step_max,
+                        spk_emb=data['spk_emb'],
+                        use_vae=(args.vocoder.type == 'hifivaegan')
+                    )
                 _loss = 0
                 if not isinstance(loss_dict, dict):
                     loss_dict = {f'{args.model.type}_loss': loss_dict}
                 for k in loss_dict.keys():
                     _loss += loss_dict[k].item()
+                    test_loss_dict[k] = loss_dict[k].item()
                 test_loss += _loss
 
             # log audio
@@ -102,7 +133,7 @@ def test(args, model, vocoder, loader_test, saver):
                         n_fft=2048,
                         win_size=2048,
                         hop_length=512,
-                        fmin=0,
+                        fmin=40,
                         fmax=22050,
                         clip_val=1e-5)
                 audio = audio.unsqueeze(0)
@@ -114,17 +145,25 @@ def test(args, model, vocoder, loader_test, saver):
                 if pre_mel.shape[1] != gt_mel.shape[1]:
                     gt_mel = gt_mel[:, :pre_mel.shape[1], :]
                 saver.log_spec(data['name'][0], gt_mel, pre_mel)
+                mel_val_mse_all += torch.nn.functional.mse_loss(pre_mel, gt_mel).detach().cpu().numpy()
             else:
                 saver.log_spec(data['name'][0], data['mel'], mel)
+                mel_val_mse_all += torch.nn.functional.mse_loss(mel, data['mel']).detach().cpu().numpy()
 
     # report
     test_loss /= args.train.batch_size
     test_loss /= num_batches
+    mel_val_mse_all /= num_batches
+
 
     # check
     print(' [test_loss] test_loss:', test_loss)
     print(' Real Time Factor', np.mean(rtf_all))
-    return test_loss
+    print(' Mel Val MSE', mel_val_mse_all)
+    saver.log_value({
+        'validation/mel_val_mse': mel_val_mse_all
+    })
+    return test_loss_dict, test_loss
 
 
 def train(args, initial_global_step, model, optimizer, scheduler, vocoder, loader_train, loader_test):
@@ -266,7 +305,7 @@ def train(args, initial_global_step, model, optimizer, scheduler, vocoder, loade
                     saver.delete_model(postfix=f'{last_val_step}')
 
                 # run testing set
-                test_loss = test(args, model, vocoder, loader_test, saver)
+                test_loss_dict, test_loss = test(args, model, vocoder, loader_test, saver)
 
                 # log loss
                 saver.log_info(
@@ -279,9 +318,9 @@ def train(args, initial_global_step, model, optimizer, scheduler, vocoder, loade
                     'validation/loss': test_loss
                 })
 
-                for k in loss_float_dict.keys():
+                for k in test_loss_dict.keys():
                     saver.log_value({
-                        'validation/' + k: loss_float_dict[k]
+                        'validation/' + k: test_loss_dict[k]
                     })
 
                 model.train()
