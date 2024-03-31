@@ -12,6 +12,45 @@ from nsf_hifigan.nvSTFT import STFT
 WAV_TO_MEL = None
 
 
+def calculate_mel_snr(gt_mel, pred_mel):
+    # 计算误差图像
+    error_image = gt_mel - pred_mel
+    # 计算参考图像的平方均值
+    mean_square_reference = torch.mean(gt_mel ** 2)
+    # 计算误差图像的方差
+    variance_error = torch.var(error_image)
+    # 计算并返回SNR
+    snr = 10 * torch.log10(mean_square_reference / variance_error)
+    return snr
+
+
+def calculate_mel_si_snr(gt_mel, pred_mel):
+    # 将测试图像按比例调整以最小化误差
+    scale = torch.sum(gt_mel * pred_mel) / torch.sum(gt_mel ** 2)
+    test_image_scaled = scale * pred_mel
+    # 计算误差图像
+    error_image = gt_mel - test_image_scaled
+    # 计算参考图像的平方均值
+    mean_square_reference = torch.mean(gt_mel ** 2)
+    # 计算误差图像的方差
+    variance_error = torch.var(error_image)
+    # 计算并返回SI-SNR
+    si_snr = 10 * torch.log10(mean_square_reference / variance_error)
+    return si_snr
+
+
+def calculate_mel_psnr(gt_mel, pred_mel):
+    # 计算误差图像
+    error_image = gt_mel - pred_mel
+    # 计算误差图像的均方误差
+    mse = torch.mean(error_image ** 2)
+    # 计算参考图像的最大可能功率
+    max_power = torch.max(gt_mel) ** 2
+    # 计算并返回PSNR
+    psnr = 10 * torch.log10(max_power / mse)
+    return psnr
+
+
 def test(args, model, vocoder, loader_test, saver):
     print(' [*] testing...')
     model.eval()
@@ -26,6 +65,12 @@ def test(args, model, vocoder, loader_test, saver):
     # mel mse val
     mel_val_mse_all = 0
     mel_val_mse_all_num = 0
+    mel_val_snr_all = 0
+    mel_val_psnr_all = 0
+    mel_val_sisnr_all = 0
+
+    test_loss_dict = {}
+    test_loss_dict_num = 0
 
     # run
     with torch.no_grad():
@@ -41,8 +86,6 @@ def test(args, model, vocoder, loader_test, saver):
             print('>>', data['name'][0])
 
             # forward
-            test_loss_dict = {}
-            test_loss_dict_num = 0
             st_time = time.time()
             if args.model.type == 'ReFlow':
                 mel = model(
@@ -152,19 +195,28 @@ def test(args, model, vocoder, loader_test, saver):
                     gt_mel = gt_mel[:, :pre_mel.shape[1], :]
                 saver.log_spec(data['name'][0], gt_mel, pre_mel)
                 mel_val_mse_all += torch.nn.functional.mse_loss(pre_mel, gt_mel).detach().cpu().numpy()
+                mel_val_snr_all += calculate_mel_snr(gt_mel, pre_mel).detach().cpu().numpy()
+                mel_val_psnr_all += calculate_mel_psnr(gt_mel, pre_mel).detach().cpu().numpy()
+                mel_val_sisnr_all += calculate_mel_si_snr(gt_mel, pre_mel).detach().cpu().numpy()
                 mel_val_mse_all_num += 1
             else:
                 saver.log_spec(data['name'][0], data['mel'], mel)
                 mel_val_mse_all += torch.nn.functional.mse_loss(mel, data['mel']).detach().cpu().numpy()
+                mel_val_snr_all += calculate_mel_snr(data['mel'], mel).detach().cpu().numpy()
+                mel_val_psnr_all += calculate_mel_psnr(data['mel'], mel).detach().cpu().numpy()
+                mel_val_sisnr_all += calculate_mel_si_snr(data['mel'], mel).detach().cpu().numpy()
                 mel_val_mse_all_num += 1
 
     # report
     test_loss /= args.train.batch_size
     test_loss /= num_batches
     mel_val_mse_all /= mel_val_mse_all_num
+    mel_val_snr_all /= mel_val_mse_all_num
+    mel_val_psnr_all /= mel_val_mse_all_num
+    mel_val_sisnr_all /= mel_val_mse_all_num
+
     for k in test_loss_dict.keys():
         test_loss_dict[k] /= test_loss_dict_num
-
 
     # check
     print(' [test_loss] test_loss:', test_loss)
@@ -172,6 +224,18 @@ def test(args, model, vocoder, loader_test, saver):
     print(' Mel Val MSE', mel_val_mse_all)
     saver.log_value({
         'validation/mel_val_mse': mel_val_mse_all
+    })
+    print(' Mel Val SNR', mel_val_snr_all)
+    saver.log_value({
+        'validation/mel_val_snr': mel_val_snr_all
+    })
+    print(' Mel Val PSNR', mel_val_psnr_all)
+    saver.log_value({
+        'validation/mel_val_psnr': mel_val_psnr_all
+    })
+    print(' Mel Val SI-SNR', mel_val_sisnr_all)
+    saver.log_value({
+        'validation/mel_val_sisnr': mel_val_sisnr_all
     })
     return test_loss_dict, test_loss
 
