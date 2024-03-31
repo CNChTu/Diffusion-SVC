@@ -68,8 +68,12 @@ class RectifiedFlow(nn.Module):
                 use_tqdm=True):
         cond = condition.transpose(1, 2)  # [B, H, T]
         b, device = condition.shape[0], condition.device
+        if t_start is None:
+            t_start = 0.0
         if t_start < 0.0:
             t_start = 0.0
+        if t_start > 1.0:
+            t_start = 1.0
         if not infer:
             x_1 = self.norm_spec(gt_spec)
             x_1 = x_1.transpose(1, 2)[:, None, :, :]  # [B, 1, M, T]
@@ -81,7 +85,7 @@ class RectifiedFlow(nn.Module):
             # initial condition and step size of the ODE
             if gt_spec is None:
                 x = torch.randn(shape, device=device)
-                t = torch.full((b,), 0, device=device)
+                t = torch.full((b,), 0.0, device=device)
                 dt = 1.0 / infer_step
             else:
                 norm_spec = self.norm_spec(gt_spec)
