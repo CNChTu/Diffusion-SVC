@@ -254,22 +254,27 @@ class DiffusionSVC:
     @torch.no_grad()  # 最基本推理代码,将输入标准化为tensor,只与mel打交道
     def __call__(self, units, f0, volume, spk_id=1, spk_mix_dict=None, aug_shift=0,
                  gt_spec=None, infer_speedup=10, method='dpm-solver', k_step=None, use_tqdm=True,
-                 spk_emb=None):
-
-        if self.args.model.k_step_max is not None:
-            if k_step is None:
+                 spk_emb=None, t_start=None, infer_step=10):
+        _args_t_start = self.args.model.t_start if self.args.model.t_start is not None else -114.514
+        if (self.args.model.k_step_max is not None) or (_args_t_start > 0.0):
+            if (k_step is None) and (t_start is None):
                 if self.model.combo_trained_model:
                     k_step = int(self.args.model.k_step_max)
                     gt_spec = 0
                     print(f'   [WARN] get k_step=None, make k_step=k_step_max of Combo Shallow Diffusion Model')
                 else:
                     raise ValueError("k_step must not None when Shallow Diffusion Model inferring")
-            if k_step > int(self.args.model.k_step_max):
-                raise ValueError(f"k_step must <= k_step_max of Shallow Diffusion Model")
             if gt_spec is None:
                 raise ValueError("gt_spec must not None when Shallow Diffusion Model inferring, gt_spec can from "
                                  "input mel or output of naive model")
             print(f' [INFO] k_step_max is {self.args.model.k_step_max}.')
+
+            if self.args.model.type != 'ReFlow':
+                if k_step > int(self.args.model.k_step_max):
+                    raise ValueError(f"k_step must <= args.model.k_step_max of Shallow Diffusion Model")
+            else:
+                if t_start < float(self.args.model.t_start):
+                    raise ValueError(f"t_start must <= args.model.t_start of ReFlow Model")
 
         aug_shift = torch.from_numpy(np.array([[float(aug_shift)]])).float().to(self.device)
 
@@ -281,29 +286,54 @@ class DiffusionSVC:
         else:
             spk_id = torch.LongTensor(np.array([[int(spk_id)]])).to(self.device)
 
-        if k_step is not None:
-            if k_step == 1000:
-                print(f' [INFO] get k_step=1000, do full 1000 steps depth diffusion')
-                k_step = None
+        if self.args.model.type != 'ReFlow':
+            if k_step is not None:
+                if k_step == 1000:
+                    print(f' [INFO] get k_step=1000, do full 1000 steps depth diffusion')
+                    k_step = None
+                else:
+                    print(f' [INFO] get k_step, do shallow diffusion {k_step} steps')
             else:
-                print(f' [INFO] get k_step, do shallow diffusion {k_step} steps')
+                print(f' [INFO] Do full 1000 steps depth diffusion {k_step}')
+            print(f" [INFO] method:{method}; infer_speedup:{infer_speedup}")
         else:
-            print(f' [INFO] Do full 1000 steps depth diffusion {k_step}')
-        print(f" [INFO] method:{method}; infer_speedup:{infer_speedup}")
+            if t_start is not None:
+                if t_start == 1.0:
+                    print(f' [INFO] get t_start=1.0, do full flow reflow')
+                    t_start = None
+                else:
+                    print(f' [INFO] get t_start, do reflow start from {t_start}')
+            else:
+                print(f' [INFO] Do full flow reflow')
+            print(f" [INFO] method:{method}; infer_step:{infer_step}")
 
         if self.args.vocoder.type == 'hifivaegan':
             use_vae = True
         else:
             use_vae = False
-        return self.model(units, f0, volume, spk_id=spk_id, spk_mix_dict=spk_mix_dict, aug_shift=aug_shift,
-                          gt_spec=gt_spec, infer=True, infer_speedup=infer_speedup, method=method, k_step=k_step,
-                          use_tqdm=use_tqdm, spk_emb=spk_emb, spk_emb_dict=spk_emb_dict, use_vae=use_vae)
+
+        if self.args.model.type != 'ReFlow':
+            return self.model(units, f0, volume, spk_id=spk_id, spk_mix_dict=spk_mix_dict, aug_shift=aug_shift,
+                              gt_spec=gt_spec, infer=True, infer_speedup=infer_speedup, method=method, k_step=k_step,
+                              use_tqdm=use_tqdm, spk_emb=spk_emb, spk_emb_dict=spk_emb_dict, use_vae=use_vae)
+        else:
+            return self.model(units, f0, volume, spk_id=spk_id, spk_mix_dict=spk_mix_dict, aug_shift=aug_shift,
+                              gt_spec=gt_spec, infer=True, infer_step=infer_step, method=method, t_start=t_start,
+                              use_tqdm=use_tqdm, spk_emb=spk_emb, spk_emb_dict=spk_emb_dict, use_vae=use_vae)
 
     @torch.no_grad()  # 比__call__多了声码器代码，输出波形
     def infer(self, units, f0, volume, gt_spec=None, spk_id=1, spk_mix_dict=None, aug_shift=0,
               infer_speedup=10, method='dpm-solver', k_step=None, use_tqdm=True,
-              spk_emb=None):
-        if k_step is not None:
+              spk_emb=None, t_start=None, infer_step=10):
+        if (
+                ((k_step is not None) and (self.args.model.type != 'ReFlow')) or
+                ((t_start is not None) and (self.args.model.type == 'ReFlow'))
+        ):
+            if self.args.model.type == 'ReFlow':
+                t_start = float(t_start)
+            else:
+                k_step = int(k_step)
+
             if self.naive_model is not None:
                 gt_spec = self.naive_model_call(units, f0, volume, spk_id=spk_id, spk_mix_dict=spk_mix_dict,
                                                 aug_shift=aug_shift, spk_emb=spk_emb)
@@ -316,14 +346,13 @@ class DiffusionSVC:
                          " Please enter 'gt_mel' to continue") != 'gt_mel':
                     raise ValueError("Please understand what you're doing")
                 self.enable_gt_mel = True
-            k_step = int(k_step)
             gt_spec = gt_spec
         else:
             gt_spec = None
 
         out_mel = self.__call__(units, f0, volume, spk_id=spk_id, spk_mix_dict=spk_mix_dict, aug_shift=aug_shift,
                                 gt_spec=gt_spec, infer_speedup=infer_speedup, method=method, k_step=k_step,
-                                use_tqdm=use_tqdm, spk_emb=spk_emb)
+                                use_tqdm=use_tqdm, spk_emb=spk_emb, t_start=t_start, infer_step=infer_step)
         return self.mel2wav(out_mel, f0)
 
     @torch.no_grad()  # 为实时浅扩散优化的推理代码，可以切除pad省算力
@@ -364,26 +393,36 @@ class DiffusionSVC:
     @torch.no_grad()  # 不切片从音频推理代码
     def infer_from_audio(self, audio, sr=44100, key=0, spk_id=1, spk_mix_dict=None, aug_shift=0,
                          infer_speedup=10, method='dpm-solver', k_step=None, use_tqdm=True,
-                         spk_emb=None, threhold=-60, index_ratio=0):
+                         spk_emb=None, threhold=-60, index_ratio=0,t_start=None, infer_step=10):
         units = self.encode_units(audio, sr)
         if index_ratio > 0:
             units = self.units_indexer(units_t=units, spk_id=spk_id, ratio=index_ratio)
         f0 = self.extract_f0(audio, key=key, sr=sr)
         volume, mask = self.extract_volume_and_mask(audio, sr, threhold=float(threhold))
-        if k_step is not None:
-            assert 0 < int(k_step) <= 1000
-            k_step = int(k_step)
+
+        if (
+                ((k_step is not None) and (self.args.model.type != 'ReFlow')) or
+                ((t_start is not None) and (self.args.model.type == 'ReFlow'))
+        ):
+            if self.args.model.type == 'ReFlow':
+                assert 1.0 >= t_start >= 0.0
+                t_start = float(t_start)
+            else:
+                assert 0 < int(k_step) <= 1000
+                k_step = int(k_step)
+
             if self.model.combo_trained_model:
-                gt_spec = 0
+                gt_spec = None
             else:
                 audio_t = torch.from_numpy(audio).float().unsqueeze(0).to(self.device)
                 gt_spec = self.vocoder.extract(audio_t, sr)
                 gt_spec = torch.cat((gt_spec, gt_spec[:, -1:, :]), 1)
         else:
             gt_spec = None
+
         output = self.infer(units, f0, volume, gt_spec=gt_spec, spk_id=spk_id, spk_mix_dict=spk_mix_dict,
                             aug_shift=aug_shift, infer_speedup=infer_speedup, method=method, k_step=k_step,
-                            use_tqdm=use_tqdm, spk_emb=spk_emb)
+                            use_tqdm=use_tqdm, spk_emb=spk_emb, t_start=t_start, infer_step=infer_step)
         output *= mask
         return output.squeeze().cpu().numpy(), self.args.data.sampling_rate
 
@@ -391,7 +430,9 @@ class DiffusionSVC:
     def infer_from_long_audio(self, audio, sr=44100, key=0, spk_id=1, spk_mix_dict=None, aug_shift=0,
                               infer_speedup=10, method='dpm-solver', k_step=None, use_tqdm=True,
                               spk_emb=None,
-                              threhold=-60, threhold_for_split=-40, min_len=5000, index_ratio=0):
+                              threhold=-60, threhold_for_split=-40, min_len=5000, index_ratio=0,
+                              t_start=None, infer_step=10
+                              ):
 
         hop_size = self.args.data.block_size * sr / self.args.data.sampling_rate
         segments = split(audio, sr, hop_size, db_thresh=threhold_for_split, min_len=min_len)
@@ -404,9 +445,19 @@ class DiffusionSVC:
         _f0_used_time = _f0_end_time - _f0_start_time
         print(f' [INFO] Extract f0 volume and mask: Done. Use time:{_f0_used_time}')
 
-        if k_step is not None:
-            assert 0 < int(k_step) <= 1000
-            k_step = int(k_step)
+        if infer_step < 1:
+            raise ValueError("infer_step must >= 1 when ReFlow Model inferring")
+        if (
+                ((k_step is not None) and (self.args.model.type != 'ReFlow')) or
+                ((t_start is not None) and (self.args.model.type == 'ReFlow'))
+        ):
+            if self.args.model.type == 'ReFlow':
+                assert 1.0 >= t_start >= 0.0
+                t_start = float(t_start)
+            else:
+                assert 0 < int(k_step) <= 1000
+                k_step = int(k_step)
+
             if self.model.combo_trained_model:
                 gt_spec = None
             else:
@@ -437,7 +488,7 @@ class DiffusionSVC:
             seg_output = self.infer(seg_units, seg_f0, seg_volume, gt_spec=seg_gt_spec, spk_id=spk_id,
                                     spk_mix_dict=spk_mix_dict,
                                     aug_shift=aug_shift, infer_speedup=infer_speedup, method=method, k_step=k_step,
-                                    use_tqdm=use_tqdm, spk_emb=spk_emb)
+                                    use_tqdm=use_tqdm, spk_emb=spk_emb, t_start=t_start, infer_step=infer_step)
             _left = start_frame * self.args.data.block_size
             _right = (start_frame + seg_units.size(1)) * self.args.data.block_size
             seg_output *= mask[:, _left:_right]
