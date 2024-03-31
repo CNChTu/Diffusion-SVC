@@ -125,7 +125,15 @@ def parse_args(args=None, namespace=None):
         type=str,
         required=False,
         default=10,
-        help="speed up | default: 10",
+        help="[Diffusion Only]speed up | default: 10",
+    )
+    parser.add_argument(
+        "-inferstep",
+        "--infer_step",
+        type=str,
+        required=False,
+        default=10,
+        help="[Reflow Only]infer steps | default: 10",
     )
     parser.add_argument(
         "-method",
@@ -133,7 +141,9 @@ def parse_args(args=None, namespace=None):
         type=str,
         required=False,
         default='dpm-solver',
-        help="ddim, pndm, dpm-solver or unipc | default: dpm-solver",
+        help="[Diffusion method: ddim, pndm, dpm-solver or unipc]"
+             "[Reflow] method: euler or rk45 "
+             "| default: dpm-solver",
     )
     parser.add_argument(
         "-kstep",
@@ -142,6 +152,14 @@ def parse_args(args=None, namespace=None):
         required=False,
         default=None,
         help="shallow diffusion steps | default: None",
+    )
+    parser.add_argument(
+        "-tstart",
+        "--t_start",
+        type=str,
+        required=False,
+        default=None,
+        help="[Reflow Only]t start, 0.0 mean Reflow do everything, 1.0 mean do nothing | default: None",
     )
     parser.add_argument(
         "-nmodel",
@@ -207,7 +225,7 @@ if __name__ == '__main__':
     if naive_model_path is not None:
         if cmd.k_step is None:
             naive_model_path = None
-            print(" [WARN] Could not shallow diffusion without k_step value when Only set naive_model path")
+            print(" [WARN] When get naive_model_path, it could not do shallow diffusion without k_step value")
         else:
             diffusion_svc.load_naive_model(naive_model_path=naive_model_path)
 
@@ -232,7 +250,9 @@ if __name__ == '__main__':
         threhold=float(cmd.threhold),
         threhold_for_split=float(cmd.threhold_for_split),
         min_len=int(cmd.min_len),
-        index_ratio=float(cmd.index_ratio)
+        index_ratio=float(cmd.index_ratio),
+        t_start=cmd.t_start,
+        infer_step=int(cmd.infer_step)
     )
     # save
     sf.write(cmd.output, out_wav, out_sr)
