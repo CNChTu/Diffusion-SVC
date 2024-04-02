@@ -452,7 +452,7 @@ class DiffusionSVC:
                 ((t_start is not None) and (self.args.model.type == 'ReFlow'))
         ):
             if self.args.model.type == 'ReFlow':
-                assert 1.0 >= t_start >= 0.0
+                assert 1.0 >= float(t_start) >= 0.0
                 t_start = float(t_start)
             else:
                 assert 0 < int(k_step) <= 1000
