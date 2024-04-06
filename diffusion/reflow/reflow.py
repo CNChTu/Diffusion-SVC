@@ -197,6 +197,70 @@ class RectifiedFlow(nn.Module):
                     for i in range(infer_step):
                         x, t = self.sample_rk4(x, t, dt, cond)
 
+            elif method == 'rk2':
+                if use_tqdm:
+                    for i in tqdm(range(infer_step), desc='sample time step', total=infer_step):
+                        x, t = self.sample_rk2(x, t, dt, cond)
+                else:
+                    for i in range(infer_step):
+                        x, t = self.sample_rk2(x, t, dt, cond)
+                        
+            elif method == 'rk5':
+                if use_tqdm:
+                    for i in tqdm(range(infer_step), desc='sample time step', total=infer_step):
+                        x, t = self.sample_rk5(x, t, dt, cond)
+                else:
+                    for i in range(infer_step):
+                        x, t = self.sample_rk5(x, t, dt, cond)
+                        
+            elif method == 'euler_fp64':
+                if use_tqdm:
+                    for i in tqdm(range(infer_step), desc='sample time step', total=infer_step):
+                        x, t = self.sample_euler_fp64(x, t, dt, cond)
+                else:
+                    for i in range(infer_step):
+                        x, t = self.sample_euler_fp64(x, t, dt, cond)
+                        
+            elif method == 'rk4_fp64':
+                if use_tqdm:
+                    for i in tqdm(range(infer_step), desc='sample time step', total=infer_step):
+                        x, t = self.sample_rk4_fp64(x, t, dt, cond)
+                else:
+                    for i in range(infer_step):
+                        x, t = self.sample_rk4_fp64(x, t, dt, cond)
+                        
+            elif method == 'rk2_fp64':
+                if use_tqdm:
+                    for i in tqdm(range(infer_step), desc='sample time step', total=infer_step):
+                        x, t = self.sample_rk2_fp64(x, t, dt, cond)
+                else:
+                    for i in range(infer_step):
+                        x, t = self.sample_rk2_fp64(x, t, dt, cond)
+                        
+            elif method == 'rk5_fp64':
+                if use_tqdm:
+                    for i in tqdm(range(infer_step), desc='sample time step', total=infer_step):
+                        x, t = self.sample_rk5_fp64(x, t, dt, cond)
+                else:
+                    for i in range(infer_step):
+                        x, t = self.sample_rk5_fp64(x, t, dt, cond)
+                        
+            elif method == 'heun':
+                if use_tqdm:
+                    for i in tqdm(range(infer_step), desc='sample time step', total=infer_step):
+                        x, t = self.sample_heun(x, t, dt, cond)
+                else:
+                    for i in range(infer_step):
+                        x, t = self.sample_heun(x, t, dt, cond)
+
+            elif method == 'PECECE':
+                if use_tqdm:
+                    for i in tqdm(range(infer_step), desc='sample time step', total=infer_step):
+                        x, t = self.sample_PECECE(x, t, dt, cond)
+                else:
+                    for i in range(infer_step):
+                        x, t = self.sample_PECECE(x, t, dt, cond)
+                        
             else:
                 raise NotImplementedError(method)
             x = x.squeeze(1).transpose(1, 2)  # [B, T, M]
