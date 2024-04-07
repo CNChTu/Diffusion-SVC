@@ -43,7 +43,7 @@ class Vocoder:
         elif vocoder_type == 'hifivaegan':
             self.vocoder = HiFiVAEGAN(vocoder_ckpt, device=device)
         elif vocoder_type == 'fireflygan-base':
-            vocoder = FireFlyGANBase(vocoder_ckpt, device=device)
+            self.vocoder = FireFlyGANBase(vocoder_ckpt, device=device)
         else:
             raise ValueError(f" [x] Unknown vocoder: {vocoder_type}")
 
