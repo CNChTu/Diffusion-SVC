@@ -42,10 +42,11 @@ def get_network_from_dot(netdot, out_dims, cond_dims):
         wn_tf_rf = netdot.wn_tf_rf if (netdot.wn_tf_rf is not None) else False
         wn_tf_n_layers = netdot.wn_tf_n_layers if (netdot.wn_tf_n_layers is not None) else 2
         wn_tf_n_head = netdot.wn_tf_n_head if (netdot.wn_tf_n_head is not None) else 4
+        no_t_emb = netdot.no_t_emb if (netdot.no_t_emb is not None) else False
 
         # init wavenet denoiser
         denoiser = WaveNet(out_dims, wn_layers, wn_chans, cond_dims, wn_dilation, wn_kernel,
-                           wn_tf_use, wn_tf_rf, wn_tf_n_layers, wn_tf_n_head)
+                           wn_tf_use, wn_tf_rf, wn_tf_n_layers, wn_tf_n_head, no_t_emb)
 
     elif netdot.type == 'ConvNext':
         # catch None
@@ -80,6 +81,7 @@ def get_network_from_dot(netdot, out_dims, cond_dims):
         conv_model_type = netdot.conv_model_type if (netdot.conv_model_type is not None) else 'mode1'
         conv_dropout = netdot.conv_dropout if (netdot.conv_dropout is not None) else 0.0
         atten_dropout = netdot.atten_dropout if (netdot.atten_dropout is not None) else 0.1
+        no_t_emb = netdot.no_t_emb if (netdot.no_t_emb is not None) else False
         # init convnext denoiser
         denoiser = NaiveV2Diff(
             mel_channels=out_dims,
@@ -96,6 +98,7 @@ def get_network_from_dot(netdot, out_dims, cond_dims):
             conv_model_type=conv_model_type,
             conv_dropout=conv_dropout,
             atten_dropout=atten_dropout,
+            no_t_emb=no_t_emb
         )
 
     else:

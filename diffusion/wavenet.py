@@ -30,7 +30,8 @@ class SinusoidalPosEmb(nn.Module):
 
 
 class ResidualBlock(nn.Module):
-    def __init__(self, encoder_hidden, residual_channels, dilation, kernel_size=3):
+    def __init__(self, encoder_hidden, residual_channels, dilation, kernel_size=3,
+                 no_t_emb=False):
         super().__init__()
         self.residual_channels = residual_channels
         self.dilated_conv = nn.Conv1d(
@@ -43,11 +44,17 @@ class ResidualBlock(nn.Module):
         self.diffusion_projection = nn.Linear(residual_channels, residual_channels)
         self.conditioner_projection = nn.Conv1d(encoder_hidden, 2 * residual_channels, 1)
         self.output_projection = nn.Conv1d(residual_channels, 2 * residual_channels, 1)
+        self.no_t_emb = no_t_emb if (no_t_emb is not None) else False
 
     def forward(self, x, conditioner, diffusion_step):
-        diffusion_step = self.diffusion_projection(diffusion_step).unsqueeze(-1)
+
         conditioner = self.conditioner_projection(conditioner)
-        y = x + diffusion_step
+
+        if not self.no_t_emb:
+            diffusion_step = self.diffusion_projection(diffusion_step).unsqueeze(-1)
+            y = x + diffusion_step
+        else:
+            y = x
 
         y = self.dilated_conv(y) + conditioner
 
@@ -64,8 +71,10 @@ class ResidualBlock(nn.Module):
 
 class WaveNet(nn.Module):
     def __init__(self, in_dims=128, n_layers=20, n_chans=384, n_hidden=256, dilation=1, kernel_size=3,
-                 transformer_use=False, transformer_roformer_use=False, transformer_n_layers=2, transformer_n_head=4):
+                 transformer_use=False, transformer_roformer_use=False, transformer_n_layers=2, transformer_n_head=4,
+                 no_t_emb=False):
         super().__init__()
+        self.no_t_emb = no_t_emb if (no_t_emb is not None) else False
         self.input_projection = Conv1d(in_dims, n_chans, 1)
         self.diffusion_embedding = SinusoidalPosEmb(n_chans)
         self.mlp = nn.Sequential(
@@ -78,7 +87,8 @@ class WaveNet(nn.Module):
                 encoder_hidden=n_hidden,
                 residual_channels=n_chans,
                 dilation=(2 ** (i % dilation)) if (dilation != 1) else 1,
-                kernel_size=kernel_size
+                kernel_size=kernel_size,
+                no_t_emb=self.no_t_emb
             )
             for i in range(n_layers)
         ])
@@ -121,8 +131,11 @@ class WaveNet(nn.Module):
         x = self.input_projection(x)  # [B, residual_channel, T]
 
         x = F.relu(x)
-        diffusion_step = self.diffusion_embedding(diffusion_step)
-        diffusion_step = self.mlp(diffusion_step)
+        if self.no_t_emb:
+            diffusion_step = None
+        else:
+            diffusion_step = self.diffusion_embedding(diffusion_step)
+            diffusion_step = self.mlp(diffusion_step)
         skip = []
         for layer in self.residual_layers:
             x, skip_connection = layer(x, cond, diffusion_step)

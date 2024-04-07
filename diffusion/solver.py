@@ -173,6 +173,10 @@ def test(args, model, vocoder, loader_test, saver):
             else:
                 log_from_signal = False
 
+            spec_min = float(args.model.spec_min) if args.model.spec_min is not None else -12
+            spec_max = float(args.model.spec_max) if args.model.spec_max is not None else 2
+            spec_range = spec_max - spec_min
+
             if log_from_signal:
                 global WAV_TO_MEL
                 if WAV_TO_MEL is None:
@@ -194,17 +198,27 @@ def test(args, model, vocoder, loader_test, saver):
                 if pre_mel.shape[1] != gt_mel.shape[1]:
                     gt_mel = gt_mel[:, :pre_mel.shape[1], :]
                 saver.log_spec(data['name'][0], gt_mel, pre_mel)
+                # 计算指标
                 mel_val_mse_all += torch.nn.functional.mse_loss(pre_mel, gt_mel).detach().cpu().numpy()
-                mel_val_snr_all += calculate_mel_snr(gt_mel, pre_mel).detach().cpu().numpy()
-                mel_val_psnr_all += calculate_mel_psnr(gt_mel, pre_mel).detach().cpu().numpy()
-                mel_val_sisnr_all += calculate_mel_si_snr(gt_mel, pre_mel).detach().cpu().numpy()
+                gt_mel_norm = torch.clip(gt_mel, spec_min, spec_max)
+                gt_mel_norm = gt_mel_norm / spec_range + spec_min
+                pre_mel_norm = torch.clip(pre_mel, spec_min, spec_max)
+                pre_mel_norm = pre_mel_norm / spec_range + spec_min
+                mel_val_snr_all += calculate_mel_snr(gt_mel_norm, pre_mel_norm).detach().cpu().numpy()
+                mel_val_psnr_all += calculate_mel_psnr(gt_mel_norm, pre_mel_norm).detach().cpu().numpy()
+                mel_val_sisnr_all += calculate_mel_si_snr(gt_mel_norm, pre_mel_norm).detach().cpu().numpy()
                 mel_val_mse_all_num += 1
             else:
                 saver.log_spec(data['name'][0], data['mel'], mel)
+                # 计算指标
                 mel_val_mse_all += torch.nn.functional.mse_loss(mel, data['mel']).detach().cpu().numpy()
-                mel_val_snr_all += calculate_mel_snr(data['mel'], mel).detach().cpu().numpy()
-                mel_val_psnr_all += calculate_mel_psnr(data['mel'], mel).detach().cpu().numpy()
-                mel_val_sisnr_all += calculate_mel_si_snr(data['mel'], mel).detach().cpu().numpy()
+                gt_mel_norm = torch.clip(data['mel'], spec_min, spec_max)
+                gt_mel_norm = gt_mel_norm / spec_range + spec_min
+                pre_mel_norm = torch.clip(mel, spec_min, spec_max)
+                pre_mel_norm = pre_mel_norm / spec_range + spec_min
+                mel_val_snr_all += calculate_mel_snr(gt_mel_norm, pre_mel_norm).detach().cpu().numpy()
+                mel_val_psnr_all += calculate_mel_psnr(gt_mel_norm, pre_mel_norm).detach().cpu().numpy()
+                mel_val_sisnr_all += calculate_mel_si_snr(gt_mel_norm, pre_mel_norm).detach().cpu().numpy()
                 mel_val_mse_all_num += 1
 
     # report
