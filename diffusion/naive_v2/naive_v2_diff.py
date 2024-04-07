@@ -44,6 +44,7 @@ class NaiveV2DiffLayer(nn.Module):
                  kernel_size=31,
                  wavenet_like=False,
                  conv_model_type='mode1',
+                 no_t_emb=False,
                  ):
         super().__init__()
 
@@ -63,7 +64,11 @@ class NaiveV2DiffLayer(nn.Module):
         else:
             self.wavenet_like_proj = None
 
-        self.diffusion_step_projection = nn.Conv1d(dim_model, dim_model, 1)
+        self.no_t_emb = no_t_emb if (no_t_emb is not None) else False
+        if not self.no_t_emb:
+            self.diffusion_step_projection = nn.Conv1d(dim_model, dim_model, 1)
+        else:
+            self.diffusion_step_projection = None
         self.condition_projection = nn.Conv1d(dim_cond, dim_model, 1)
 
         # selfatt -> fastatt: performer!
@@ -80,7 +85,10 @@ class NaiveV2DiffLayer(nn.Module):
 
     def forward(self, x, condition=None, diffusion_step=None) -> torch.Tensor:
         res_x = x.transpose(1, 2)
-        x = x + self.diffusion_step_projection(diffusion_step) + self.condition_projection(condition)
+        if self.no_t_emb:
+            x = x + self.condition_projection(condition)
+        else:
+            x = x + self.diffusion_step_projection(diffusion_step) + self.condition_projection(condition)
         x = x.transpose(1, 2)
 
         if self.attn is not None:
@@ -115,18 +123,23 @@ class NaiveV2Diff(nn.Module):
             conv_model_type='mode1',
             conv_dropout=0.0,
             atten_dropout=0.1,
+            no_t_emb=False,
     ):
         super(NaiveV2Diff, self).__init__()
+        self.no_t_emb = no_t_emb if (no_t_emb is not None) else False
         self.wavenet_like = wavenet_like
         self.mask_cond_ratio = None
 
         self.input_projection = nn.Conv1d(mel_channels, dim, 1)
-        self.diffusion_embedding = nn.Sequential(
-            DiffusionEmbedding(dim),
-            nn.Linear(dim, dim * mlp_factor),
-            nn.GELU(),
-            nn.Linear(dim * mlp_factor, dim),
-        )
+        if self.no_t_emb:
+            self.diffusion_embedding = None
+        else:
+            self.diffusion_embedding = nn.Sequential(
+                DiffusionEmbedding(dim),
+                nn.Linear(dim, dim * mlp_factor),
+                nn.GELU(),
+                nn.Linear(dim * mlp_factor, dim),
+            )
         
         if use_mlp:
             self.conditioner_projection = nn.Sequential(
@@ -152,6 +165,7 @@ class NaiveV2Diff(nn.Module):
                     kernel_size=kernel_size,
                     wavenet_like=wavenet_like,
                     conv_model_type=conv_model_type,
+                    no_t_emb=self.no_t_emb,
                 )
                 for i in range(num_layers)
             ]
@@ -191,7 +205,10 @@ class NaiveV2Diff(nn.Module):
         x = self.input_projection(x)  # x [B, residual_channel, T]
         x = F.gelu(x)
 
-        diffusion_step = self.diffusion_embedding(diffusion_step).unsqueeze(-1)
+        if self.no_t_emb:
+            diffusion_step = None
+        else:
+            diffusion_step = self.diffusion_embedding(diffusion_step).unsqueeze(-1)
         condition = self.conditioner_projection(conditioner)
 
         if self.wavenet_like:
