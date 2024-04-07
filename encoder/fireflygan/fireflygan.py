@@ -119,10 +119,10 @@ class ResBlock1(torch.nn.Module):
 
 class ParralelBlock(nn.Module):
     def __init__(
-        self,
-        channels: int,
-        kernel_sizes: tuple[int] = (3, 7, 11),
-        dilation_sizes: tuple[tuple[int]] = ((1, 3, 5), (1, 3, 5), (1, 3, 5)),
+            self,
+            channels: int,
+            kernel_sizes=(3, 7, 11),  # tuple[int]
+            dilation_sizes=((1, 3, 5), (1, 3, 5), (1, 3, 5)),  # tuple[tuple[int]]
     ):
         super().__init__()
 
@@ -142,24 +142,24 @@ class ParralelBlock(nn.Module):
 
 class HiFiGANGenerator(nn.Module):
     def __init__(
-        self,
-        *,
-        hop_length: int = 512,
-        upsample_rates: tuple[int] = (8, 8, 2, 2, 2),
-        upsample_kernel_sizes: tuple[int] = (16, 16, 8, 2, 2),
-        resblock_kernel_sizes: tuple[int] = (3, 7, 11),
-        resblock_dilation_sizes: tuple[tuple[int]] = ((1, 3, 5), (1, 3, 5), (1, 3, 5)),
-        num_mels: int = 128,
-        upsample_initial_channel: int = 512,
-        use_template: bool = True,
-        pre_conv_kernel_size: int = 7,
-        post_conv_kernel_size: int = 7,
-        post_activation: Callable = partial(nn.SiLU, inplace=True),
+            self,
+            *,
+            hop_length: int = 512,
+            upsample_rates=(8, 8, 2, 2, 2),  # tuple[int]
+            upsample_kernel_sizes=(16, 16, 8, 2, 2),  # tuple[int]
+            resblock_kernel_sizes=(3, 7, 11),  # tuple[int]
+            resblock_dilation_sizes=((1, 3, 5), (1, 3, 5), (1, 3, 5)),  # tuple[tuple[int]]
+            num_mels: int = 128,
+            upsample_initial_channel: int = 512,
+            use_template: bool = True,
+            pre_conv_kernel_size: int = 7,
+            post_conv_kernel_size: int = 7,
+            post_activation: Callable = partial(nn.SiLU, inplace=True),
     ):
         super().__init__()
 
         assert (
-            prod(upsample_rates) == hop_length
+                prod(upsample_rates) == hop_length
         ), f"hop_length must be {prod(upsample_rates)}"
 
         self.conv_pre = weight_norm(
@@ -184,7 +184,7 @@ class HiFiGANGenerator(nn.Module):
             self.ups.append(
                 weight_norm(
                     nn.ConvTranspose1d(
-                        upsample_initial_channel // (2**i),
+                        upsample_initial_channel // (2 ** i),
                         upsample_initial_channel // (2 ** (i + 1)),
                         k,
                         u,
@@ -197,7 +197,7 @@ class HiFiGANGenerator(nn.Module):
                 continue
 
             if i + 1 < len(upsample_rates):
-                stride_f0 = np.prod(upsample_rates[i + 1 :])
+                stride_f0 = np.prod(upsample_rates[i + 1:])
                 self.noise_convs.append(
                     Conv1d(
                         1,
@@ -266,7 +266,7 @@ class HiFiGANGenerator(nn.Module):
 
 # DropPath copied from timm library
 def drop_path(
-    x, drop_prob: float = 0.0, training: bool = False, scale_by_keep: bool = True
+        x, drop_prob: float = 0.0, training: bool = False, scale_by_keep: bool = True
 ):
     """Drop paths (Stochastic Depth) per sample (when applied in main path of residual blocks).
 
@@ -282,7 +282,7 @@ def drop_path(
         return x
     keep_prob = 1 - drop_prob
     shape = (x.shape[0],) + (1,) * (
-        x.ndim - 1
+            x.ndim - 1
     )  # work with diff dim tensors, not just 2D ConvNets
     random_tensor = x.new_empty(shape).bernoulli_(keep_prob)
     if keep_prob > 0.0 and scale_by_keep:
@@ -302,7 +302,7 @@ class DropPath(nn.Module):
         return drop_path(x, self.drop_prob, self.training, self.scale_by_keep)
 
     def extra_repr(self):
-        return f"drop_prob={round(self.drop_prob,3):0.3f}"
+        return f"drop_prob={round(self.drop_prob, 3):0.3f}"
 
 
 class LayerNorm(nn.Module):
@@ -352,13 +352,13 @@ class ConvNeXtBlock(nn.Module):
     """  # noqa: E501
 
     def __init__(
-        self,
-        dim: int,
-        drop_path: float = 0.0,
-        layer_scale_init_value: float = 1e-6,
-        mlp_ratio: float = 4.0,
-        kernel_size: int = 7,
-        dilation: int = 1,
+            self,
+            dim: int,
+            drop_path: float = 0.0,
+            layer_scale_init_value: float = 1e-6,
+            mlp_ratio: float = 4.0,
+            kernel_size: int = 7,
+            dilation: int = 1,
     ):
         super().__init__()
 
@@ -406,13 +406,13 @@ class ConvNeXtBlock(nn.Module):
 
 class ConvNeXtEncoder(nn.Module):
     def __init__(
-        self,
-        input_channels: int = 3,
-        depths: list[int] = [3, 3, 9, 3],
-        dims: list[int] = [96, 192, 384, 768],
-        drop_path_rate: float = 0.0,
-        layer_scale_init_value: float = 1e-6,
-        kernel_size: int = 7,
+            self,
+            input_channels: int = 3,
+            depths=[3, 3, 9, 3],  # list[int]
+            dims=[96, 192, 384, 768],  # list[int]
+            drop_path_rate: float = 0.0,
+            layer_scale_init_value: float = 1e-6,
+            kernel_size: int = 7,
     ):
         super().__init__()
         assert len(depths) == len(dims)
@@ -465,8 +465,8 @@ class ConvNeXtEncoder(nn.Module):
             nn.init.constant_(m.bias, 0)
 
     def forward(
-        self,
-        x: torch.Tensor,
+            self,
+            x: torch.Tensor,
     ) -> torch.Tensor:
         for i in range(len(self.downsample_layers)):
             x = self.downsample_layers[i](x)
@@ -530,7 +530,6 @@ class FireflyBase(nn.Module):
 
         self.load_state_dict(state_dict, strict=True)
         self.head.remove_parametrizations()
-
 
     @torch.no_grad()
     def forward(self, x: torch.Tensor) -> torch.Tensor:
