@@ -214,43 +214,43 @@ class FireFlyGANBase(torch.nn.Module):
             '''传入的是config + model'''
             self.config_path = None
             self.model_path = None
-            config = DotDict(model_path['config'])
+            config = dict(model_path['config'])
             _loaded_state_dict = model_path['model']
-            if str(config.model) == 'fire_fly_gan_base_20240407':
+            if str(config['model']) == 'fire_fly_gan_base_20240407':
                 self.model = FireflyBase(None, loaded_state_dict=_loaded_state_dict)
             else:
-                raise ValueError(f" [x] Unknown model: {config.model}")
+                raise ValueError(f" [x] Unknown model: {config['model']}")
 
         else:
             # 原始模式
             self.config_path = os.path.join(os.path.split(model_path)[0], 'config.yaml')
             self.model_path = model_path
-            config = load_dot_config_from_yaml_path(self.config_path)
-            if str(config.model) == 'fire_fly_gan_base_20240407':
+            config = dict(load_config_dict_from_yaml_path(self.config_path))
+            if str(config["model"]) == 'fire_fly_gan_base_20240407':
                 self.model = FireflyBase(self.model_path)
             else:
-                raise ValueError(f" [x] Unknown model: {config.model}")
+                raise ValueError(f" [x] Unknown model: {config['model']}")
 
         self.model.eval()
         self.model.to(self.device)
-        self.sr = config.sampling_rate
-        self.hopsize = config.hop_size
-        self.dim = config.num_mels
+        self.sr = config["sampling_rate"]
+        self.hopsize = config["hop_size"]
+        self.dim = config["num_mels"]
         self.stft = STFT(
             self.sr,
             self.dim,
-            config.n_fft,
-            config.win_size,
-            config.hopsize,
-            config.fmin,
-            config.fmax
+            config["n_fft"],
+            config["win_size"],
+            config["hop_size"],
+            config["fmin"],
+            config["fmax"]
         )
 
     def sample_rate(self):
         return self.sr
 
     def hop_size(self):
-        return self.hop_size
+        return self.hopsize
 
     def dimension(self):
         return self.dim
@@ -280,19 +280,8 @@ class FireFlyGANBase(torch.nn.Module):
         return out_dict
 
 
-class DotDict(dict):
-    def __getattr__(*args):
-        val = dict.get(*args)
-        return DotDict(val) if type(val) is dict else val
-
-    __setattr__ = dict.__setitem__
-    __delattr__ = dict.__delitem__
-
-
-def load_dot_config_from_yaml_path(path_config):
+def load_config_dict_from_yaml_path(path_config):
     with open(path_config, "r") as config:
         args = yaml.safe_load(config)
-    args = DotDict(args)
-    # print(args)
     return args
 
