@@ -234,14 +234,14 @@ class FireFlyGANBase(torch.nn.Module):
         self.model.eval()
         self.model.to(self.device)
         self.sr = config.sampling_rate
-        self.hop_size = config.hop_size
+        self.hopsize = config.hop_size
         self.dim = config.num_mels
         self.stft = STFT(
             self.sr,
             self.dim,
             config.n_fft,
             config.win_size,
-            config.hop_size,
+            config.hopsize,
             config.fmin,
             config.fmax
         )
