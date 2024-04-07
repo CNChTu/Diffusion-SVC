@@ -1,6 +1,6 @@
 model: fire_fly_gan_base_20240407
 sampling_rate: 44100
-num_mels: 125
+num_mels: 128
 n_fft: 2048
 win_size: 2048
 hop_size: 512
