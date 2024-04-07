@@ -58,6 +58,93 @@ class RectifiedFlow(nn.Module):
         t += dt
         return x, t
 
+    def sample_rk2(self, x, t, dt, cond):
+        k_1 = self.denoise_fn(x, self.time_scale_factor * t, cond)
+        k_2 = self.denoise_fn(x + 0.5 * k_1 * dt, self.time_scale_factor * (t + 0.5 * dt), cond)
+        x += k_2 * dt
+        t += dt
+        return x, t
+
+    def sample_rk5(self, x, t, dt, cond):
+        k_1 = self.denoise_fn(x, self.time_scale_factor * t, cond)
+        k_2 = self.denoise_fn(x + 0.25 * k_1 * dt, self.time_scale_factor * (t + 0.25 * dt), cond)
+        k_3 = self.denoise_fn(x + 0.125 * (k_2 + k_1) * dt, self.time_scale_factor * (t + 0.25 * dt), cond)
+        k_4 = self.denoise_fn(x + 0.5 * (-k_2 + 2 * k_3) * dt, self.time_scale_factor * (t + 0.5 * dt), cond)
+        k_5 = self.denoise_fn(x + 0.0625 * (3 * k_1 + 9 * k_4) * dt, self.time_scale_factor * (t + 0.75 * dt), cond)
+        k_6 = self.denoise_fn(x + (-3 * k_1 + 2 * k_2 + 12 * k_3 - 12 * k_4 + 8 * k_5) * dt / 7, self.time_scale_factor * (t + dt),
+                       cond)
+        x += (7 * k_1 + 32 * k_3 + 12 * k_4 + 32 * k_5 + 7 * k_6) * dt / 90
+        t += dt
+        return x, t
+
+    def sample_euler_fp64(self, x, t, dt, cond):
+        x = x.double()
+        x += self.denoise_fn(x.float(), self.time_scale_factor * t, cond).double() * dt.double()
+        t += dt
+        return x, t
+
+    def sample_rk4_fp64(self, x, t, dt, cond):
+        x = x.double()
+        k_1 = self.denoise_fn(x.float(), self.time_scale_factor * t, cond).double()
+        k_2 = self.denoise_fn((x + 0.5 * k_1 * dt.double()).float(), self.time_scale_factor * (t + 0.5 * dt), cond).double()
+        k_3 = self.denoise_fn((x + 0.5 * k_2 * dt.double()).float(), self.time_scale_factor * (t + 0.5 * dt), cond).double()
+        k_4 = self.denoise_fn((x + k_3 * dt.double()).float(), self.time_scale_factor * (t + dt), cond).double()
+        x += (k_1 + 2 * k_2 + 2 * k_3 + k_4) * dt.double() / 6
+        t += dt
+        return x, t
+
+    def sample_rk2_fp64(self, x, t, dt, cond):
+        x = x.double()
+        k_1 = self.denoise_fn(x.float(), self.time_scale_factor * t, cond).double()
+        k_2 = self.denoise_fn((x + 0.5 * k_1 * dt.double()).float(), self.time_scale_factor * (t + 0.5 * dt), cond).double()
+        x += k_2 * dt.double()
+        t += dt
+        return x, t
+
+    def sample_rk5_fp64(self, x, t, dt, cond):
+        x = x.double()
+        k_1 = self.denoise_fn(x.float(), self.time_scale_factor * t, cond).double()
+        k_2 = self.denoise_fn((x + 0.25 * k_1 * dt.double()).float(), self.time_scale_factor * (t + 0.25 * dt), cond).double()
+        k_3 = self.denoise_fn((x + 0.125 * (k_2 + k_1) * dt.double()).float(), self.time_scale_factor * (t + 0.25 * dt), cond).double()
+        k_4 = self.denoise_fn((x + 0.5 * (-k_2 + 2 * k_3) * dt.double()).float(), self.time_scale_factor * (t + 0.5 * dt),
+                       cond).double()
+        k_5 = self.denoise_fn((x + 0.0625 * (3 * k_1 + 9 * k_4) * dt.double()).float(), self.time_scale_factor * (t + 0.75 * dt),
+                       cond).double()
+        k_6 = self.denoise_fn((x + (-3 * k_1 + 2 * k_2 + 12 * k_3 - 12 * k_4 + 8 * k_5) * dt.double() / 7).float(),
+                       self.time_scale_factor * (t + dt),
+                       cond).double()
+        x += (7 * k_1 + 32 * k_3 + 12 * k_4 + 32 * k_5 + 7 * k_6) * dt.double() / 90
+        t += dt
+        return x, t
+
+    def sample_heun(self, x, t, dt, cond=None):
+        # Predict
+        k_1 = self.velocity_fn(x, 1000 * t, cond=cond)
+        x_pred = x + k_1 * dt
+        t_pred = t + dt
+        # Correct
+        k_2 = self.velocity_fn(x_pred, 1000 * t_pred, cond=cond)
+        x += (k_1 + k_2) / 2 * dt
+        t += dt
+        return x, t
+
+    def sample_PECECE(self, x, t, dt, cond=None):
+        # Predict1
+        k_1 = self.velocity_fn(x, 1000 * t, cond=cond)
+        x_pred1 = x + k_1 * dt
+        t_pred1 = t + dt
+        # Correct1
+        k_2 = self.velocity_fn(x_pred1, 1000 * t_pred1, cond=cond)
+        x_corr1 = x + (k_1 + k_2) / 2 * dt
+        # Predict2
+        k_3 = self.velocity_fn(x_corr1, 1000 * (t + dt), cond=cond)
+        x_pred2 = x_corr1 + k_3 * dt
+        # Correct2
+        k_4 = self.velocity_fn(x_pred2, 1000 * (t + 2*dt), cond=cond)
+        x += (k_3 + k_4) / 2 * dt
+        t += dt
+        return x, t
+    
     def forward(self,
                 condition,
                 gt_spec=None,
@@ -111,6 +198,70 @@ class RectifiedFlow(nn.Module):
                     for i in range(infer_step):
                         x, t = self.sample_rk4(x, t, dt, cond)
 
+            elif method == 'rk2':
+                if use_tqdm:
+                    for i in tqdm(range(infer_step), desc='sample time step', total=infer_step):
+                        x, t = self.sample_rk2(x, t, dt, cond)
+                else:
+                    for i in range(infer_step):
+                        x, t = self.sample_rk2(x, t, dt, cond)
+                        
+            elif method == 'rk5':
+                if use_tqdm:
+                    for i in tqdm(range(infer_step), desc='sample time step', total=infer_step):
+                        x, t = self.sample_rk5(x, t, dt, cond)
+                else:
+                    for i in range(infer_step):
+                        x, t = self.sample_rk5(x, t, dt, cond)
+                        
+            elif method == 'euler_fp64':
+                if use_tqdm:
+                    for i in tqdm(range(infer_step), desc='sample time step', total=infer_step):
+                        x, t = self.sample_euler_fp64(x, t, dt, cond)
+                else:
+                    for i in range(infer_step):
+                        x, t = self.sample_euler_fp64(x, t, dt, cond)
+                        
+            elif method == 'rk4_fp64':
+                if use_tqdm:
+                    for i in tqdm(range(infer_step), desc='sample time step', total=infer_step):
+                        x, t = self.sample_rk4_fp64(x, t, dt, cond)
+                else:
+                    for i in range(infer_step):
+                        x, t = self.sample_rk4_fp64(x, t, dt, cond)
+                        
+            elif method == 'rk2_fp64':
+                if use_tqdm:
+                    for i in tqdm(range(infer_step), desc='sample time step', total=infer_step):
+                        x, t = self.sample_rk2_fp64(x, t, dt, cond)
+                else:
+                    for i in range(infer_step):
+                        x, t = self.sample_rk2_fp64(x, t, dt, cond)
+                        
+            elif method == 'rk5_fp64':
+                if use_tqdm:
+                    for i in tqdm(range(infer_step), desc='sample time step', total=infer_step):
+                        x, t = self.sample_rk5_fp64(x, t, dt, cond)
+                else:
+                    for i in range(infer_step):
+                        x, t = self.sample_rk5_fp64(x, t, dt, cond)
+                        
+            elif method == 'heun':
+                if use_tqdm:
+                    for i in tqdm(range(infer_step), desc='sample time step', total=infer_step):
+                        x, t = self.sample_heun(x, t, dt, cond)
+                else:
+                    for i in range(infer_step):
+                        x, t = self.sample_heun(x, t, dt, cond)
+
+            elif method == 'PECECE':
+                if use_tqdm:
+                    for i in tqdm(range(infer_step), desc='sample time step', total=infer_step):
+                        x, t = self.sample_PECECE(x, t, dt, cond)
+                else:
+                    for i in range(infer_step):
+                        x, t = self.sample_PECECE(x, t, dt, cond)
+                        
             else:
                 raise NotImplementedError(method)
             x = x.squeeze(1).transpose(1, 2)  # [B, T, M]
