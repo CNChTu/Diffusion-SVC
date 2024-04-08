@@ -131,8 +131,10 @@ def test(args, model, vocoder, loader_test, f0_extractor, quantizer, saver, acce
     saver.log_value({
         'valid/utilization': utilization
     })
-    return test_loss.item()
-
+    try:
+        return test_loss.item()
+    except:
+        return test_loss
 
 def train(args, initial_global_step, model, optimizer, scheduler, vocoder, loader_train, loader_test,quantizer, accelerator):
     if accelerator.is_main_process:
