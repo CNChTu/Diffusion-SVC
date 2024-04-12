@@ -205,6 +205,7 @@ class Llama(nn.Module):
             input_ids = torch.cat([phone, torch.tensor([[self.config.bos_token_id]],device=phone.device)], dim=1)
         
         if prefix is not None:
+            prefix += self.semantic_token_shift
             input_ids = torch.cat([input_ids, prefix], dim=1)
             
         if cfg_scale != 1.0:
