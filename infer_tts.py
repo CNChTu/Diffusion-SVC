@@ -6,11 +6,11 @@ from text2semantic.utils import get_language_model
 import yaml
 from tools.tools import DotDict
 from text.cleaner import text_to_sequence
-from cluster import get_cluster_model
+from cluster import get_cluster_model, get_cluster_result
 import soundfile as sf
 import numpy as np
 from tools.tools import units_forced_alignment
-
+import torchaudio
 def parse_args(args=None, namespace=None):
     """Parse command-line arguments."""
     parser = argparse.ArgumentParser()
@@ -113,6 +113,14 @@ def parse_args(args=None, namespace=None):
         default=1.1,
         help="temperature",
     )
+    parser.add_argument(
+        "-ref",
+        "--audio_ref",
+        type=str,
+        required=False,
+        default=None,
+        help="audio_reference_path | default: None",
+    )
     return parser.parse_args(args=args, namespace=namespace)
 
 
@@ -185,6 +193,19 @@ if __name__ == '__main__':
         repetition_penalty = cmd.repetition_penalty
         temperature = cmd.temperature
         cfg_sclae = cmd.cfg_sclae
+        audio_ref_path = cmd.audio_ref
+        
+        if cmd.audio_ref is not None:
+            audio, sr = torchaudio.load(audio_ref_path)
+            audio = audio.to(device)
+            units = diffusion_svc.encode_units(audio, sr)[None,...]
+            if args.train.units_quantize_type == "kmeans":
+                prefix = get_cluster_result(semantic_embedding, units.cpu().numpy()[0])
+                prefix = torch.from_numpy(prefix)[None, ...].long().to(device)
+            elif args.train.units_quantize_type == "vq" or args.train.units_quantize_type == "vqae":
+                _, prefix, _ = semantic_embedding(units)
+        else:
+            prefix = None
 
         (phones, tones, lang_ids), (norm_text, word2ph) = text_to_sequence(text, 'ZH')
         

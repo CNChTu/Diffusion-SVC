@@ -171,6 +171,7 @@ class Llama(nn.Module):
                  phone=None,
                  tone=None,
                  input_ids=None,
+                 prefix = None,
                  attention_mask=None,
                  use_cache=True,
                  max_length=1024,
@@ -203,6 +204,9 @@ class Llama(nn.Module):
                 phone = phone
             input_ids = torch.cat([phone, torch.tensor([[self.config.bos_token_id]],device=phone.device)], dim=1)
         
+        if prefix is not None:
+            input_ids = torch.cat([input_ids, prefix], dim=1)
+            
         if cfg_scale != 1.0:
             negative_prompt_ids = torch.cat([torch.full_like(input_ids[:,:-1], self.MASK), torch.tensor([[self.config.bos_token_id]])] ,device=phone.device)
         else:

@@ -203,6 +203,7 @@ class Roformer(nn.Module):
     def generate(self,
                  phone,
                  tone,
+                 prefix = None,
                  attention_mask=None,
                  use_cache=True,
                  max_length=1024,
@@ -256,8 +257,12 @@ class Roformer(nn.Module):
             eos_token_id = self.semantic_eos_token_id,
             pad_token_id = self.semantic_pad_token_id
         )
-
+        
+        if prefix is not None:
+            prefix = torch.cat([torch.tensor([[self.semantic_bos_token_id]]), prefix], dim=1)
+            
         outputs = self.semantic_decoder.generate(
+            inputs=prefix,
             encoder_hidden_states = encoder_hidden_states,
             encoder_attention_mask = attention_mask,
             attention_mask = None,
