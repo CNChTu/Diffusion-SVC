@@ -140,9 +140,6 @@ class Llama(nn.Module):
                 phone = torch.cat([torch.tensor([[self.BOS]]), phone, torch.tensor([[self.EOS]]), torch.tensor([[self.TONE_BOS]]), tone, torch.tensor([[self.TONE_EOS]])], dim=1)
             elif self.mode == "text":
                 phone = phone
-
-            if random.random() < self.condition_drop_out:
-                semantic = torch.ones_like(semantic) * self.MASK
             
             semantic += self.semantic_token_shift
             semantic = torch.cat([torch.tensor([[self.config.bos_token_id]]), semantic, torch.tensor([[self.config.eos_token_id]])], dim=1)

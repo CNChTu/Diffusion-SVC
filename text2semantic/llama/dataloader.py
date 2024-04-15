@@ -169,9 +169,18 @@ class TextDataset(Dataset):
                 semantic_tokens = semantic_tokens + self.model.semantic_token_shift
                 semantic_tokens = np.concatenate([[self.model.semantic_bos_token_id],semantic_tokens,[self.model.semantic_eos_token_id]] ,axis=-1)
                 if self.model.mode == "phone":
+                    if random.random() < self.model.condition_drop_out:
+                        phone = np.ones_like(phone) * self.model.MASK
                     phones_be = np.concatenate(([self.model.BOS],phones,[self.model.EOS]),axis=-1)
-                    tones_be = np.concatenate(([self.model.TONE_BOS],(tones + self.model.tone_token_shift),[self.model.TONE_EOS]),axis=-1)
-                else:
+                    if random.random() < self.model.condition_drop_out:
+                        tones = np.ones_like(tones) * self.model.MASK
+                    else:
+                        tones = tones + self.model.tone_token_shift
+                    phones_be = np.concatenate(([self.model.BOS],phones,[self.model.EOS]),axis=-1)
+                    tones_be = np.concatenate(([self.model.TONE_BOS],tones,[self.model.TONE_EOS]),axis=-1)
+                else:  
+                    if random.random() < self.model.condition_drop_out:
+                        phones = np.ones_like(phones) * self.model.MASK
                     phones_be = phones
                     tones_be = []
                 input_ids = np.concatenate((phones_be,tones_be,semantic_tokens),axis=-1)
