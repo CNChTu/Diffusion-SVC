@@ -6,6 +6,7 @@ import numpy as np
 import torch.nn.functional as F
 from torch.nn.utils import weight_norm
 import random
+from .reflow.reflow_1step import RectifiedFlow1Step
 from .reflow.reflow import RectifiedFlow
 from .diffusion import GaussianDiffusion
 from .wavenet import WaveNet
@@ -249,6 +250,27 @@ def load_svc_model(args, vocoder_dimension):
             naive_fn_grad_not_by_reflow=args.model.naive_fn_grad_not_by_reflow,
             naive_out_mel_cond_reflow=args.model.naive_out_mel_cond_reflow,
             loss_type=args.model.loss_type,)
+
+    elif args.model.type == 'Reflow1Step':
+        model = Unit2MelV2ReFlow1Step(
+            args.data.encoder_out_channels,
+            args.model.n_spk,
+            args.model.use_pitch_aug,
+            vocoder_dimension,
+            args.model.n_hidden,
+            use_speaker_encoder=args.model.use_speaker_encoder,
+            speaker_encoder_out_channels=args.data.speaker_encoder_out_channels,
+            z_rate=args.model.z_rate,
+            mean_only=args.model.mean_only,
+            max_beta=args.model.max_beta,
+            spec_min=args.model.spec_min,
+            spec_max=args.model.spec_max,
+            velocity_fn=args.model.velocity_fn,
+            mask_cond_ratio=args.model.mask_cond_ratio,
+            naive_fn=args.model.naive_fn,
+            naive_fn_grad_not_by_reflow=args.model.naive_fn_grad_not_by_reflow,
+            naive_out_mel_cond_reflow=args.model.naive_out_mel_cond_reflow,
+            loss_type=args.model.loss_type, )
 
     elif args.model.type == 'Naive':
         model = Unit2MelNaive(
@@ -672,6 +694,17 @@ class Unit2MelV2ReFlow(Unit2MelV2):
                 return {'reflow_loss': (x + naive_loss)}
 
         return x
+
+
+class Unit2MelV2ReFlow1Step(Unit2MelV2ReFlow):
+    def spawn_decoder(self, velocity_fn, out_dims):
+        decoder = RectifiedFlow1Step(
+            velocity_fn,
+            out_dims=out_dims,
+            spec_min=self.spec_min,
+            spec_max=self.spec_max,
+            loss_type=self.loss_type)
+        return decoder
 
 
 class Unit2Mel(nn.Module):
