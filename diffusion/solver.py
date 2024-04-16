@@ -292,7 +292,7 @@ def train(args, initial_global_step, model, optimizer, scheduler, vocoder, loade
                     data[k] = data[k].to(args.device)
 
             # forward
-            if args.model.type == 'ReFlow':
+            if (args.model.type == 'ReFlow') or (args.model.type == 'ReFlow1Step'):
                 if dtype == torch.float32:
                     loss_dict = model(data['units'].float(), data['f0'], data['volume'], data['spk_id'],
                                       aug_shift=data['aug_shift'],
