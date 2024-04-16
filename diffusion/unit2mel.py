@@ -251,7 +251,7 @@ def load_svc_model(args, vocoder_dimension):
             naive_out_mel_cond_reflow=args.model.naive_out_mel_cond_reflow,
             loss_type=args.model.loss_type,)
 
-    elif args.model.type == 'Reflow1Step':
+    elif args.model.type == 'ReFlow1Step':
         model = Unit2MelV2ReFlow1Step(
             args.data.encoder_out_channels,
             args.model.n_spk,
