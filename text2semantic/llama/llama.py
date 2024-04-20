@@ -206,7 +206,7 @@ class Llama(nn.Module):
             input_ids = torch.cat([input_ids, prefix], dim=1)
             
         if cfg_scale != 1.0:
-            negative_prompt_ids = torch.cat([torch.full_like(input_ids[:,:-1], self.MASK), torch.tensor([[self.config.bos_token_id]])] ,device=phone.device)
+            negative_prompt_ids = torch.cat([torch.tensor([[self.BOS]],device=phone.device), torch.full_like(phone,self.MASK), torch.tensor([[self.EOS]],device=phone.device), torch.tensor([[self.TONE_BOS]],device=phone.device), torch.full_like(tone, self.MASK), torch.tensor([[self.TONE_EOS]],device=phone.device), torch.tensor([[self.config.bos_token_id]],device=phone.device)], dim=1)
         else:
             negative_prompt_ids = None
 
