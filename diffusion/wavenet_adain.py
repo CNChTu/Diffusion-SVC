@@ -39,7 +39,7 @@ class AdaIN(nn.Module):
     def forward(self, x, cond):
         style = self.style(self.silu(cond))
         gamma, beta = torch.chunk(style, 2, dim=1)
-        return gamma[:,None,:] * x + beta[:,None,:]
+        return (1 + gamma[:,None,:]) * x + beta[:,None,:]
 
 
 class ResidualBlock(nn.Module):
