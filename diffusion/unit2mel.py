@@ -48,7 +48,7 @@ def get_network_from_dot(netdot, out_dims, cond_dims):
         from .wavenet import WaveNet
         denoiser = WaveNet(out_dims, wn_layers, wn_chans, cond_dims, wn_dilation, wn_kernel,
                            wn_tf_use, wn_tf_rf, wn_tf_n_layers, wn_tf_n_head, no_t_emb)
-    elif netdot.type == 'WaveNet_Adain':
+    elif netdot.type == 'WaveNetAdain':
         # catch None
         wn_layers = netdot.wn_layers if (netdot.wn_layers is not None) else 20
         wn_chans = netdot.wn_chans if (netdot.wn_chans is not None) else 384
