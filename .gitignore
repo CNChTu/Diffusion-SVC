@@ -5,3 +5,5 @@ data/*
 __pycache__
 exp/*
 dataset_raw/*
+pretrain/*
+op_data/*

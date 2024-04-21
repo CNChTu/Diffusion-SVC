@@ -9,7 +9,6 @@ import random
 from .reflow.reflow_1step import RectifiedFlow1Step
 from .reflow.reflow import RectifiedFlow
 from .diffusion import GaussianDiffusion
-from .wavenet import WaveNet
 from .convnext import ConvNext
 from .vocoder import Vocoder
 from .naive.naive import Unit2MelNaive
@@ -46,9 +45,25 @@ def get_network_from_dot(netdot, out_dims, cond_dims):
         no_t_emb = netdot.no_t_emb if (netdot.no_t_emb is not None) else False
 
         # init wavenet denoiser
+        from .wavenet import WaveNet
         denoiser = WaveNet(out_dims, wn_layers, wn_chans, cond_dims, wn_dilation, wn_kernel,
                            wn_tf_use, wn_tf_rf, wn_tf_n_layers, wn_tf_n_head, no_t_emb)
+    elif netdot.type == 'WaveNet_Adain':
+        # catch None
+        wn_layers = netdot.wn_layers if (netdot.wn_layers is not None) else 20
+        wn_chans = netdot.wn_chans if (netdot.wn_chans is not None) else 384
+        wn_dilation = netdot.wn_dilation if (netdot.wn_dilation is not None) else 1
+        wn_kernel = netdot.wn_kernel if (netdot.wn_kernel is not None) else 3
+        wn_tf_use = netdot.wn_tf_use if (netdot.wn_tf_use is not None) else False
+        wn_tf_rf = netdot.wn_tf_rf if (netdot.wn_tf_rf is not None) else False
+        wn_tf_n_layers = netdot.wn_tf_n_layers if (netdot.wn_tf_n_layers is not None) else 2
+        wn_tf_n_head = netdot.wn_tf_n_head if (netdot.wn_tf_n_head is not None) else 4
+        no_t_emb = netdot.no_t_emb if (netdot.no_t_emb is not None) else False
 
+        # init wavenet denoiser
+        from .wavenet_adain import WaveNet
+        denoiser = WaveNet(out_dims, wn_layers, wn_chans, cond_dims, wn_dilation, wn_kernel,
+                           wn_tf_use, wn_tf_rf, wn_tf_n_layers, wn_tf_n_head, no_t_emb)
     elif netdot.type == 'ConvNext':
         # catch None
         cn_layers = netdot.cn_layers if (netdot.cn_layers is not None) else 20
@@ -737,6 +752,7 @@ class Unit2Mel(nn.Module):
                 self.spk_embed = nn.Embedding(n_spk, n_hidden)
 
         # diffusion
+        from .wavenet import WaveNet
         self.decoder = GaussianDiffusion(WaveNet(out_dims, n_layers, n_chans, n_hidden, 1, 3, False),
                                          out_dims=out_dims, max_beta=0.02, spec_min=-12, spec_max=2)
 
