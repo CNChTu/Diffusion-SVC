@@ -28,10 +28,28 @@ class SinusoidalPosEmb(nn.Module):
         emb = torch.cat((emb.sin(), emb.cos()), dim=-1)
         return emb
 
+# A memory-efficient implementation of Swish function
+class SwishImplementation(torch.autograd.Function):
+    @staticmethod
+    def forward(ctx, i):
+        result = i * torch.sigmoid(i)
+        ctx.save_for_backward(i)
+        return result
+ 
+    @staticmethod
+    def backward(ctx, grad_output):
+        i = ctx.saved_tensors[0]
+        sigmoid_i = torch.sigmoid(i)
+        return grad_output * (sigmoid_i * (1 + i * (1 - sigmoid_i)))
+ 
+class MemoryEfficientSwish(nn.Module):
+    def forward(self, x):
+        return SwishImplementation.apply(x)
+
 class AdaIN(nn.Module):
-    def __init__(self, in_channels, style_dim):
+    def __init__(self, in_channels, style_dim, memory_efficient=True):
         super().__init__()
-        self.silu = nn.SiLU()
+        self.silu = MemoryEfficientSwish() if memory_efficient else nn.SiLU()
         self.style = nn.Linear(style_dim, in_channels * 2)
         nn.init.zeros_(self.style.weight)
         nn.init.zeros_(self.style.bias)
