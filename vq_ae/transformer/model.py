@@ -5,8 +5,16 @@ import torch.nn.functional as F
 import torch
 
 class VQTransformer(nn.Module):
-    def __init__(self, d_model, nhead, dim_feedforward, num_layers, num_codebook, units_scale):
+    def __init__(self, d_model, nhead, dim_feedforward, num_layers, num_codebook, units_scale, time_downsample_rate=1):
         super(VQTransformer, self).__init__()
+        self.time_downsample_rate = time_downsample_rate if time_downsample_rate is not None else 1
+        if time_downsample_rate is not None:
+            self.time_downsample = nn.Conv1d(d_model, d_model, time_downsample_rate * 2, stride = time_downsample_rate, padding= (time_downsample_rate + 1) // 2)
+            self.time_upsample = nn.ConvTranspose1d(d_model, d_model, time_downsample_rate * 2, stride = time_downsample_rate, padding = time_downsample_rate // 2)
+        else:
+            self.time_downsample = nn.Identity()
+            self.time_upsample = nn.Identity()
+        
         config = BertConfig(
             hidden_size = d_model,
             num_hidden_layers = num_layers,
@@ -30,17 +38,25 @@ class VQTransformer(nn.Module):
         self.units_scale = units_scale
 
     def forward(self, units, **kwargs):
+        if self.time_downsample_rate != 1 and units.shape[-2]%self.time_downsample_rate != 0:
+            units = units[:, :-(units.shape[-2]%self.time_downsample_rate), :]
         units = units/self.units_scale
         training = kwargs.get('training', self.training)
         mask = kwargs.get('mask', None)
         if mask is not None:
             mask = mask[:, None, None, :]
+        if self.time_downsample_rate > 1:
+            if mask.shape[-1]%self.time_downsample_rate != 0:
+                mask = mask[:, :, :, :-(mask.shape[-1]%self.time_downsample_rate)]
+            mask = mask[:, :, :, ::self.time_downsample_rate]
+        x = self.time_downsample(units.transpose(1, 2)).transpose(1, 2)
         if training:
             x = self.transformer_encoder(hidden_states = units, attention_mask = mask).last_hidden_state
             if mask is not None:
                 x = x * mask[:, 0, 0, :, None]
             x, indices, commit_loss = self.quantizer(x)
             tgt = self.transformer_decoder(hidden_states = x, attention_mask = mask).last_hidden_state
+            tgt = self.time_upsample(tgt.transpose(1, 2)).transpose(1, 2)
             if mask is not None:
                 mask = mask[:, 0, 0, :]
                 tgt = tgt * mask[:, :, None]
@@ -69,7 +85,8 @@ def get_model(args):
         dim_feedforward = args.data.encoder_out_channels * 2,
         num_layers = args.vqae.n_layers,
         num_codebook = args.model.text2semantic.semantic_kmeans_num,
-        units_scale = args.vqae.units_scale
+        units_scale = args.vqae.units_scale,
+        time_downsample_rate = args.vqae.time_downsample_rate
     )
 
 if __name__ == '__main__':
