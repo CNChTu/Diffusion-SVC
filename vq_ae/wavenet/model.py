@@ -8,7 +8,7 @@ class VQCNN(nn.Module):
     def __init__(self, d_model, nhead, dim_feedforward, num_layers, num_codebook, units_scale, time_downsample_rate=1):
         super(VQCNN, self).__init__()
         self.time_downsample_rate = time_downsample_rate if time_downsample_rate is not None else 1
-        if time_downsample_rate is not None:
+        if time_downsample_rate is not None and self.time_downsample_rate!= 1:
             self.time_downsample = nn.Conv1d(d_model, d_model, time_downsample_rate * 2, stride = time_downsample_rate, padding= (time_downsample_rate + 1) // 2)
             self.time_upsample = nn.ConvTranspose1d(d_model, d_model, time_downsample_rate * 2, stride = time_downsample_rate, padding = time_downsample_rate // 2)
         else:

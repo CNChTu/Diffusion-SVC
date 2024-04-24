@@ -78,7 +78,7 @@ def parse_args(args=None, namespace=None):
         "--topk",
         type=int,
         required=False,
-        default=5,
+        default=0,
         help="topk",
     )
     parser.add_argument(
@@ -86,7 +86,7 @@ def parse_args(args=None, namespace=None):
         "--topp",
         type=float,
         required=False,
-        default=1.0,
+        default=0.7,
         help="topp",
     )
     parser.add_argument(
@@ -102,7 +102,7 @@ def parse_args(args=None, namespace=None):
         "--temperature",
         type=float,
         required=False,
-        default=1.1,
+        default=0.7,
         help="temperature",
     )
     parser.add_argument(
@@ -110,7 +110,7 @@ def parse_args(args=None, namespace=None):
         "--cfg_sclae",
         type=float,
         required=False,
-        default=1.1,
+        default=1.0,
         help="temperature",
     )
     parser.add_argument(
@@ -169,10 +169,10 @@ if __name__ == '__main__':
             semantic_embedding = semantic_embedding.to(device)
         elif args.train.units_quantize_type == "vqae":
             from vq_ae import get_model
-            quantizer = get_model(args)
-            quantizer.load_state_dict(torch.load(args.model.text2semantic.codebook_path)["model"])
-            quantizer.set_eval_mode()
-            quantizer = quantizer.to(device)
+            semantic_embedding = get_model(args)
+            semantic_embedding.load_state_dict(torch.load(args.model.text2semantic.codebook_path)["model"])
+            semantic_embedding.set_eval_mode()
+            semantic_embedding = semantic_embedding.to(device)
         else:
             raise ValueError(' [x] Unknown quantize_type: ' + args.train.units_quantize_type)
         
