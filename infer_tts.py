@@ -213,6 +213,7 @@ if __name__ == '__main__':
         spk_id_seq = torch.ones_like(phones) * spk_id
         semantic_token = lm.generate(phones,
                             tones,
+                            prefix=prefix,
                             attention_mask=None,
                             use_cache=True,
                             max_length=1024,
