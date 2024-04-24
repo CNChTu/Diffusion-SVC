@@ -49,7 +49,7 @@ class MemoryEfficientSwish(nn.Module):
 class AdaIN(nn.Module):
     def __init__(self, in_channels, style_dim, memory_efficient=True):
         super().__init__()
-        self.silu = MemoryEfficientSwish() if memory_efficient else nn.SiLU()
+        self.silu = MemoryEfficientSwish() if memory_efficient else nn.SiLU() # Set 'memory_efficient=False' when export ONNX
         self.style = nn.Linear(style_dim, in_channels * 2)
         nn.init.zeros_(self.style.weight)
         nn.init.zeros_(self.style.bias)
