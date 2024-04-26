@@ -201,9 +201,9 @@ class ConformerConvModule(nn.Module):
             else:
                 _BatchNorm = nn.Identity()
             if use_selayer:
-                _Selayer = SEBlock(inner_dim)
+                _SElayer = SEBlock(inner_dim)
             else:
-                _Selayer = nn.Identity()
+                _SElayer = nn.Identity()
             self.net = nn.Sequential(
                 _norm,
                 Transpose((1, 2)),
