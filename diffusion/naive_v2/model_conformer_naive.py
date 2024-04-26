@@ -143,7 +143,7 @@ class CFNEncoderLayer(nn.Module):
 
 # SElayer from mobilenet-v3
 class SEBlock(nn.Module):
-    def __init__(self, in_channels, reduction=16):
+    def __init__(self, in_channels, reduction=4):
         super(SEBlock, self).__init__()
         self.avg_pool = nn.AdaptiveAvgPool1d(1)
         self.fc = nn.Sequential(
