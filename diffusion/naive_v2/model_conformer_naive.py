@@ -141,26 +141,6 @@ class CFNEncoderLayer(nn.Module):
         return x  # (#batch, length, dim_model)
 
 
-# SElayer from mobilenet-v3
-class SEBlock(nn.Module):
-    def __init__(self, in_channels, reduction=4):
-        super(SEBlock, self).__init__()
-        self.avg_pool = nn.AdaptiveAvgPool1d(1)
-        self.fc = nn.Sequential(
-            nn.Linear(in_channels, in_channels // reduction, bias=False),
-            nn.ReLU(inplace=True),
-            nn.Linear(in_channels // reduction, in_channels, bias=False),
-            nn.Hardsigmoid()
-            # nn.Sigmoid()
-        )
-
-    def forward(self, x):
-        b, c, _ = x.size()
-        y = self.avg_pool(x).view(b, c)
-        y = self.fc(y).view(b, c, 1)
-        return x * y.expand_as(x)
-
-
 class ConformerConvModule(nn.Module):
     def __init__(
             self,
@@ -169,47 +149,51 @@ class ConformerConvModule(nn.Module):
             kernel_size=31,
             dropout=0.,
             use_norm=False,
-            use_selayer=False,
-            use_batchnorm=False,
+            use_doubleswish=False,
             conv_model_type='mode1',
     ):
         super().__init__()
 
         inner_dim = dim * expansion_factor
         padding = calc_same_padding(kernel_size)
-
+        if use_norm:
+            _norm = nn.LayerNorm(dim)
+        else:
+            _norm = nn.Identity()
+        if float(dropout) > 0.:
+            _dropout = nn.Dropout(dropout)
+        else:
+            _dropout = nn.Identity()
+        if use_doubleswish:
+            _doubleswish = nn.SiLU(),
+        else:
+            _doubleswish = nn.Identity()
         if conv_model_type == 'mode1':
-            if use_norm:
-                _norm = nn.LayerNorm(dim)
-            else:
-                _norm = nn.Identity()
-            if float(dropout) > 0.:
-                _dropout = nn.Dropout(dropout)
-            else:
-                _dropout = nn.Identity()
-            if use_batchnorm:
-                _BatchNorm = nn.BatchNorm1d(inner_dim)
-            else:
-                _BatchNorm = nn.Identity()
-            if use_selayer:
-                _SElayer = SEBlock(inner_dim)
-            else:
-                _SElayer = nn.Identity()
             self.net = nn.Sequential(
                 _norm,
                 Transpose((1, 2)),
                 nn.Conv1d(dim, inner_dim * 2, 1),
                 nn.GLU(dim=1),
                 nn.Conv1d(inner_dim, inner_dim, kernel_size=kernel_size, padding=padding[0], groups=inner_dim),
-                _BatchNorm,
-                _SElayer,
                 nn.SiLU(),
+                _doubleswish,
                 nn.Conv1d(inner_dim, dim, 1),
                 Transpose((1, 2)),
                 _dropout
             )
         elif conv_model_type == 'mode2':
-            raise NotImplementedError('mode2 not implemented yet')
+            self.net = nn.Sequential(
+                _norm,
+                Transpose((1, 2)),
+                nn.Conv1d(dim, dim * 2, 1),
+                nn.GLU(dim=1),
+                nn.Conv1d(dim, dim, kernel_size=kernel_size, padding=padding[0], groups=dim),
+                nn.SiLU(),
+                _doubleswish,
+                nn.Conv1d(dim, dim, 1),
+                Transpose((1, 2)),
+                _dropout
+            )
         else:
             raise ValueError(f'{conv_model_type} is not a valid conv_model_type')
 
