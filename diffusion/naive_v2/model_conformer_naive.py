@@ -165,7 +165,7 @@ class ConformerConvModule(nn.Module):
         else:
             _dropout = nn.Identity()
         if use_doubleswish:
-            _doubleswish = nn.SiLU(),
+            _doubleswish = nn.SiLU()
         else:
             _doubleswish = nn.Identity()
         if conv_model_type == 'mode1':
