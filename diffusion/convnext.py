@@ -60,6 +60,7 @@ class ConvNeXtBlock(nn.Module):
         layer_scale_init_value: Optional[float] = 1e-6, version = 'v1'
     ):
         super().__init__()
+        self.version = version
         self.dwconv = nn.Conv1d(
             dim,
             dim,
@@ -104,9 +105,12 @@ class ConvNeXtBlock(nn.Module):
         x = self.norm(x)
         x = self.pwconv1(x)
         x = self.act(x)
+        if self.version == 'v2':
+            x = self.grn(x)
         x = self.pwconv2(x)
-        if self.gamma is not None:
-            x = self.gamma * x
+        if self.version == 'v1':
+            if self.gamma is not None:
+                x = self.gamma * x
         x = x.transpose(1, 2)  # (B, T, C) -> (B, C, T)
 
         x = residual + x
