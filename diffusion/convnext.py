@@ -9,6 +9,20 @@ from torch import nn
 # 适配了一下，所以不是完全一样的
 
 
+class GRN(nn.Module):
+    """ GRN (Global Response Normalization) layer (https://github.com/facebookresearch/ConvNeXt-V2/)
+    """
+    def __init__(self, dim):
+        super().__init__()
+        self.gamma = nn.Parameter(torch.zeros(1, 1, dim))
+        self.beta = nn.Parameter(torch.zeros(1, 1, dim))
+
+    def forward(self, x):
+        Gx = torch.norm(x, p=2, dim=(1,2), keepdim=True)
+        Nx = Gx / (Gx.mean(dim=-1, keepdim=True) + 1e-6)
+        return self.gamma * (x * Nx) + self.beta + x
+
+
 class DiffusionEmbedding(nn.Module):
     """Diffusion Step Embedding"""
 
@@ -43,7 +57,7 @@ class ConvNeXtBlock(nn.Module):
         dim: int,
         intermediate_dim: int,
         dilation: int = 1,
-        layer_scale_init_value: Optional[float] = 1e-6,
+        layer_scale_init_value: Optional[float] = 1e-6, version = 'v1'
     ):
         super().__init__()
         self.dwconv = nn.Conv1d(
@@ -59,12 +73,15 @@ class ConvNeXtBlock(nn.Module):
             dim, intermediate_dim
         )  # pointwise/1x1 convs, implemented with linear layers
         self.act = nn.GELU()
+        if self.version == 'v2':
+            self.grn = GRN(intermediate_dim)
         self.pwconv2 = nn.Linear(intermediate_dim, dim)
-        self.gamma = (
-            nn.Parameter(layer_scale_init_value * torch.ones(dim), requires_grad=True)
-            if layer_scale_init_value is not None and layer_scale_init_value > 0
-            else None
-        )
+        if self.version == 'v1':
+            self.gamma = (
+                nn.Parameter(layer_scale_init_value * torch.ones(dim), requires_grad=True)
+                if layer_scale_init_value is not None and layer_scale_init_value > 0
+                else None
+            )
         self.diffusion_step_projection = nn.Conv1d(dim, dim, 1)
         self.condition_projection = nn.Conv1d(dim, dim, 1)
 
