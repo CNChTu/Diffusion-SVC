@@ -32,7 +32,8 @@ class ConformerNaiveEncoder(nn.Module):
                  conv_only: bool = True,
                  conv_dropout: float = 0.,
                  atten_dropout: float = 0.1,
-                 conv_model_type='mode1'
+                 conv_model_type='mode1',
+                 conv_model_activation='SiLU'
                  ):
         super().__init__()
         self.num_layers = num_layers
@@ -53,7 +54,8 @@ class ConformerNaiveEncoder(nn.Module):
                     conv_only=conv_only,
                     conv_dropout=conv_dropout,
                     atten_dropout=atten_dropout,
-                    conv_model_type=conv_model_type
+                    conv_model_type=conv_model_type,
+                    conv_model_activation=conv_model_activation
                 )
                 for _ in range(num_layers)
             ]
@@ -97,7 +99,8 @@ class CFNEncoderLayer(nn.Module):
                  conv_only: bool = True,
                  conv_dropout: float = 0.,
                  atten_dropout: float = 0.1,
-                 conv_model_type='mode1'
+                 conv_model_type='mode1',
+                 conv_model_activation='SiLU'
                  ):
         super().__init__()
 
@@ -107,7 +110,9 @@ class CFNEncoderLayer(nn.Module):
             kernel_size=kernel_size,
             use_norm=use_norm,
             dropout=conv_dropout,
-            conv_model_type=conv_model_type)
+            conv_model_type=conv_model_type,
+            activation=conv_model_activation
+        )
 
         self.norm = nn.LayerNorm(dim_model)
 
@@ -149,11 +154,20 @@ class ConformerConvModule(nn.Module):
             kernel_size=31,
             dropout=0.,
             use_norm=False,
-            activation=nn.SiLU(),  # nn.SiLU() / nn.ReLU() / nn.PReLU(512) 'dim=512'
-            use_doubleswish=False, # if activation=nn.SiLU()
             conv_model_type='mode1',
+            activation='SiLU',
     ):
         super().__init__()
+
+        activation = activation if activation is not None else 'SiLU'
+        if activation == 'SiLU':
+            _activation = nn.SiLU()
+        elif activation == 'ReLU':
+            _activation = nn.ReLU()
+        elif activation == 'PReLU':
+            _activation = nn.PReLU(dim)
+        else:
+            raise ValueError(f'{activation} is not a valid activation')
 
         inner_dim = dim * expansion_factor
         padding = calc_same_padding(kernel_size)
@@ -165,10 +179,6 @@ class ConformerConvModule(nn.Module):
             _dropout = nn.Dropout(dropout)
         else:
             _dropout = nn.Identity()
-        if use_doubleswish:
-            _doubleswish = nn.SiLU()
-        else:
-            _doubleswish = nn.Identity()
         if conv_model_type == 'mode1':
             self.net = nn.Sequential(
                 _norm,
@@ -176,8 +186,7 @@ class ConformerConvModule(nn.Module):
                 nn.Conv1d(dim, inner_dim * 2, 1),
                 nn.GLU(dim=1),
                 nn.Conv1d(inner_dim, inner_dim, kernel_size=kernel_size, padding=padding[0], groups=inner_dim),
-                activation,
-                _doubleswish,
+                _activation,
                 nn.Conv1d(inner_dim, dim, 1),
                 Transpose((1, 2)),
                 _dropout
@@ -189,8 +198,7 @@ class ConformerConvModule(nn.Module):
                 nn.Conv1d(dim, dim * 2, 1),
                 nn.GLU(dim=1),
                 nn.Conv1d(dim, dim, kernel_size=kernel_size, padding=padding[0], groups=dim),
-                activation,
-                _doubleswish,
+                _activation,
                 nn.Conv1d(dim, dim, 1),
                 Transpose((1, 2)),
                 _dropout

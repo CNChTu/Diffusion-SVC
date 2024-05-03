@@ -45,6 +45,7 @@ class NaiveV2DiffLayer(nn.Module):
                  wavenet_like=False,
                  conv_model_type='mode1',
                  no_t_emb=False,
+                 conv_model_activation='SiLU'
                  ):
         super().__init__()
 
@@ -55,6 +56,7 @@ class NaiveV2DiffLayer(nn.Module):
             dropout=conv_dropout,
             use_norm=use_norm,
             conv_model_type=conv_model_type,
+            activation=conv_model_activation
         )
         self.norm = nn.LayerNorm(dim_model)
 
@@ -124,6 +126,7 @@ class NaiveV2Diff(nn.Module):
             conv_dropout=0.0,
             atten_dropout=0.1,
             no_t_emb=False,
+            conv_model_activation='SiLU'
     ):
         super(NaiveV2Diff, self).__init__()
         self.no_t_emb = no_t_emb if (no_t_emb is not None) else False
@@ -166,6 +169,7 @@ class NaiveV2Diff(nn.Module):
                     wavenet_like=wavenet_like,
                     conv_model_type=conv_model_type,
                     no_t_emb=self.no_t_emb,
+                    conv_model_activation=conv_model_activation
                 )
                 for i in range(num_layers)
             ]
