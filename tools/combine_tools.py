@@ -20,6 +20,22 @@ class NaiveAndDiffModel:
         else:
             self.is_combo_trained_model = False
 
+        if self.diff_args.model.type[:9] == 'Diffusion':
+            if self.diff_args.model.k_step_max is not None:
+                if int(self.diff_args.model.k_step_max) != 1000:
+                    if not self.is_combo_trained_model:
+                        if naive_model_path is None:
+                            raise ValueError("Please set naive_model_path for k_step_max != 0 diffusion model")
+        if self.diff_args.model.type[:6] == 'ReFlow':
+            if self.diff_args.model.t_start is not None:
+                if float(self.diff_args.model.t_start) != 0.0:
+                    if not self.is_combo_trained_model:
+                        if naive_model_path is None:
+                            raise ValueError("Please set naive_model_path for t_start != 0 reflow model")
+
+        if naive_model_path is None:
+            self.is_combo_trained_model = True  # also use for other naive-free model, like full-diff/full-reflow model
+
         # naive
         if not self.is_combo_trained_model:
             naive_config_path = os.path.join(os.path.split(naive_model_path)[0], 'config.yaml')
@@ -68,7 +84,7 @@ class NaiveAndDiffModel:
             save_dict = {
                 "diff_model": self.diff_model,
                 "diff_config_dict": self.diff_config_dict,
-                "_is_comb_diff_model": True
+                "_is_comb_diff_model": True  # also use for other naive-free model, like full-diff/full-reflow model
             }
         else:
             save_dict = {

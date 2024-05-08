@@ -508,16 +508,17 @@ class DiffusionSVC:
     def infer_from_audio_for_realtime(self, audio, sr, key, spk_id=1, spk_mix_dict=None, aug_shift=0,
                                       infer_speedup=10, method='dpm-solver', k_step=None, use_tqdm=True,
                                       spk_emb=None, silence_front=0, diff_jump_silence_front=False, threhold=-60,
-                                      index_ratio=0, use_hubert_mask=False):
+                                      index_ratio=0, use_hubert_mask=False,
+                                      t_start=None, infer_step=10):
 
         start_frame = int(silence_front * self.vocoder.vocoder_sample_rate / self.vocoder.vocoder_hop_size)
         audio_t = torch.from_numpy(audio).float().unsqueeze(0).to(self.device)
 
         if self.naive_model is None:
-            print(" [INFO] No combo_model or naive_model, diffusion without shallow-model.")
+            print(" [INFO] No combo_model or naive_model, diffusion(or reflow) without shallow-model.")
         else:
             assert k_step is not None
-            print(" [INFO] Shallow Diffusion mode!")
+            print(" [INFO] Shallow Diffusion or Shallow Reflow mode!")
 
         key_str = str(sr)
         if key_str not in self.resample_dict_16000:
@@ -547,36 +548,60 @@ class DiffusionSVC:
             f0 = f0[:, start_frame:, :]
             units = units[:, start_frame:, :]
             volume = volume[:, start_frame:, :]
-
-        if (k_step is not None) and k_step != 1000:
-            k_step = int(k_step)
-            if (k_step >= 1000) or (k_step <= 0):
-                k_step = 300
-                print(f" [WARN] k_step must < 1000 and > 0, now set to {k_step}")
-            if self.args.model.k_step_max is not None:
-                k_step_max = int(self.args.model.k_step_max)
-                if k_step > k_step_max:
-                    print(f" [WARN] k_step must <= k_step_max={k_step_max}, not k_step set to{k_step_max}.")
-                    k_step = k_step_max
-            if int(k_step / infer_speedup) < 3:
-                infer_speedup = int(k_step / 4)
-                print(f" [WARN] diffusion step must > 4 (3 when qndm), not set to{infer_speedup}")
-            if self.model.combo_trained_model:
-                gt_spec = 0
-            else:
-                if self.naive_model is not None:
-                    gt_spec = self.naive_model_call(units, f0, volume, spk_id=spk_id, spk_mix_dict=spk_mix_dict,
-                                                    aug_shift=aug_shift, spk_emb=spk_emb)
+        if (self.args.model.type == 'ReFlow') or (self.args.model.type == 'ReFlow1Step'):
+            if (t_start is not None) and (t_start != 0.0):
+                t_start = float(t_start)
+                if t_start < float(self.args.model.t_start):
+                    t_start = float(self.args.model.t_start)
+                    print(f" [WARN] t_start must >= args.model.t_start of ReFlow Model, not t_start set to {t_start}")
+                if t_start > 1.0:
+                    t_start = float(self.args.model.t_start)
+                    print(f" [WARN] t_start must <= 1.0, not t_start set to {t_start}")
+                if int(infer_step) < 1:
+                    infer_step = 10
+                    print(f" [WARN] infer_step must >= 1, not infer_step set to {infer_step}")
+                if self.model.combo_trained_model:
+                    gt_spec = 0
                 else:
-                    gt_spec = self.vocoder.extract(audio_t, self.args.data.sampling_rate)
-                    gt_spec = torch.cat((gt_spec, gt_spec[:, -1:, :]), 1)
+                    if self.naive_model is not None:
+                        gt_spec = self.naive_model_call(units, f0, volume, spk_id=spk_id, spk_mix_dict=spk_mix_dict,
+                                                        aug_shift=aug_shift, spk_emb=spk_emb)
+                    else:
+                        gt_spec = self.vocoder.extract(audio_t, self.args.data.sampling_rate)
+                        gt_spec = torch.cat((gt_spec, gt_spec[:, -1:, :]), 1)
+            else:
+                gt_spec = None
 
         else:
-            gt_spec = None
+            if (k_step is not None) and k_step != 1000:
+                k_step = int(k_step)
+                if (k_step >= 1000) or (k_step <= 0):
+                    k_step = 300
+                    print(f" [WARN] k_step must < 1000 and > 0, now set to {k_step}")
+                if self.args.model.k_step_max is not None:
+                    k_step_max = int(self.args.model.k_step_max)
+                    if k_step > k_step_max:
+                        print(f" [WARN] k_step must <= k_step_max={k_step_max}, not k_step set to{k_step_max}.")
+                        k_step = k_step_max
+                if int(k_step / infer_speedup) < 3:
+                    infer_speedup = int(k_step / 4)
+                    print(f" [WARN] diffusion step must > 4 (3 when qndm), not set to{infer_speedup}")
+                if self.model.combo_trained_model:
+                    gt_spec = 0
+                else:
+                    if self.naive_model is not None:
+                        gt_spec = self.naive_model_call(units, f0, volume, spk_id=spk_id, spk_mix_dict=spk_mix_dict,
+                                                        aug_shift=aug_shift, spk_emb=spk_emb)
+                    else:
+                        gt_spec = self.vocoder.extract(audio_t, self.args.data.sampling_rate)
+                        gt_spec = torch.cat((gt_spec, gt_spec[:, -1:, :]), 1)
+
+            else:
+                gt_spec = None
 
         out_mel = self.__call__(units, f0, volume, spk_id=spk_id, spk_mix_dict=spk_mix_dict, aug_shift=aug_shift,
                                 gt_spec=gt_spec, infer_speedup=infer_speedup, method=method, k_step=k_step,
-                                use_tqdm=use_tqdm, spk_emb=spk_emb)
+                                use_tqdm=use_tqdm, spk_emb=spk_emb, t_start=t_start, infer_step=infer_step)
 
         if diff_jump_silence_front:
             out_wav = self.mel2wav(out_mel, f0)
