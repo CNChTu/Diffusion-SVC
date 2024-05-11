@@ -109,6 +109,17 @@ class TextDataset(Dataset):
 
                     semantic_tokens = np.load(path_semantic_token)
                     semantic_tokens = semantic_tokens + self.model.semantic_token_shift
+                    if random.random() < 0.5:
+                        # 得到semantic_tokens中出现的token
+                        semantic_tokens_bin = np.unique(semantic_tokens)
+                        # 将semantic_tokens中30%的token替换成semantic_tokens_bin中的任意一个
+                        range_num = list(range(semantic_tokens.shape[-1]))
+                        range_num = random.sample(range_num, int(semantic_tokens.shape[-1] * 0.3))
+                        semantic_tokens_input = semantic_tokens.copy()
+                        semantic_tokens_input[range_num] = np.random.choice(semantic_tokens_bin, len(range_num))
+                    else:
+                        semantic_tokens_input = semantic_tokens
+                    semantic_tokens_input = np.concatenate([[self.model.semantic_bos_token_id],semantic_tokens_input,[self.model.semantic_eos_token_id]] ,axis=-1)
                     semantic_tokens = np.concatenate([[self.model.semantic_bos_token_id],semantic_tokens,[self.model.semantic_eos_token_id]] ,axis=-1)
                     if self.model.mode == "phone":
                         phones_be = np.concatenate(([self.model.BOS],phones,[self.model.EOS]),axis=-1)
@@ -116,14 +127,19 @@ class TextDataset(Dataset):
                     else:
                         phones_be = phones
                         tones_be = []
-                    input_ids = np.concatenate((phones_be,tones_be,semantic_tokens),axis=-1)
-
+                    labels = np.concatenate((phones_be,tones_be,semantic_tokens),axis=-1)
+                    if random.random() < self.model.condition_drop_out:
+                        phones_be = np.ones_like(phones_be) * self.model.MASK
+                    if random.random() < self.model.condition_drop_out:
+                        tones_be = np.ones_like(tones_be) * self.model.MASK
+                    input_ids = np.concatenate((phones_be,tones_be,semantic_tokens_input),axis=-1)
                     input_length = len(input_ids)
 
                     self.data_buffer[name_ext] = {
                         'input_ids': input_ids,
                         'tones': tones,
                         'phones': phones,
+                        "labels": labels,
                         'lang_ids': lang_ids,
                         'word2ph': word2ph,
                         'input_length': input_length,
@@ -167,30 +183,37 @@ class TextDataset(Dataset):
 
                 semantic_tokens = np.load(path_semantic_token)
                 semantic_tokens = semantic_tokens + self.model.semantic_token_shift
+                if random.random() < 0.5:
+                    # 得到semantic_tokens中出现的token
+                    semantic_tokens_bin = np.unique(semantic_tokens)
+                    # 将semantic_tokens中30%的token替换成semantic_tokens_bin中的任意一个
+                    range_num = list(range(semantic_tokens.shape[-1]))
+                    range_num = random.sample(range_num, int(semantic_tokens.shape[-1] * 0.3))
+                    semantic_tokens_input = semantic_tokens.copy()
+                    semantic_tokens_input[range_num] = np.random.choice(semantic_tokens_bin, len(range_num))
+                else:
+                    semantic_tokens_input = semantic_tokens
+                semantic_tokens_input = np.concatenate([[self.model.semantic_bos_token_id],semantic_tokens_input,[self.model.semantic_eos_token_id]] ,axis=-1)
                 semantic_tokens = np.concatenate([[self.model.semantic_bos_token_id],semantic_tokens,[self.model.semantic_eos_token_id]] ,axis=-1)
                 if self.model.mode == "phone":
-                    if random.random() < self.model.condition_drop_out:
-                        phone = np.ones_like(phone) * self.model.MASK
                     phones_be = np.concatenate(([self.model.BOS],phones,[self.model.EOS]),axis=-1)
-                    if random.random() < self.model.condition_drop_out:
-                        tones = np.ones_like(tones) * self.model.MASK
-                    else:
-                        tones = tones + self.model.tone_token_shift
-                    phones_be = np.concatenate(([self.model.BOS],phones,[self.model.EOS]),axis=-1)
-                    tones_be = np.concatenate(([self.model.TONE_BOS],tones,[self.model.TONE_EOS]),axis=-1)
-                else:  
-                    if random.random() < self.model.condition_drop_out:
-                        phones = np.ones_like(phones) * self.model.MASK
+                    tones_be = np.concatenate(([self.model.TONE_BOS],(tones + self.model.tone_token_shift),[self.model.TONE_EOS]),axis=-1)
+                else:
                     phones_be = phones
                     tones_be = []
-                input_ids = np.concatenate((phones_be,tones_be,semantic_tokens),axis=-1)
-
+                labels = np.concatenate((phones_be,tones_be,semantic_tokens),axis=-1)
+                if random.random() < self.model.condition_drop_out:
+                    phones_be = np.ones_like(phones_be) * self.model.MASK
+                if random.random() < self.model.condition_drop_out:
+                    tones_be = np.ones_like(tones_be) * self.model.MASK
+                input_ids = np.concatenate((phones_be,tones_be,semantic_tokens_input),axis=-1)
                 input_length = len(input_ids)
 
                 data_buffer = {
                     'input_ids': input_ids,
                     'tones': tones,
                     'phones': phones,
+                    "labels": labels,
                     'lang_ids': lang_ids,
                     'word2ph': word2ph,
                     'input_length': input_length,
@@ -213,7 +236,7 @@ class TextDataset(Dataset):
                 'input_ids': torch.LongTensor(data_buffer['input_ids'].astype(np.int64)),
                 'phone': torch.LongTensor(data_buffer['phones'].astype(np.int64)),
                 'tone': torch.LongTensor(data_buffer['tones'].astype(np.int64)),
-                'labels': torch.LongTensor(data_buffer['input_ids'].astype(np.int64)),
+                'labels': torch.LongTensor(data_buffer['labels'].astype(np.int64)),
                 'attention_mask': attention_mask,
                 'spk_id': data_buffer['spk_id'],
                 'name':data_buffer['name_ext']
@@ -221,7 +244,7 @@ class TextDataset(Dataset):
         else:
             rtn = {
                 'input_ids': torch.LongTensor(data_buffer['input_ids'].astype(np.int64)),
-                'labels': torch.LongTensor(data_buffer['input_ids'].astype(np.int64)),
+                'labels': torch.LongTensor(data_buffer['labels'].astype(np.int64)),
                 'attention_mask': attention_mask,
                 'spk_id': data_buffer['spk_id'],
                 'name':data_buffer['name_ext']
