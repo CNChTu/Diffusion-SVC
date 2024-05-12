@@ -10,7 +10,7 @@ from .vocoder import Vocoder
 from .naive.naive import Unit2MelNaive
 from .unet1d.unet_1d_condition import UNet1DConditionModel
 from diffusion.w2v_conformer.w2v_conformer_wraper import Wav2Vec2ConformerConfig, Wav2Vec2ConformerWrapper
-
+from .mrte_model import MRTE
 class DotDict(dict):
     def __getattr__(*args):
         val = dict.get(*args)
@@ -132,7 +132,10 @@ class Unit2Mel(nn.Module):
             speaker_encoder_out_channels=256,
             is_tts: bool = False,
             spec_norm=True,
-            acoustic_scale=1.0
+            acoustic_scale=1.0,
+            use_extract_cond = False,
+            mrte_layer = 4,
+            mrte_hident_size = 256
             ):
         super().__init__()
         self.unit_embed = nn.Linear(input_channel, n_hidden)
@@ -168,7 +171,19 @@ class Unit2Mel(nn.Module):
         out_dims=out_dims,
         spec_norm=spec_norm,
         acoustic_scale=acoustic_scale)
-        
+        if use_extract_cond:
+            self.mrte = MRTE(
+                out_dims,
+                n_hidden,
+                mrte_layer,
+                mrte_hident_size,
+                n_hidden,
+                5,
+                4,
+                2
+            )
+        else:
+            self.mrte = nn.Identity()
         # config = Wav2Vec2ConformerConfig(
         #     hidden_size=n_hidden,
         #     num_hidden_layers=n_layers,
