@@ -67,6 +67,7 @@ def test(args, model, vocoder, loader_test, f0_extractor, quantizer, saver, acce
                 data['units'],
                 data['f0'],
                 data['volume'],
+                data.get("extra_cond"),
                 data['spk_id'],
                 gt_spec=data['mel'],
                 infer=True,
@@ -95,6 +96,7 @@ def test(args, model, vocoder, loader_test, f0_extractor, quantizer, saver, acce
                 data['units'],
                 data['f0'],
                 data['volume'],
+                data.get("extra_cond"),
                 data['spk_id'],
                 gt_spec=data['mel'],
                 infer=False,
@@ -205,7 +207,7 @@ def train(args, initial_global_step, model, optimizer, scheduler, vocoder, loade
                     commit_loss = 0
 
                 # forward
-                loss = model(data['units'].float(), data['f0'], data['volume'], data['spk_id'],
+                loss = model(data['units'].float(), data['f0'], data['volume'], data.get("extra_cond"), data['spk_id'],
                             aug_shift=data['aug_shift'], gt_spec=data['mel'].float(), infer=False, k_step=args.model.k_step_max,
                             spk_emb=data['spk_emb']) + commit_loss
                 
