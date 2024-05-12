@@ -86,7 +86,8 @@ def load_svc_model(args, vocoder_dimension):
                     speaker_encoder_out_channels=args.data.speaker_encoder_out_channels,
                     is_tts = args.model.is_tts,
                     spec_norm=spec_norm,
-                    acoustic_scale=args.data.acoustic_scale
+                    acoustic_scale=args.data.acoustic_scale,
+                    use_extract_cond=args.model.use_extract_cond,
                     )
 
     elif args.model.type == 'Naive':

@@ -33,6 +33,7 @@ model:
   use_pitch_aug: true  
   n_spk: 1 # max number of different speakers
   is_tts: true # If TTS or VC, it is true, if SVC, it is false
+  use_extract_cond: false
   text2semantic:
     type: 'llama'
     mode: 'phone' # choice: phone, text, phone+text, phone+bert, phone+text+bert

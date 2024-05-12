@@ -81,7 +81,8 @@ def get_data_loaders(args, whole_audio=False, accelerator=None):
         is_vaegan=True if args.vocoder.type == "hifi-vaegan" else False,
         only_mean=args.vocoder.only_mean,
         clamp = args.vocoder.clamp,
-        only_load_token = args.train.only_load_token
+        only_load_token = args.train.only_load_token,
+        use_extract_cond = args.model.use_extract_cond
     )
     loader_valid = torch.utils.data.DataLoader(
         data_valid,
@@ -118,7 +119,8 @@ class AudioDataset(Dataset):
             is_vaegan=False,
             only_mean=False,
             clamp = -1,
-            only_load_token=False
+            only_load_token=False,
+            use_extract_cond=False
     ):
         super().__init__()
 
@@ -131,7 +133,8 @@ class AudioDataset(Dataset):
         self.spk_encoder_mode = spk_encoder_mode
         self.is_vaegan  = is_vaegan
         self.only_load_token = only_load_token
-
+        self.use_extract_cond = use_extract_cond
+        
         if file_list is not None:
             self.paths = file_list
         else:
@@ -245,7 +248,10 @@ class AudioDataset(Dataset):
                     path_spk_emb = os.path.join(self.path_root, 'spk_emb', name_ext) + '.npy'
                     spk_emb = np.load(path_spk_emb)
                     spk_emb = torch.from_numpy(spk_emb).to(device)
-
+                if use_extract_cond:
+                    path_utt = os.path.join(self.path_root, 'utt', name_ext)
+                    phones, tones, lang_ids, word2ph = np.load(path_utt, allow_pickle=True)
+                    phones = torch.from_numpy(phones).to(device)
                 self.data_buffer[name_ext] = {
                     'duration': duration,
                     'mel': mel,
@@ -259,6 +265,8 @@ class AudioDataset(Dataset):
                     'spk_emb': spk_emb,
                     'keyshift': keyshift
                 }
+                if use_extract_cond:
+                    self.data_buffer[name_ext]['extra_cond'] = phones
             else:
                 self.data_buffer[name_ext] = {
                     'duration': duration,
@@ -392,9 +400,15 @@ class AudioDataset(Dataset):
             volume_frames = np.array([-1])
         # load spk_id
         spk_id = data_buffer.get('spk_id')
-
-        return dict(mel=mel, f0=f0_frames, volume=volume_frames, units=units, spk_id=spk_id, aug_shift=aug_shift,
-                    name=name, name_ext=name_ext, spk_emb=spk_emb)
+        if self.use_extract_cond:
+            path_utt = os.path.join(self.path_root, 'utt', name_ext)
+            phones, tones, lang_ids, word2ph = np.load(path_utt, allow_pickle=True)
+            phones = torch.from_numpy(phones)
+            return dict(mel=mel, f0=f0_frames, volume=volume_frames, units=units, extra_cond=phones, spk_id=spk_id, aug_shift=aug_shift,
+                        name=name, name_ext=name_ext, spk_emb=spk_emb)
+        else:
+            return dict(mel=mel, f0=f0_frames, volume=volume_frames, units=units, spk_id=spk_id, aug_shift=aug_shift,
+                        name=name, name_ext=name_ext, spk_emb=spk_emb)
 
     def __len__(self):
         return len(self.paths)
