@@ -135,7 +135,8 @@ class Unit2Mel(nn.Module):
             acoustic_scale=1.0,
             use_extract_cond = False,
             mrte_layer = 4,
-            mrte_hident_size = 256
+            mrte_hident_size = 256,
+            mode = "phone",
             ):
         super().__init__()
         self.unit_embed = nn.Linear(input_channel, n_hidden)
@@ -159,6 +160,19 @@ class Unit2Mel(nn.Module):
         else:
             if n_spk is not None and n_spk > 1:
                 self.spk_embed = nn.Embedding(n_spk, n_hidden)
+        if use_extract_cond:
+            from text.symbols import symbols
+            if "phone" in self.mode:
+                token_size = len(symbols)
+                # token_size += semantic_kmeans_num + num_tones
+                token_size = token_size + 3
+                # self.tone_emb = nn.Embedding(num_tones, config.hidden_size)
+                # c
+            if "text" in self.mode:
+                from transformers import BertTokenizer
+                bert_tokenizer = BertTokenizer.from_pretrained("bert-base-multilingual-cased", cache_dir="./pretrain")
+                token_size = bert_tokenizer.vocab_size
+            self.text = nn.Embedding(token_size, out_dims)
         # diffusion
         self.decoder = GaussianDiffusion(UNet1DConditionModel(in_channels=out_dims + n_hidden,
         out_channels=out_dims,
@@ -215,7 +229,7 @@ class Unit2Mel(nn.Module):
         # spec_norm=spec_norm,
         # acoustic_scale=acoustic_scale)
 
-    def forward(self, units, f0, volume, spk_id=None, spk_mix_dict=None, aug_shift=None,
+    def forward(self, units, f0, volume, extra_cond = None, spk_id=None, spk_mix_dict=None, aug_shift=None,
                 gt_spec=None, infer=True, infer_speedup=10, method='dpm-solver', k_step=None, use_tqdm=True,
                 spk_emb=None, spk_emb_dict=None):
 
@@ -236,6 +250,9 @@ class Unit2Mel(nn.Module):
             volume = self.volume_embed(volume)
 
         x = self.unit_embed(units) + f0 + volume
+        if extra_cond is not None:
+            extra_cond = self.text(extra_cond)
+            x = self.mrte(x, extra_cond)
         if self.use_speaker_encoder:
             if spk_mix_dict is not None:
                 assert spk_emb_dict is not None
