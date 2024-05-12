@@ -404,6 +404,8 @@ class AudioDataset(Dataset):
             path_utt = os.path.join(self.path_root, 'utt', name_ext)
             phones, tones, lang_ids, word2ph = np.load(path_utt, allow_pickle=True)
             phones = torch.from_numpy(phones)
+            if random.random() > 0.7:
+                phones = torch.zeros_like(phones[:random.randint(1, phones.shape[0])])
             return dict(mel=mel, f0=f0_frames, volume=volume_frames, units=units, extra_cond=phones, spk_id=spk_id, aug_shift=aug_shift,
                         name=name, name_ext=name_ext, spk_emb=spk_emb)
         else:
