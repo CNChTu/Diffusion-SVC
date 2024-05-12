@@ -162,17 +162,19 @@ class Unit2Mel(nn.Module):
                 self.spk_embed = nn.Embedding(n_spk, n_hidden)
         if use_extract_cond:
             from text.symbols import symbols
-            if "phone" in self.mode:
+            if "phone" in mode:
                 token_size = len(symbols)
                 # token_size += semantic_kmeans_num + num_tones
                 token_size = token_size + 3
                 # self.tone_emb = nn.Embedding(num_tones, config.hidden_size)
                 # c
-            if "text" in self.mode:
+            if "text" in mode:
                 from transformers import BertTokenizer
                 bert_tokenizer = BertTokenizer.from_pretrained("bert-base-multilingual-cased", cache_dir="./pretrain")
                 token_size = bert_tokenizer.vocab_size
             self.text = nn.Embedding(token_size, out_dims)
+        else:
+            self.text = nn.Identity()
         # diffusion
         self.decoder = GaussianDiffusion(UNet1DConditionModel(in_channels=out_dims + n_hidden,
         out_channels=out_dims,
