@@ -166,6 +166,8 @@ class ConformerConvModule(nn.Module):
             _activation = nn.ReLU()
         elif activation == 'PReLU':
             _activation = nn.PReLU(dim)
+        elif activation == 'HSwish':
+            _activation = nn.Hardswish()
         else:
             raise ValueError(f'{activation} is not a valid activation')
 
