@@ -165,7 +165,7 @@ class ConformerConvModule(nn.Module):
         elif activation == 'ReLU':
             _activation = nn.ReLU()
         elif activation == 'PReLU':
-            _activation = nn.PReLU(dim)
+            _activation = nn.PReLU(inner_dim)
         else:
             raise ValueError(f'{activation} is not a valid activation')
 
