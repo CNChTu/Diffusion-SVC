@@ -192,6 +192,7 @@ class ConformerConvModule(nn.Module):
                 _dropout
             )
         elif conv_model_type == 'mode2':
+            assert expansion_factor == 1, 'expansion_factor must be 1 for mode2'
             self.net = nn.Sequential(
                 _norm,
                 Transpose((1, 2)),
@@ -199,7 +200,27 @@ class ConformerConvModule(nn.Module):
                 nn.GLU(dim=1),
                 nn.Conv1d(dim, dim, kernel_size=kernel_size, padding=padding[0], groups=dim),
                 _activation,
-                nn.Conv1d(dim, dim, 1),
+                Transpose((1, 2)),
+                _dropout
+            )
+        elif conv_model_type == 'mode3':
+            self.net = nn.Sequential(
+                _norm,
+                Transpose((1, 2)),
+                nn.Conv1d(dim, inner_dim, kernel_size=kernel_size, padding=padding[0], groups=inner_dim),
+                _activation,
+                # nn.Conv1d(inner_dim, dim, 1),
+                nn.Conv1d(inner_dim, dim, kernel_size=kernel_size, padding=(kernel_size // 2), groups=dim),
+                Transpose((1, 2)),
+                _dropout
+            )
+        elif conv_model_type == 'mode4':
+            self.net = nn.Sequential(
+                _norm,
+                Transpose((1, 2)),
+                nn.Conv1d(dim, inner_dim, kernel_size=kernel_size, padding=padding[0], groups=inner_dim),
+                _activation,
+                nn.Conv1d(inner_dim, dim, 1),
                 Transpose((1, 2)),
                 _dropout
             )
