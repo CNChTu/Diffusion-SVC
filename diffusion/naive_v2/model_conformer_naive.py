@@ -1,5 +1,6 @@
 import torch
 from torch import nn
+import warnings
 
 
 # From https://github.com/CNChTu/Diffusion-SVC/ by CNChTu
@@ -146,6 +147,32 @@ class CFNEncoderLayer(nn.Module):
         return x  # (#batch, length, dim_model)
 
 
+class StarBlock(nn.Module):
+    # 参考 https://github.com/ma-xu/Rewrite-the-Stars/
+    def __init__(self, dim, expansion_factor=4, kernel_size=7, dropout_layer=nn.Identity(), norm_layer=nn.Identity(), mode="sum", activation=nn.GELU(), padding=3):
+        super().__init__()
+        self.mode = mode
+        self.norm = norm_layer
+        self.dwconv = nn.Conv1d(dim, dim, kernel_size=kernel_size, padding=padding, groups=dim)  # depthwise conv
+        self.f1 = nn.Conv1d(dim, expansion_factor * dim, 1)
+        self.f2 = nn.Conv1d(dim, expansion_factor * dim, 1)
+        self.act = activation
+        self.g = nn.Conv1d(expansion_factor * dim, dim, 1)
+        self.drop = dropout_layer
+        self.transpose=Transpose((1, 2))
+
+    def forward(self, x):
+        x = self.norm(x)
+        x = self.transpose(x)
+        x = self.dwconv(x)
+        x1, x2 = self.f1(x), self.f2(x)
+        x = self.act(x1) + x2 if self.mode == "sum" else self.act(x1) * x2
+        x = self.g(x)
+        x = self.transpose(x)
+        x = self.drop(x)
+        return x
+
+
 class ConformerConvModule(nn.Module):
     def __init__(
             self,
@@ -158,14 +185,19 @@ class ConformerConvModule(nn.Module):
             activation='SiLU',
     ):
         super().__init__()
-
+        
+        if conv_model_type == 'mode2' and expansion_factor != 1:
+            expansion_factor = 1
+            warnings.warn("expansion_factor must be 1 on mode2!it will be set 1", UserWarning)
+        inner_dim = dim * expansion_factor
+        
         activation = activation if activation is not None else 'SiLU'
         if activation == 'SiLU':
             _activation = nn.SiLU()
         elif activation == 'ReLU':
             _activation = nn.ReLU()
         elif activation == 'PReLU':
-            _activation = nn.PReLU(dim * expansion_factor)
+            _activation = nn.PReLU(inner_dim)
         else:
             raise ValueError(f'{activation} is not a valid activation')
 
@@ -192,7 +224,6 @@ class ConformerConvModule(nn.Module):
                 _dropout
             )
         elif conv_model_type == 'mode2':
-            assert expansion_factor == 1, 'expansion_factor must be 1 for mode2'
             self.net = nn.Sequential(
                 _norm,
                 Transpose((1, 2)),
@@ -207,7 +238,7 @@ class ConformerConvModule(nn.Module):
             self.net = nn.Sequential(
                 _norm,
                 Transpose((1, 2)),
-                nn.Conv1d(dim, inner_dim, kernel_size=kernel_size, padding=padding[0], groups=inner_dim),
+                nn.Conv1d(dim, inner_dim, kernel_size=kernel_size, padding=padding[0], groups=dim),
                 _activation,
                 # nn.Conv1d(inner_dim, dim, 1),
                 nn.Conv1d(inner_dim, dim, kernel_size=kernel_size, padding=(kernel_size // 2), groups=dim),
@@ -218,11 +249,22 @@ class ConformerConvModule(nn.Module):
             self.net = nn.Sequential(
                 _norm,
                 Transpose((1, 2)),
-                nn.Conv1d(dim, inner_dim, kernel_size=kernel_size, padding=padding[0], groups=inner_dim),
+                nn.Conv1d(dim, inner_dim, kernel_size=kernel_size, padding=padding[0], groups=dim),
                 _activation,
                 nn.Conv1d(inner_dim, dim, 1),
                 Transpose((1, 2)),
                 _dropout
+            )
+        elif conv_model_type == 'mul' or conv_model_type == 'sum':
+            self.net = StarBlock(
+                dim=dim, 
+                expansion_factor=expansion_factor, 
+                kernel_size=kernel_size, 
+                dropout_layer=_dropout, 
+                norm_layer=_norm, 
+                mode=conv_model_type, 
+                activation=_activation, 
+                padding=padding[0]
             )
         else:
             raise ValueError(f'{conv_model_type} is not a valid conv_model_type')
