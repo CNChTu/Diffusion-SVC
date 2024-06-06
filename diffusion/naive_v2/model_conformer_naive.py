@@ -6,6 +6,16 @@ from torch import nn
 # License: MIT
 
 
+class SwiGLU(nn.Module):
+    ## Swish-Applies the gated linear unit function.
+    def __init__(self, dim=-1):
+        super().__init__()
+        self.dim = dim
+    def forward(self, x):
+        out, gate = x.chunk(2, dim=self.dim)
+        return out * F.silu(gate)
+
+
 class StarBlock(nn.Module):
     # 参考 https://github.com/ma-xu/Rewrite-the-Stars/
     def __init__(self, dim, expansion_factor=4, kernel_size=7, dropout_layer=nn.Identity(), norm_layer=nn.Identity(), mode="sum", activation=nn.GELU(), padding=3):
@@ -17,6 +27,7 @@ class StarBlock(nn.Module):
         self.f2 = nn.Conv1d(dim, expansion_factor * dim, 1)
         self.act = activation
         self.g = nn.Conv1d(expansion_factor * dim, dim, 1)
+        # self.dwconv2 = nn.Conv1d(dim, dim, kernel_size=kernel_size, padding=padding, groups=dim)  # depthwise conv
         self.drop = dropout_layer
         self.transpose=Transpose((1, 2))
 
@@ -27,6 +38,7 @@ class StarBlock(nn.Module):
         x1, x2 = self.f1(x), self.f2(x)
         x = self.act(x1) + x2 if self.mode == "sum" else self.act(x1) * x2
         x = self.g(x)
+        # x = self.dwconv2(x)
         x = self.transpose(x)
         x = self.drop(x)
         return x
@@ -59,7 +71,8 @@ class ConformerNaiveEncoder(nn.Module):
                  conv_dropout: float = 0.,
                  atten_dropout: float = 0.1,
                  conv_model_type='mode1',
-                 conv_model_activation='SiLU'
+                 conv_model_activation='SiLU',
+                 GLU_type='GLU'
                  ):
         super().__init__()
         self.num_layers = num_layers
@@ -81,7 +94,8 @@ class ConformerNaiveEncoder(nn.Module):
                     conv_dropout=conv_dropout,
                     atten_dropout=atten_dropout,
                     conv_model_type=conv_model_type,
-                    conv_model_activation=conv_model_activation
+                    conv_model_activation=conv_model_activation,
+                    GLU_type=GLU_type
                 )
                 for _ in range(num_layers)
             ]
@@ -126,7 +140,8 @@ class CFNEncoderLayer(nn.Module):
                  conv_dropout: float = 0.,
                  atten_dropout: float = 0.1,
                  conv_model_type='mode1',
-                 conv_model_activation='SiLU'
+                 conv_model_activation='SiLU',
+                 GLU_type='GLU'
                  ):
         super().__init__()
 
@@ -137,7 +152,8 @@ class CFNEncoderLayer(nn.Module):
             use_norm=use_norm,
             dropout=conv_dropout,
             conv_model_type=conv_model_type,
-            activation=conv_model_activation
+            activation=conv_model_activation,
+            GLU_type=GLU_type
         )
 
         self.norm = nn.LayerNorm(dim_model)
@@ -182,6 +198,7 @@ class ConformerConvModule(nn.Module):
             use_norm=False,
             conv_model_type='mode1',
             activation='SiLU',
+            GLU_type='GLU',
     ):
         super().__init__()
 
@@ -195,6 +212,13 @@ class ConformerConvModule(nn.Module):
         else:
             raise ValueError(f'{activation} is not a valid activation')
 
+        if GLU_type=='GLU':
+            _GLU = nn.GLU(dim=1)
+        elif GLU_type=='SwiGLU':
+            _GLU = SwiGLU(dim=1)
+        else:
+            raise ValueError(f'{GLU_type} is not a valid GLU type')
+        
         inner_dim = dim * expansion_factor
         padding = calc_same_padding(kernel_size)
         if use_norm:
