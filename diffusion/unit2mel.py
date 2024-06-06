@@ -99,6 +99,7 @@ def get_network_from_dot(netdot, out_dims, cond_dims):
         atten_dropout = netdot.atten_dropout if (netdot.atten_dropout is not None) else 0.1
         no_t_emb = netdot.no_t_emb if (netdot.no_t_emb is not None) else False
         conv_model_activation = netdot.conv_model_activation if (netdot.conv_model_activation is not None) else 'SiLU'
+        GLU_type = netdot.GLU_type if (netdot.GLU_type is not None) else 'GLU'
         # init convnext denoiser
         denoiser = NaiveV2Diff(
             mel_channels=out_dims,
@@ -116,7 +117,8 @@ def get_network_from_dot(netdot, out_dims, cond_dims):
             conv_dropout=conv_dropout,
             atten_dropout=atten_dropout,
             no_t_emb=no_t_emb,
-            conv_model_activation=conv_model_activation
+            conv_model_activation=conv_model_activation,
+            GLU_type=GLU_type
         )
 
     else:
