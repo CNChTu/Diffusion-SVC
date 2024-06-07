@@ -27,7 +27,7 @@ class StarBlock(nn.Module):
         self.f2 = nn.Conv1d(dim, expansion_factor * dim, 1)
         self.act = activation
         self.g = nn.Conv1d(expansion_factor * dim, dim, 1)
-        # self.dwconv2 = nn.Conv1d(dim, dim, kernel_size=kernel_size, padding=padding, groups=dim)  # depthwise conv
+        self.dwconv2 = nn.Conv1d(dim, dim, kernel_size=kernel_size, padding=padding, groups=dim)  # depthwise conv
         self.drop = dropout_layer
         self.transpose=Transpose((1, 2))
 
@@ -38,7 +38,7 @@ class StarBlock(nn.Module):
         x1, x2 = self.f1(x), self.f2(x)
         x = self.act(x1) + x2 if self.mode == "sum" else self.act(x1) * x2
         x = self.g(x)
-        # x = self.dwconv2(x)
+        x = self.dwconv2(x)
         x = self.transpose(x)
         x = self.drop(x)
         return x
