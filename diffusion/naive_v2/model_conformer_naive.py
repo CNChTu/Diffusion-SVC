@@ -16,32 +16,6 @@ class SwiGLU(nn.Module):
         return out * F.silu(gate)
 
 
-class GatedCNNBlock(nn.Module):
-    # Gated CNN Block for 1d signal
-    # base on https://github.com/yuweihao/MambaOut/
-    def __init__(self, dim, expansion_factor=4, kernel_size=7, dropout_layer=nn.Identity(), norm_layer=nn.Identity(), mode="sum", activation=nn.GELU(), padding=3, conv_ratio=1.0):
-        super().__init__()
-        self.norm = norm_layer
-        hidden = int(expansion_factor * dim)
-        self.fc1 = nn.Linear(dim, hidden * 2)
-        self.act = activation
-        conv_channels = int(conv_ratio * dim)
-        self.split_indices = (hidden, hidden - conv_channels, conv_channels)
-        self.conv = nn.Conv1d(conv_channels, conv_channels, kernel_size=kernel_size, padding=padding, groups=conv_channels)
-        self.fc2 = nn.Linear(hidden, dim)
-        self.drop_path = dropout_layer
-        self.transpose=Transpose((1, 2))
-    def forward(self, x):
-        x = self.norm(x)
-        g, i, c = torch.split(self.fc1(x), self.split_indices, dim=-1)
-        c = self.transpose(c)
-        c = self.conv(c)
-        c = self.transpose(c)
-        x = self.fc2(self.act(g) * torch.cat((i, c), dim=-1))
-        x = self.drop_path(x)
-        return x
-
-
 class StarBlock(nn.Module):
     # 参考 https://github.com/ma-xu/Rewrite-the-Stars/
     def __init__(self, dim, expansion_factor=4, kernel_size=7, dropout_layer=nn.Identity(), norm_layer=nn.Identity(), mode="sum", activation=nn.GELU(), padding=3):
@@ -235,8 +209,6 @@ class ConformerConvModule(nn.Module):
             _activation = nn.ReLU()
         elif activation == 'PReLU':
             _activation = nn.PReLU(dim * expansion_factor)
-        elif activation == 'GELU':
-            _activation = nn.GELU()
         else:
             raise ValueError(f'{activation} is not a valid activation')
 
@@ -311,18 +283,6 @@ class ConformerConvModule(nn.Module):
                 norm_layer=_norm,
                 mode=conv_model_type,
                 activation=_activation,
-                padding=padding[0]
-            )
-        elif conv_model_type == 'MambaOut':
-            assert activation == 'PReLU', 'you cant use PReLU on MambaOut'
-            self.net = GatedCNNBlock(
-                dim=dim, 
-                expansion_factor=expansion_factor, 
-                kernel_size=kernel_size, 
-                dropout_layer=_dropout, 
-                norm_layer=_norm, 
-                mode=conv_model_type, 
-                activation=_activation, 
                 padding=padding[0]
             )
         else:

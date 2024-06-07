@@ -1,15 +1,3 @@
-# SwiGLU分支
-1.初始化添加了kaiming_normal，但愿能提高点稳定性
-
-2.测试Starnet请修改conv_model_type为'mul'，激活函数conv_model_activation个人理解里不推荐'PReLU'
-
-3.GLU_type修改为'SwiGLU'可测试SwiGLU
-
-4.StarBlock注释掉了一个dwconv，可以加一下试试
-
-5.mode3/4疑似白给
-
-
 Language: [English](./README_en.md) **简体中文**
 
 # Diffusion-SVC
