@@ -12,12 +12,6 @@ import random
 # 参考了这个
 
 
-class Conv1d(torch.nn.Conv1d):
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        nn.init.kaiming_normal_(self.weight)
-
-
 class DiffusionEmbedding(nn.Module):
     """Diffusion Step Embedding"""
 
@@ -142,7 +136,7 @@ class NaiveV2Diff(nn.Module):
         self.wavenet_like = wavenet_like
         self.mask_cond_ratio = None
 
-        self.input_projection = Conv1d(mel_channels, dim, 1)
+        self.input_projection = nn.Conv1d(mel_channels, dim, 1)
         if self.no_t_emb:
             self.diffusion_embedding = None
         else:
@@ -186,15 +180,15 @@ class NaiveV2Diff(nn.Module):
         )
 
         if use_mlp:
-            _ = Conv1d(dim * mlp_factor, mel_channels, kernel_size=1)
+            _ = nn.Conv1d(dim * mlp_factor, mel_channels, kernel_size=1)
             nn.init.zeros_(_.weight)
             self.output_projection = nn.Sequential(
-                Conv1d(dim, dim * mlp_factor, kernel_size=1),
+                nn.Conv1d(dim, dim * mlp_factor, kernel_size=1),
                 nn.GELU(),
                 _,
             )
         else:
-            self.output_projection = Conv1d(dim, mel_channels, kernel_size=1)
+            self.output_projection = nn.Conv1d(dim, mel_channels, kernel_size=1)
             nn.init.zeros_(self.output_projection.weight)
 
     def forward(self, spec, diffusion_step, cond):
