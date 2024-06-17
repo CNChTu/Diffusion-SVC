@@ -41,6 +41,8 @@ model:
     conv_model_type: 'mode1'
     conv_dropout: 0.0
     atten_dropout: 0.1
+    conv_model_activation: 'PReLU'
+    GLU_type: 'GLU'
   mask_cond_ratio: 'NOTUSE' # input 'NOTUSE' if not use
   loss_type: 'l2' # 'l1', 'l2' or 'l2_lognorm'
 device: cuda

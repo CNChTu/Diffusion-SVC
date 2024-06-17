@@ -12,6 +12,12 @@ import random
 # 参考了这个
 
 
+class Conv1d(torch.nn.Conv1d):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        nn.init.kaiming_normal_(self.weight)
+
+
 class DiffusionEmbedding(nn.Module):
     """Diffusion Step Embedding"""
 
@@ -45,7 +51,8 @@ class NaiveV2DiffLayer(nn.Module):
                  wavenet_like=False,
                  conv_model_type='mode1',
                  no_t_emb=False,
-                 conv_model_activation='SiLU'
+                 conv_model_activation='SiLU',
+                 GLU_type='GLU'
                  ):
         super().__init__()
 
@@ -56,7 +63,8 @@ class NaiveV2DiffLayer(nn.Module):
             dropout=conv_dropout,
             use_norm=use_norm,
             conv_model_type=conv_model_type,
-            activation=conv_model_activation
+            activation=conv_model_activation,
+            GLU_type=GLU_type
         )
         self.norm = nn.LayerNorm(dim_model)
 
@@ -126,14 +134,15 @@ class NaiveV2Diff(nn.Module):
             conv_dropout=0.0,
             atten_dropout=0.1,
             no_t_emb=False,
-            conv_model_activation='SiLU'
+            conv_model_activation='SiLU',
+            GLU_type='GLU'
     ):
         super(NaiveV2Diff, self).__init__()
         self.no_t_emb = no_t_emb if (no_t_emb is not None) else False
         self.wavenet_like = wavenet_like
         self.mask_cond_ratio = None
 
-        self.input_projection = nn.Conv1d(mel_channels, dim, 1)
+        self.input_projection = Conv1d(mel_channels, dim, 1)
         if self.no_t_emb:
             self.diffusion_embedding = None
         else:
@@ -169,22 +178,23 @@ class NaiveV2Diff(nn.Module):
                     wavenet_like=wavenet_like,
                     conv_model_type=conv_model_type,
                     no_t_emb=self.no_t_emb,
-                    conv_model_activation=conv_model_activation
+                    conv_model_activation=conv_model_activation,
+                    GLU_type=GLU_type
                 )
                 for i in range(num_layers)
             ]
         )
 
         if use_mlp:
-            _ = nn.Conv1d(dim * mlp_factor, mel_channels, kernel_size=1)
+            _ = Conv1d(dim * mlp_factor, mel_channels, kernel_size=1)
             nn.init.zeros_(_.weight)
             self.output_projection = nn.Sequential(
-                nn.Conv1d(dim, dim * mlp_factor, kernel_size=1),
+                Conv1d(dim, dim * mlp_factor, kernel_size=1),
                 nn.GELU(),
                 _,
             )
         else:
-            self.output_projection = nn.Conv1d(dim, mel_channels, kernel_size=1)
+            self.output_projection = Conv1d(dim, mel_channels, kernel_size=1)
             nn.init.zeros_(self.output_projection.weight)
 
     def forward(self, spec, diffusion_step, cond):
