@@ -267,12 +267,12 @@ def train(args, initial_global_step, model, optimizer, scheduler, vocoder, loade
         use_vae = True
     else:
         use_vae = False
-    
+
     # set up EMA
     if args.train.use_ema:
         ema_model = ModelEmaV2(model, decay=0.9999)
         saver.log_info('ModelEmaV2 is enable')
-    
+
     # run
     num_batches = len(loader_train)
     start_epoch = initial_global_step // num_batches
@@ -397,11 +397,10 @@ def train(args, initial_global_step, model, optimizer, scheduler, vocoder, loade
                 optimizer_save = optimizer if args.train.save_opt else None
 
                 # save latest
-                saver.save_model(model, optimizer_save, postfix=f'{saver.global_step}')
-                
-                # save EMA weight
                 if args.train.use_ema:
-                    saver.save_model(ema_model, optimizer_save, postfix=f'{saver.global_step}')
+                    saver.save_model(ema_model, optimizer_save, name='EMA', postfix=f'{saver.global_step}')
+                else:
+                    saver.save_model(model, optimizer_save, postfix=f'{saver.global_step}')
                 
                 last_val_step = saver.global_step - args.train.interval_val
                 if last_val_step % args.train.interval_force_save != 0:
