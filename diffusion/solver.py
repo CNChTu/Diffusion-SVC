@@ -258,11 +258,7 @@ def test(args, model, vocoder, loader_test, saver):
 def train(args, initial_global_step, model, optimizer, scheduler, vocoder, loader_train, loader_test):
     # saver
     saver = Saver(args, initial_global_step=initial_global_step)
-    
-    # mode preview
-    saver.log_info('--- mode preview ---')
-    model_str = str(model)
-    saver.log_info(model_str)
+
     # model size
     params_count = utils.get_network_paras_amount({'model': model})
     saver.log_info('--- model size ---')
