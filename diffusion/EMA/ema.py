@@ -33,16 +33,17 @@ class ModelEmaV2(nn.Module):
     def __init__(self, model, decay=0.9999, device=None):
         super(ModelEmaV2, self).__init__()
         # make a copy of the model for accumulating moving average of weights
-        self.module = deepcopy(model)
-        self.module.eval()
+        if hasattr(model, "module"):
+            self.model_state_dict = deepcopy(model.module.state_dict())
+        else:
+            self.model_state_dict = deepcopy(model.state_dict())
         self.decay = decay
         self.device = device  # perform ema on different device from model if set
-        if self.device is not None:
-            self.module.to(device=device)
 
     def _update(self, model, update_fn):
+        model_values = model.module.state_dict().values() if hasattr(model, "module") else model.state_dict().values()
         with torch.no_grad():
-            for ema_v, model_v in zip(self.module.state_dict().values(), model.state_dict().values()):
+            for ema_v, model_v in zip(self.model_state_dict.values(), model_values):
                 if self.device is not None:
                     model_v = model_v.to(device=self.device)
                 ema_v.copy_(update_fn(ema_v, model_v))
