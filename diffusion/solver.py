@@ -398,7 +398,7 @@ def train(args, initial_global_step, model, optimizer, scheduler, vocoder, loade
 
                 # save latest
                 if args.train.use_ema:
-                    saver.save_model(ema_model, optimizer_save, name='EMA', postfix=f'{saver.global_step}')
+                    saver.save_model(ema_model, optimizer_save, postfix=f'{saver.global_step}')
                 else:
                     saver.save_model(model, optimizer_save, postfix=f'{saver.global_step}')
                 
