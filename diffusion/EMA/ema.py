@@ -51,7 +51,7 @@ class ModelEmaV2(nn.Module):
     def update(self, model): # 使用衰减率更新 EMA 参数
         self._update(model, update_fn=lambda e, m: self.decay * e + (1. - self.decay) * m)
 
-    def set(self, model):  # 直接将 EMA 参数设置为与提供的模型参数相同。
+    def set(self, model): # 直接将 EMA 参数设置为与提供的模型参数相同。
         self._update(model, update_fn=lambda e, m: m)
 
     def state_dict(self, destination=None, prefix='', keep_vars=False):
