@@ -3,6 +3,7 @@ import time
 import numpy as np
 import torch
 import librosa
+import diffusion.ema
 from logger.saver import Saver
 from logger import utils
 from torch import autocast
@@ -257,7 +258,10 @@ def test(args, model, vocoder, loader_test, saver):
 def train(args, initial_global_step, model, optimizer, scheduler, vocoder, loader_train, loader_test):
     # saver
     saver = Saver(args, initial_global_step=initial_global_step)
-
+    
+    # mode preview
+    saver.log_info('--- mode preview ---')
+    saver.log_info(model)
     # model size
     params_count = utils.get_network_paras_amount({'model': model})
     saver.log_info('--- model size ---')
@@ -266,7 +270,12 @@ def train(args, initial_global_step, model, optimizer, scheduler, vocoder, loade
         use_vae = True
     else:
         use_vae = False
-
+    
+    # set up EMA
+    if args.use_ema:
+        ema_model = ModelEmaV2(model, decay=0.9999)
+        saver.log_info('ModelEmaV2 is enable')
+    
     # run
     num_batches = len(loader_train)
     start_epoch = initial_global_step // num_batches
@@ -350,6 +359,10 @@ def train(args, initial_global_step, model, optimizer, scheduler, vocoder, loade
                     scaler.scale(loss).backward()
                     scaler.step(optimizer)
                     scaler.update()
+                
+                if args.use_ema: # 只考虑了cuda的情况，不做精度放缩处理
+                    ema_model.update(model)
+                
                 scheduler.step()
 
             # log loss
