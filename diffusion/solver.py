@@ -402,6 +402,11 @@ def train(args, initial_global_step, model, optimizer, scheduler, vocoder, loade
 
                 # save latest
                 saver.save_model(model, optimizer_save, postfix=f'{saver.global_step}')
+                
+                # save EMA weight
+                if args.train.use_ema:
+                    saver.save_model(ema_model, optimizer_save, postfix=f'{saver.global_step}')
+                
                 last_val_step = saver.global_step - args.train.interval_val
                 if last_val_step % args.train.interval_force_save != 0:
                     saver.delete_model(postfix=f'{last_val_step}')
@@ -409,6 +414,8 @@ def train(args, initial_global_step, model, optimizer, scheduler, vocoder, loade
                 # run testing set
                 test_loss_dict, test_loss = test(args, model, vocoder, loader_test, saver)
 
+                
+                
                 # log loss
                 saver.log_info(
                     ' --- <validation> --- \nloss: {:.3f}. '.format(
