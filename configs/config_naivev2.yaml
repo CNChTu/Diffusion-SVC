@@ -47,6 +47,7 @@ env:
   expdir: exp/naivev2
   gpu_id: 0
 train:
+  use_ema: false
   num_workers: 0 # If your cpu and gpu are both very strong, set to 0 may be faster!
   amp_dtype: fp32 # naive model only can ues fp32, else nan
   batch_size: 48

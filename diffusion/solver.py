@@ -3,7 +3,6 @@ import time
 import numpy as np
 import torch
 import librosa
-from diffusion.ema import ModelEmaV2
 from logger.saver import Saver
 from logger import utils
 from torch import autocast
@@ -270,7 +269,7 @@ def train(args, initial_global_step, model, optimizer, scheduler, vocoder, loade
 
     # set up EMA
     if args.train.use_ema:
-        ema_model = ModelEmaV2(model, decay=0.9999)
+        ema_model = torch.optim.swa_utils.AveragedModel(model, multi_avg_fn=torch.optim.swa_utils.get_ema_multi_avg_fn(0.999))
         saver.log_info('ModelEmaV2 is enable')
 
     # run
@@ -357,8 +356,8 @@ def train(args, initial_global_step, model, optimizer, scheduler, vocoder, loade
                     scaler.step(optimizer)
                     scaler.update()
                 
-                if args.train.use_ema: # 只考虑了cuda的情况，不做精度放缩处理
-                    ema_model.update(model)
+                if args.train.use_ema:
+                    ema_model.update_parameters(model)
                 
                 scheduler.step()
 
@@ -398,17 +397,19 @@ def train(args, initial_global_step, model, optimizer, scheduler, vocoder, loade
 
                 # save latest
                 if args.train.use_ema:
-                    saver.save_model(ema_model, optimizer_save, name='EMA', postfix=f'{saver.global_step}')
-                saver.save_model(model, optimizer_save, postfix=f'{saver.global_step}')
+                    saver.save_model(ema_model, optimizer_save, postfix=f'{saver.global_step}')
+                else:
+                    saver.save_model(model, optimizer_save, postfix=f'{saver.global_step}')
                 
                 last_val_step = saver.global_step - args.train.interval_val
                 if last_val_step % args.train.interval_force_save != 0:
                     saver.delete_model(postfix=f'{last_val_step}')
-                    if args.train.use_ema:
-                        saver.delete_model(name='EMA', postfix=f'{last_val_step}')
 
                 # run testing set
-                test_loss_dict, test_loss = test(args, model, vocoder, loader_test, saver)
+                if args.train.use_ema:
+                    test_loss_dict, test_loss = test(args, ema_model, vocoder, loader_test, saver)
+                else:
+                    test_loss_dict, test_loss = test(args, model, vocoder, loader_test, saver)
 
                 # log loss
                 saver.log_info(
