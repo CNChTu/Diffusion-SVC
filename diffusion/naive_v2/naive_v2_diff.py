@@ -60,7 +60,6 @@ class NaiveV2DiffLayer(nn.Module):
             activation=conv_model_activation,
             GLU_type=GLU_type
         )
-        self.norm = nn.LayerNorm(dim_model)
 
         self.dropout = nn.Dropout(0.1)  # 废弃代码,仅做兼容性保留
         if wavenet_like:
@@ -82,7 +81,8 @@ class NaiveV2DiffLayer(nn.Module):
                 nhead=num_heads,
                 dim_feedforward=dim_model * 4,
                 dropout=atten_dropout,
-                activation='gelu'
+                activation='gelu',
+                norm_first=True
             )
         else:
             self.attn = None
