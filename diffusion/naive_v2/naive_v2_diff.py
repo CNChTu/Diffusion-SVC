@@ -60,6 +60,7 @@ class NaiveV2DiffLayer(nn.Module):
             activation=conv_model_activation,
             GLU_type=GLU_type
         )
+        self.norm = nn.LayerNorm(dim_model) # 请务必注意这是个可学习的层，但模型并没有使用到这一层，在很多地方backward都会出现严重问题，但是在该项目中不会，但直接删除该层会导致加载过往的权重失败，待解决
 
         self.dropout = nn.Dropout(0.1)  # 废弃代码,仅做兼容性保留
         if wavenet_like:
