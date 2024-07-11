@@ -142,7 +142,8 @@ class WaveNet(nn.Module):
                     nhead=transformer_n_head,
                     dim_feedforward=n_chans * 4,
                     dropout=0.1,
-                    activation='gelu'
+                    activation='gelu',
+                    norm_first=True
                 )
                 self.transformer = nn.TransformerEncoder(transformer_layer, num_layers=transformer_n_layers)
         else:

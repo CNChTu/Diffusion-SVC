@@ -267,6 +267,11 @@ def train(args, initial_global_step, model, optimizer, scheduler, vocoder, loade
     else:
         use_vae = False
 
+    # set up EMA
+    if args.train.use_ema:
+        ema_model = torch.optim.swa_utils.AveragedModel(model, multi_avg_fn=torch.optim.swa_utils.get_ema_multi_avg_fn(args.train.ema_decay))
+        saver.log_info('ModelEmaV2 is enable')
+
     # run
     num_batches = len(loader_train)
     start_epoch = initial_global_step // num_batches
@@ -350,6 +355,10 @@ def train(args, initial_global_step, model, optimizer, scheduler, vocoder, loade
                     scaler.scale(loss).backward()
                     scaler.step(optimizer)
                     scaler.update()
+                
+                if args.train.use_ema:
+                    ema_model.update_parameters(model)
+                
                 scheduler.step()
 
             # log loss
@@ -387,13 +396,20 @@ def train(args, initial_global_step, model, optimizer, scheduler, vocoder, loade
                 optimizer_save = optimizer if args.train.save_opt else None
 
                 # save latest
-                saver.save_model(model, optimizer_save, postfix=f'{saver.global_step}')
+                if args.train.use_ema:
+                    saver.save_model(ema_model.module, optimizer_save, postfix=f'{saver.global_step}')
+                else:
+                    saver.save_model(model, optimizer_save, postfix=f'{saver.global_step}')
+                
                 last_val_step = saver.global_step - args.train.interval_val
                 if last_val_step % args.train.interval_force_save != 0:
                     saver.delete_model(postfix=f'{last_val_step}')
 
                 # run testing set
-                test_loss_dict, test_loss = test(args, model, vocoder, loader_test, saver)
+                if args.train.use_ema:
+                    test_loss_dict, test_loss = test(args, ema_model, vocoder, loader_test, saver)
+                else:
+                    test_loss_dict, test_loss = test(args, model, vocoder, loader_test, saver)
 
                 # log loss
                 saver.log_info(

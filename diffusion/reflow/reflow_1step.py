@@ -61,19 +61,19 @@ class RectifiedFlow1Step(nn.Module):
         return x, t
 
     def sample_rk2(self, x, t, dt, cond):
-        k_1 = self.denoise_fn(x, self.time_scale_factor * t, cond)
-        k_2 = self.denoise_fn(x + 0.5 * k_1 * dt, self.time_scale_factor * (t + 0.5 * dt), cond)
+        k_1 = self.velocity_fn(x, 1000 * t, cond)
+        k_2 = self.velocity_fn(x + 0.5 * k_1 * dt, 1000 * (t + 0.5 * dt), cond)
         x += k_2 * dt
         t += dt
         return x, t
 
     def sample_rk5(self, x, t, dt, cond):
-        k_1 = self.denoise_fn(x, self.time_scale_factor * t, cond)
-        k_2 = self.denoise_fn(x + 0.25 * k_1 * dt, self.time_scale_factor * (t + 0.25 * dt), cond)
-        k_3 = self.denoise_fn(x + 0.125 * (k_2 + k_1) * dt, self.time_scale_factor * (t + 0.25 * dt), cond)
-        k_4 = self.denoise_fn(x + 0.5 * (-k_2 + 2 * k_3) * dt, self.time_scale_factor * (t + 0.5 * dt), cond)
-        k_5 = self.denoise_fn(x + 0.0625 * (3 * k_1 + 9 * k_4) * dt, self.time_scale_factor * (t + 0.75 * dt), cond)
-        k_6 = self.denoise_fn(x + (-3 * k_1 + 2 * k_2 + 12 * k_3 - 12 * k_4 + 8 * k_5) * dt / 7, self.time_scale_factor * (t + dt),
+        k_1 = self.velocity_fn(x, 1000 * t, cond)
+        k_2 = self.velocity_fn(x + 0.25 * k_1 * dt, 1000 * (t + 0.25 * dt), cond)
+        k_3 = self.velocity_fn(x + 0.125 * (k_2 + k_1) * dt, 1000 * (t + 0.25 * dt), cond)
+        k_4 = self.velocity_fn(x + 0.5 * (-k_2 + 2 * k_3) * dt, 1000 * (t + 0.5 * dt), cond)
+        k_5 = self.velocity_fn(x + 0.0625 * (3 * k_1 + 9 * k_4) * dt, 1000 * (t + 0.75 * dt), cond)
+        k_6 = self.velocity_fn(x + (-3 * k_1 + 2 * k_2 + 12 * k_3 - 12 * k_4 + 8 * k_5) * dt / 7, 1000 * (t + dt),
                        cond)
         x += (7 * k_1 + 32 * k_3 + 12 * k_4 + 32 * k_5 + 7 * k_6) * dt / 90
         t += dt
@@ -81,39 +81,39 @@ class RectifiedFlow1Step(nn.Module):
 
     def sample_euler_fp64(self, x, t, dt, cond):
         x = x.double()
-        x += self.denoise_fn(x.float(), self.time_scale_factor * t, cond).double() * dt.double()
+        x += self.velocity_fn(x.float(), 1000 * t, cond).double() * dt.double()
         t += dt
         return x, t
 
     def sample_rk4_fp64(self, x, t, dt, cond):
         x = x.double()
-        k_1 = self.denoise_fn(x.float(), self.time_scale_factor * t, cond).double()
-        k_2 = self.denoise_fn((x + 0.5 * k_1 * dt.double()).float(), self.time_scale_factor * (t + 0.5 * dt), cond).double()
-        k_3 = self.denoise_fn((x + 0.5 * k_2 * dt.double()).float(), self.time_scale_factor * (t + 0.5 * dt), cond).double()
-        k_4 = self.denoise_fn((x + k_3 * dt.double()).float(), self.time_scale_factor * (t + dt), cond).double()
+        k_1 = self.velocity_fn(x.float(), 1000 * t, cond).double()
+        k_2 = self.velocity_fn((x + 0.5 * k_1 * dt.double()).float(), 1000 * (t + 0.5 * dt), cond).double()
+        k_3 = self.velocity_fn((x + 0.5 * k_2 * dt.double()).float(), 1000 * (t + 0.5 * dt), cond).double()
+        k_4 = self.velocity_fn((x + k_3 * dt.double()).float(), 1000 * (t + dt), cond).double()
         x += (k_1 + 2 * k_2 + 2 * k_3 + k_4) * dt.double() / 6
         t += dt
         return x, t
 
     def sample_rk2_fp64(self, x, t, dt, cond):
         x = x.double()
-        k_1 = self.denoise_fn(x.float(), self.time_scale_factor * t, cond).double()
-        k_2 = self.denoise_fn((x + 0.5 * k_1 * dt.double()).float(), self.time_scale_factor * (t + 0.5 * dt), cond).double()
+        k_1 = self.velocity_fn(x.float(), 1000 * t, cond).double()
+        k_2 = self.velocity_fn((x + 0.5 * k_1 * dt.double()).float(), 1000 * (t + 0.5 * dt), cond).double()
         x += k_2 * dt.double()
         t += dt
         return x, t
 
     def sample_rk5_fp64(self, x, t, dt, cond):
         x = x.double()
-        k_1 = self.denoise_fn(x.float(), self.time_scale_factor * t, cond).double()
-        k_2 = self.denoise_fn((x + 0.25 * k_1 * dt.double()).float(), self.time_scale_factor * (t + 0.25 * dt), cond).double()
-        k_3 = self.denoise_fn((x + 0.125 * (k_2 + k_1) * dt.double()).float(), self.time_scale_factor * (t + 0.25 * dt), cond).double()
-        k_4 = self.denoise_fn((x + 0.5 * (-k_2 + 2 * k_3) * dt.double()).float(), self.time_scale_factor * (t + 0.5 * dt),
+        k_1 = self.velocity_fn(x.float(), 1000 * t, cond).double()
+        k_2 = self.velocity_fn((x + 0.25 * k_1 * dt.double()).float(), 1000 * (t + 0.25 * dt), cond).double()
+        k_3 = self.velocity_fn((x + 0.125 * (k_2 + k_1) * dt.double()).float(), 1000 * (t + 0.25 * dt), cond).double()
+        k_4 = self.velocity_fn((x + 0.5 * (-k_2 + 2 * k_3) * dt.double()).float(), 1000 * (t + 0.5 * dt),
                        cond).double()
-        k_5 = self.denoise_fn((x + 0.0625 * (3 * k_1 + 9 * k_4) * dt.double()).float(), self.time_scale_factor * (t + 0.75 * dt),
+        k_5 = self.velocity_fn((x + 0.0625 * (3 * k_1 + 9 * k_4) * dt.double()).float(), 1000 * (t + 0.75 * dt),
                        cond).double()
-        k_6 = self.denoise_fn((x + (-3 * k_1 + 2 * k_2 + 12 * k_3 - 12 * k_4 + 8 * k_5) * dt.double() / 7).float(),
-                       self.time_scale_factor * (t + dt),
+        k_6 = self.velocity_fn((x + (-3 * k_1 + 2 * k_2 + 12 * k_3 - 12 * k_4 + 8 * k_5) * dt.double() / 7).float(),
+                       1000 * (t + dt),
                        cond).double()
         x += (7 * k_1 + 32 * k_3 + 12 * k_4 + 32 * k_5 + 7 * k_6) * dt.double() / 90
         t += dt
