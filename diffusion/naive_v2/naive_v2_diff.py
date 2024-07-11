@@ -82,8 +82,7 @@ class NaiveV2DiffLayer(nn.Module):
                 nhead=num_heads,
                 dim_feedforward=dim_model * 4,
                 dropout=atten_dropout,
-                activation='gelu',
-                norm_first=True
+                activation='gelu'
             )
         else:
             self.attn = None
@@ -97,7 +96,7 @@ class NaiveV2DiffLayer(nn.Module):
         x = x.transpose(1, 2)
 
         if self.attn is not None:
-            x = self.attn(x)
+            x = (self.attn(self.norm(x)))
 
         x = self.conformer(x)  # (#batch, dim_model, length)
 
