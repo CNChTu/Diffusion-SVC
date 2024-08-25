@@ -450,6 +450,9 @@ class Units_Encoder:
         if encoder == 'contentvec768l12':
             self.model = Audio2ContentVec768L12(encoder_ckpt, device=device)
             is_loaded_encoder = True
+        if encoder == 'contentvec768l12tta2x':
+            self.model = Audio2ContentVec768L12TTA2X(encoder_ckpt, device=device)
+            is_loaded_encoder = True
         if encoder == 'cnhubertsoftfish':
             self.model = CNHubertSoftFish(encoder_ckpt, device=device, gate_size=cnhubertsoft_gate)
             is_loaded_encoder = True
@@ -629,6 +632,45 @@ class Audio2ContentVec768L12():
             logits = self.hubert.extract_features(**inputs)
             feats = logits[0]
         units = feats  # .transpose(2, 1)
+        return units
+
+
+class Audio2ContentVec768L12TTA2X():
+    def __init__(self, path, h_sample_rate=16000, h_hop_size=160, device='cpu'):
+        self.device = device
+        print(' [Encoder Model] Content Vec')
+        print(' [Loading] ' + path)
+        self.models, self.saved_cfg, self.task = checkpoint_utils.load_model_ensemble_and_task([path], suffix="", )
+        self.hubert = self.models[0]
+        self.hubert = self.hubert.to(self.device)
+        self.hubert.eval()
+
+    def __call__(self, audio, padding_mask=None):  # B, T
+        # wav_tensor = torch.from_numpy(audio).to(self.device)
+        wav_tensor = audio
+        feats = wav_tensor.view(1, -1)
+        if padding_mask is None:
+            padding_mask = torch.BoolTensor(feats.shape).fill_(False)
+        else:
+            padding_mask = padding_mask.bool()
+            padding_mask = ~padding_mask if torch.all(padding_mask) else padding_mask
+        inputs = {
+            "source": feats.to(wav_tensor.device),
+            "padding_mask": padding_mask.to(wav_tensor.device),
+            "output_layer": 12,  # layer 12
+        }
+        with torch.no_grad():
+            feats = self.hubert.extract_features(**inputs)[0]
+            inputs["source"] = F.pad(inputs["source"], (160, 0))
+            feats2 = self.hubert.extract_features(**inputs)[0]
+            n = feats2.shape[1] - feats.shape[1]
+            if n > 0:
+                feats = F.pad(feats, (0, 0, 0, 1))
+            feats_tta = torch.cat((feats2, feats), dim=2).reshape(feats.shape[0], -1, feats.shape[-1])
+            feats_tta = feats_tta[:, 1:, :]
+            if n > 0:
+                feats_tta = feats_tta[:, :-1, :]
+        units = feats_tta  # .transpose(2, 1)
         return units
 
 
