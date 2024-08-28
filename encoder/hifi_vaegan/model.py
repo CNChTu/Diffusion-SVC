@@ -475,10 +475,10 @@ if __name__ == '__main__':
         import librosa
 
         model = InferModel(
-            r"E:\AUFSe04BPyProgram\AUFSd04BPyProgram\ddsp-svc\20230308\diffusion-svc\pretrain\ylzzvaegan2/config.json",
-            r"E:\AUFSe04BPyProgram\AUFSd04BPyProgram\ddsp-svc\20230308\diffusion-svc\pretrain\ylzzvaegan2/G_336800.pth"
+            r"r",
+            r"r"
         )
-        in_wav, in_sr = librosa.load(r"E:\AUFSe04BPyProgram\AUFSd04BPyProgram\AudioGAN\AudioGAN\raw\测试专用.wav",
+        in_wav, in_sr = librosa.load(r"r",
                                      sr=int(model.sr))
         print(in_wav.shape)
         in_wav = torch.from_numpy(in_wav).float().unsqueeze(0).to(model.device)
@@ -490,5 +490,5 @@ if __name__ == '__main__':
         out_wav = model.decode(z).squeeze().cpu().numpy()
         print(out_wav.max(), out_wav.min(), out_wav.mean(), out_wav.std())
         print(out_wav.shape)
-        soundfile.write(r"C:\Users\29210\Desktop\ylzzvaegan\测试专用ylzz2-1.wav", out_wav,
+        soundfile.write(r"r", out_wav,
                         int(model.sr))
