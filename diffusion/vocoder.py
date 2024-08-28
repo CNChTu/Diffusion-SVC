@@ -95,9 +95,9 @@ class DCT512(torch.nn.Module):
         if device is None:
             device = 'cuda' if torch.cuda.is_available() else 'cpu'
         self.device = device
-        self.h_sampling_rate = 44100,
-        self.h_num_mels = 512,
-        self.h_hop_size = 512,
+        self.h_sampling_rate = 44100
+        self.h_num_mels = 512
+        self.h_hop_size = 512
         self.dct = DCT(self.h_hop_size)
         self.idct = IDCT(self.h_hop_size)
 
