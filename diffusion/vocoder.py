@@ -27,6 +27,8 @@ def load_vocoder_for_save(vocoder_type, model_path, device='cpu'):
         vocoder = EVAGANBig(model_path, device=device)
     elif vocoder_type == 'dct512':
         vocoder = DCT512(model_path, device=device)
+    elif vocoder_type == 'dct512log':
+        vocoder = DCT512(model_path, device=device, l_norm=True)
     else:
         raise ValueError(f" [x] Unknown vocoder: {vocoder_type}")
     out_dict = vocoder.load_model_for_combo(model_path=model_path)
@@ -59,6 +61,8 @@ class Vocoder:
             self.vocoder = EVAGANBig(vocoder_ckpt, device=device)
         elif vocoder_type == 'dct512':
             self.vocoder = DCT512(vocoder_ckpt, device=device)
+        elif vocoder_type == 'dct512log':
+            self.vocoder = DCT512(vocoder_ckpt, device=device, l_norm=True)
         else:
             raise ValueError(f" [x] Unknown vocoder: {vocoder_type}")
 
@@ -90,7 +94,7 @@ class Vocoder:
 
 
 class DCT512(torch.nn.Module):
-    def __init__(self, model_path, device=None):
+    def __init__(self, model_path, device=None, l_norm=False):
         super().__init__()
         if device is None:
             device = 'cuda' if torch.cuda.is_available() else 'cpu'
@@ -100,6 +104,7 @@ class DCT512(torch.nn.Module):
         self.h_hop_size = 512
         self.dct = DCT(self.h_hop_size)
         self.idct = IDCT(self.h_hop_size)
+        self.l_norm = l_norm
 
     def sample_rate(self):
         return self.h_sampling_rate
@@ -115,11 +120,15 @@ class DCT512(torch.nn.Module):
         with torch.no_grad():
             audio = audio.to(self.device)
             mel = self.dct(audio)  # B, n_frames, bins
+            if self.l_norm:
+                mel = torch.where(mel < 0, -torch.log(2 - mel) + 0.6, torch.log(2 + mel) - 0.6)
         return mel
 
     def forward(self, mel, f0):  # mel: B, n_frames, bins; f0: B, n_frames
         assert mel.shape[-1] == 512
         with torch.no_grad():
+            if self.l_norm:
+                mel = torch.where(mel < 0, -torch.exp(-mel + 0.6) + 2, torch.exp(mel + 0.6) - 2)
             audio = self.idct(mel)
             return audio.unsqueeze(1)  # B, 1, T
 
