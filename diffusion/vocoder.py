@@ -95,20 +95,20 @@ class DCT512(torch.nn.Module):
         if device is None:
             device = 'cuda' if torch.cuda.is_available() else 'cpu'
         self.device = device
-        self.sampling_rate = 44100,
-        self.num_mels = 512,
-        self.hop_size = 512,
-        self.dct = DCT(512)
-        self.idct = IDCT(512)
+        self.h_sampling_rate = 44100,
+        self.h_num_mels = 512,
+        self.h_hop_size = 512,
+        self.dct = DCT(self.h_hop_size)
+        self.idct = IDCT(self.h_hop_size)
 
     def sample_rate(self):
-        return self.sampling_rate
+        return self.h_sampling_rate
 
     def hop_size(self):
-        return self.hop_size
+        return self.h_hop_size
 
     def dimension(self):
-        return self.num_mels
+        return self.h_num_mels
 
     def extract(self, audio, keyshift=0):
         assert keyshift == 0
@@ -118,6 +118,7 @@ class DCT512(torch.nn.Module):
         return mel
 
     def forward(self, mel, f0):  # mel: B, n_frames, bins; f0: B, n_frames
+        assert mel.shape[-1] == 512
         with torch.no_grad():
             audio = self.idct(mel)
             return audio.unsqueeze(1)  # B, 1, T
