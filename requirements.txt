@@ -26,3 +26,4 @@ sounddevice
 gradio
 faiss-cpu
 vector-quantize-pytorch
+torch-dct

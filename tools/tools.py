@@ -98,7 +98,7 @@ class GE2E:
             self.config['model']["num_lstm_layers"],
         )
         with fsspec.open(ckpt_path, "rb") as f:
-            state = torch.load(f, map_location=device)
+            state = torch.load(f, map_location=device, weights_only=True)
         self.model.load_state_dict(state["model"])
         self.model = self.model.to(device)
         self.model.eval()
@@ -531,7 +531,7 @@ class Audio2HubertSoft(torch.nn.Module):
         print(' [Encoder Model] HuBERT Soft')
         self.hubert = HubertSoft()
         print(' [Loading] ' + path)
-        checkpoint = torch.load(path)
+        checkpoint = torch.load(path, map_location='cpu', weights_only=True)
         consume_prefix_in_state_dict_if_present(checkpoint, "module.")
         self.hubert.load_state_dict(checkpoint)
         self.hubert.eval()
@@ -688,7 +688,7 @@ class CNHubertSoftFish(torch.nn.Module):
         self.proj = torch.nn.Sequential(torch.nn.Dropout(0.1), torch.nn.Linear(768, 256))
         # self.label_embedding = nn.Embedding(128, 256)
 
-        state_dict = torch.load(path, map_location=device)
+        state_dict = torch.load(path, map_location=device, weights_only=True)
         self.load_state_dict(state_dict)
 
     @torch.no_grad()

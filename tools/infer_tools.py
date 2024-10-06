@@ -309,6 +309,8 @@ class DiffusionSVC:
 
         if self.args.vocoder.type == 'hifivaegan':
             use_vae = True
+        elif self.args.vocoder.type == 'hifivaegan2':
+            use_vae = True
         else:
             use_vae = False
 

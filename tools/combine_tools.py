@@ -62,9 +62,9 @@ class NaiveAndDiffModel:
         self.device = device
 
         # load ckpt
-        self.diff_model = torch.load(diff_model_path, map_location=torch.device(device))
+        self.diff_model = torch.load(diff_model_path, map_location=torch.device(device), weights_only=False)
         if not self.is_combo_trained_model:
-            self.naive_model = torch.load(naive_model_path, map_location=torch.device(device))
+            self.naive_model = torch.load(naive_model_path, map_location=torch.device(device), weights_only=False)
         print(" [INFO] Loaded model and config check out.")
 
         # vocoder

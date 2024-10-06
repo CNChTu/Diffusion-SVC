@@ -1,8 +1,10 @@
 import os
 import numpy as np
+import tqdm
 import yaml
 import torch
 import argparse
+import tqdm
 
 
 class DotDict(dict):
@@ -78,6 +80,20 @@ def parse_args(args=None, namespace=None):
         default=None,
         required=False,
         help="val or train; default is train, it means get z range from train data path")
+    parser.add_argument(
+        "-min",
+        "--min",
+        type=float,
+        default=-10.0,
+        required=False,
+        help="z_min")
+    parser.add_argument(
+        "-max",
+        "--max",
+        type=float,
+        default=10.0,
+        required=False,
+        help="z_max")
     return parser.parse_args(args=args, namespace=namespace)
 
 
@@ -104,23 +120,14 @@ if __name__ == '__main__':
         is_pure=True,
         is_sort=True,
         is_ext=True)
-    # get z range
-    z_max = None
-    z_max_name = None
-    z_min = None
-    z_min_name = None
-    z_total_std = 0.
-    m_max = None
-    m_max_name = None
-    m_min = None
-    m_min_name = None
-    m_total_std = 0.
-    logs_max = None
-    logs_max_name = None
-    logs_min = None
-    logs_min_name = None
-    logs_total_std = 0.
-    for file in filelist:
+
+    # 定义0.001一级，范围z的直方图的表，tensor
+    z_min = cmd.min
+    z_max = cmd.max
+    bins = int((z_max - z_min) * 1000 + 1)
+    hist = torch.zeros(bins)
+    # 遍历所有文件
+    for file in tqdm.tqdm(filelist):
         path_specfile = os.path.join(path_srcdir, file)
         # load spec
         spec = np.load(path_specfile, allow_pickle=True)
@@ -128,63 +135,39 @@ if __name__ == '__main__':
         m = spec.transpose(-1, 0)[:1].transpose(-1, 0).squeeze(-1)
         logs = spec.transpose(-1, 0)[1:].transpose(-1, 0).squeeze(-1)
         z = m + torch.randn_like(m) * torch.exp(logs)
+        # 计算直方图
+        # clip将z限制在-10到10之间, 超出部分视为-10或10
+        z_c = z.clamp(z_min, z_max)
+        hist += torch.histc(z_c, bins=bins, min=z_min, max=z_max)
 
-        z_total_std += z.std()
-        m_total_std += m.std()
-        logs_total_std += logs.std()
-
-        if z_max is None:
-            z_max = z.max()
-            z_max_name = path_specfile
-        else:
-            z_max = max(z_max, z.max())
-            z_max_name = path_specfile
-        if z_min is None:
-            z_min = z.min()
-            z_min_name = path_specfile
-        else:
-            z_min = min(z_min, z.min())
-            z_min_name = path_specfile
-
-        if m_max is None:
-            m_max = m.max()
-            m_max_name = path_specfile
-        else:
-            m_max = max(m_max, m.max())
-            m_max_name = path_specfile
-        if m_min is None:
-            m_min = m.min()
-            m_min_name = path_specfile
-        else:
-            m_min = min(m_min, m.min())
-            m_min_name = path_specfile
-
-        if logs_max is None:
-            logs_max = logs.max()
-            logs_max_name = path_specfile
-        else:
-            logs_max = max(logs_max, logs.max())
-            logs_max_name = path_specfile
-        if logs_min is None:
-            logs_min = logs.min()
-            logs_min_name = path_specfile
-
-        print(f"  [INFO] path/file: {path_specfile}")
-        print(f"  [INFO]     >z: {z.max()}, {z.min()}; std: {z.std()}; mean: {z.mean()}")
-        print(f"  [INFO]     >m: {m.max()}, {m.min()}; std: {m.std()}; mean: {m.mean()}")
-        print(f"  [INFO]     >logs: {logs.max()}, {logs.min()}; std: {logs.std()}; mean: {logs.mean()}")
-    print("END")
-    print(f"  [INFO] z_max: {z_max}, z_max_name: {z_max_name}")
-    print(f"  [INFO] z_min: {z_min}, z_min_name: {z_min_name}")
-    print(f"  [INFO] z_total_std: {z_total_std / len(filelist)}")
-    print(f"  [INFO] m_max: {m_max}, m_max_name: {m_max_name}")
-    print(f"  [INFO] m_min: {m_min}, m_min_name: {m_min_name}")
-    print(f"  [INFO] m_total_std: {m_total_std / len(filelist)}")
-    print(f"  [INFO] logs_max: {logs_max}, logs_max_name: {logs_max_name}")
-    print(f"  [INFO] logs_min: {logs_min}, logs_min_name: {logs_min_name}")
-    print(f"  [INFO] logs_total_std: {logs_total_std / len(filelist)}")
-
-
-
-
-
+    # 计算直方图的累积分布函数
+    # 从左到右累积
+    cdf = torch.cumsum(hist, dim=0)
+    # total count
+    cdf_total = cdf[-1]
+    # 找到0.001和0.999的位置
+    z_find_min = z_min
+    z_find_max = z_max
+    for i in range(bins):
+        if cdf[i] > (0.001 * cdf_total):
+            z_find_min = i / 1000 - 10
+            break
+    for i in range(bins):
+        if cdf[i] > (0.999 * cdf_total):
+            z_find_max = i / 1000 - 10
+            break
+    print(f'  [INFO] z_min(0.001): {z_find_min}, z_max(0.009): {z_find_max}')
+    # 刨去两端极值的数据占比
+    _sum = (cdf[-2] - cdf[0])
+    _sum = _sum / cdf_total
+    print(f'  [INFO] sum(min > max): {_sum}')
+    import matplotlib.pyplot as plt
+    # 画图
+    plt.figure()
+    plt.plot(torch.arange(z_min, z_max + 0.001, 0.001), hist)
+    plt.xlabel('z')
+    plt.ylabel('count')
+    plt.title('z range')
+    plt.grid()
+    plt.savefig(os.path.join(data_path, 'z_range.png'))
+    plt.close()
