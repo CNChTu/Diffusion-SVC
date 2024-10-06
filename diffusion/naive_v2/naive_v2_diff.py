@@ -46,7 +46,8 @@ class NaiveV2DiffLayer(nn.Module):
                  conv_model_type='mode1',
                  no_t_emb=False,
                  conv_model_activation='SiLU',
-                 GLU_type='GLU'
+                 GLU_type='GLU',
+                 fix_free_norm=False
                  ):
         super().__init__()
 
@@ -58,9 +59,8 @@ class NaiveV2DiffLayer(nn.Module):
             use_norm=use_norm,
             conv_model_type=conv_model_type,
             activation=conv_model_activation,
-            GLU_type=GLU_type
+            GLU_type=GLU_type,
         )
-        self.norm = nn.LayerNorm(dim_model) # 请务必注意这是个可学习的层，但模型并没有使用到这一层，在很多地方backward都会出现严重问题，但是在该项目中不会，但直接删除该层会导致加载过往的权重失败，待解决
 
         self.dropout = nn.Dropout(0.1)  # 废弃代码,仅做兼容性保留
         if wavenet_like:
@@ -84,8 +84,13 @@ class NaiveV2DiffLayer(nn.Module):
                 dropout=atten_dropout,
                 activation='gelu'
             )
+            self.norm = nn.LayerNorm(dim_model)
         else:
             self.attn = None
+            if fix_free_norm:
+                self.norm = None
+            else:
+                self.norm = nn.LayerNorm(dim_model)
 
     def forward(self, x, condition=None, diffusion_step=None) -> torch.Tensor:
         res_x = x.transpose(1, 2)
@@ -129,7 +134,8 @@ class NaiveV2Diff(nn.Module):
             atten_dropout=0.1,
             no_t_emb=False,
             conv_model_activation='SiLU',
-            GLU_type='GLU'
+            GLU_type='GLU',
+            fix_free_norm=False
     ):
         super(NaiveV2Diff, self).__init__()
         self.no_t_emb = no_t_emb if (no_t_emb is not None) else False
@@ -173,7 +179,8 @@ class NaiveV2Diff(nn.Module):
                     conv_model_type=conv_model_type,
                     no_t_emb=self.no_t_emb,
                     conv_model_activation=conv_model_activation,
-                    GLU_type=GLU_type
+                    GLU_type=GLU_type,
+                    fix_free_norm=fix_free_norm
                 )
                 for i in range(num_layers)
             ]

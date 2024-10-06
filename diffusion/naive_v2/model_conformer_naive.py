@@ -74,7 +74,8 @@ class ConformerNaiveEncoder(nn.Module):
                  atten_dropout: float = 0.1,
                  conv_model_type='mode1',
                  conv_model_activation='SiLU',
-                 GLU_type='GLU'
+                 GLU_type='GLU',
+                 fix_free_norm=False
                  ):
         super().__init__()
         self.num_layers = num_layers
@@ -83,6 +84,7 @@ class ConformerNaiveEncoder(nn.Module):
         self.use_norm = use_norm
         self.residual_dropout = 0.1  # 废弃代码,仅做兼容性保留
         self.attention_dropout = 0.1  # 废弃代码,仅做兼容性保留
+        self.fix_free_norm = fix_free_norm
 
         self.encoder_layers = nn.ModuleList(
             [
@@ -97,7 +99,8 @@ class ConformerNaiveEncoder(nn.Module):
                     atten_dropout=atten_dropout,
                     conv_model_type=conv_model_type,
                     conv_model_activation=conv_model_activation,
-                    GLU_type=GLU_type
+                    GLU_type=GLU_type,
+                    fix_free_norm=fix_free_norm
                 )
                 for _ in range(num_layers)
             ]
@@ -143,7 +146,8 @@ class CFNEncoderLayer(nn.Module):
                  atten_dropout: float = 0.1,
                  conv_model_type='mode1',
                  conv_model_activation='SiLU',
-                 GLU_type='GLU'
+                 GLU_type='GLU',
+                 fix_free_norm=False
                  ):
         super().__init__()
 
@@ -157,8 +161,13 @@ class CFNEncoderLayer(nn.Module):
             activation=conv_model_activation,
             GLU_type=GLU_type
         )
-
-        self.norm = nn.LayerNorm(dim_model)
+        if conv_only:
+            if not fix_free_norm:
+                self.norm = nn.LayerNorm(dim_model)
+            else:
+                self.norm = None
+        else:
+            self.norm = nn.LayerNorm(dim_model)
 
         self.dropout = nn.Dropout(0.1)  # 废弃代码,仅做兼容性保留
 
@@ -200,7 +209,7 @@ class ConformerConvModule(nn.Module):
             use_norm=False,
             conv_model_type='mode1',
             activation='SiLU',
-            GLU_type='GLU',
+            GLU_type='GLU'
     ):
         super().__init__()
 
