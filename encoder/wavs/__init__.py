@@ -1,0 +1,1 @@
+from .wavs import WAVS, IWAVS
