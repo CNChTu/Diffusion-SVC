@@ -6,8 +6,9 @@ import librosa
 from logger.saver import Saver
 from logger import utils
 from torch import autocast
-from torch.cuda.amp import GradScaler
+from torch.amp import GradScaler
 from nsf_hifigan.nvSTFT import STFT
+import random
 
 WAV_TO_MEL = None
 
@@ -51,9 +52,15 @@ def calculate_mel_psnr(gt_mel, pred_mel):
     return psnr
 
 
-def test(args, model, vocoder, loader_test, saver):
+def test(args, model, vocoder, loader_test, saver, device):
     print(' [*] testing...')
     model.eval()
+    if args.vocoder.type == 'hifivaegan':
+        use_vae = True
+    elif args.vocoder.type == 'hifivaegan2':
+        use_vae = True
+    else:
+        use_vae = False
 
     # losses
     test_loss = 0.
@@ -82,7 +89,7 @@ def test(args, model, vocoder, loader_test, saver):
             # unpack data
             for k in data.keys():
                 if not k.startswith('name'):
-                    data[k] = data[k].to(args.device)
+                    data[k] = data[k].to(device)
             print('>>', data['name'][0])
 
             # forward
@@ -98,7 +105,9 @@ def test(args, model, vocoder, loader_test, saver):
                     infer_step=args.infer.infer_step,
                     method=args.infer.method,
                     t_start=args.model.t_start,
-                    spk_emb=data['spk_emb'])
+                    spk_emb=data['spk_emb'],
+                    use_vae=use_vae
+                )
             else:
                 mel = model(
                     data['units'],
@@ -110,7 +119,9 @@ def test(args, model, vocoder, loader_test, saver):
                     infer_speedup=args.infer.speedup,
                     k_step=args.model.k_step_max,
                     method=args.infer.method,
-                    spk_emb=data['spk_emb'])
+                    spk_emb=data['spk_emb'],
+                    use_vae=use_vae
+                )
             signal = vocoder.infer(mel, data['f0'])
             ed_time = time.time()
 
@@ -133,7 +144,7 @@ def test(args, model, vocoder, loader_test, saver):
                         infer=False,
                         t_start=args.model.t_start,
                         spk_emb=data['spk_emb'],
-                        use_vae=(args.vocoder.type == 'hifivaegan')
+                        use_vae=use_vae
                     )
                 else:
                     loss_dict = model(
@@ -145,7 +156,7 @@ def test(args, model, vocoder, loader_test, saver):
                         infer=False,
                         k_step=args.model.k_step_max,
                         spk_emb=data['spk_emb'],
-                        use_vae=(args.vocoder.type == 'hifivaegan')
+                        use_vae=use_vae
                     )
                 _loss = 0
                 if not isinstance(loss_dict, dict):
@@ -169,6 +180,8 @@ def test(args, model, vocoder, loader_test, saver):
 
             # log mel
             if args.vocoder.type == 'hifivaegan':
+                log_from_signal = True
+            elif args.vocoder.type == 'hifivaegan2':
                 log_from_signal = True
             else:
                 log_from_signal = False
@@ -196,9 +209,10 @@ def test(args, model, vocoder, loader_test, saver):
                 gt_mel = gt_mel.transpose(-1, -2)
                 # 如果形状不同,裁剪使得形状相同
                 if pre_mel.shape[1] != gt_mel.shape[1]:
-                    gt_mel = gt_mel[:, :pre_mel.shape[1], :]
+                    gt_mel = gt_mel[:, :min(pre_mel.shape[1],gt_mel.shape[1]), :]
                 saver.log_spec(data['name'][0], gt_mel, pre_mel)
                 # 计算指标
+                spec_range = 14  # for mel
                 mel_val_mse_all += torch.nn.functional.mse_loss(pre_mel, gt_mel).detach().cpu().numpy()
                 gt_mel_norm = torch.clip(gt_mel, spec_min, spec_max)
                 gt_mel_norm = gt_mel_norm / spec_range + spec_min
@@ -254,7 +268,8 @@ def test(args, model, vocoder, loader_test, saver):
     return test_loss_dict, test_loss
 
 
-def train(args, initial_global_step, model, optimizer, scheduler, vocoder, loader_train, loader_test):
+def train(rank, args, initial_global_step, model, optimizer, scheduler, vocoder, loader_train, loader_test, device,
+          ddp=False, samper_train=None):
     # saver
     saver = Saver(args, initial_global_step=initial_global_step)
 
@@ -264,13 +279,16 @@ def train(args, initial_global_step, model, optimizer, scheduler, vocoder, loade
     saver.log_info(params_count)
     if args.vocoder.type == 'hifivaegan':
         use_vae = True
+    elif args.vocoder.type == 'hifivaegan2':
+        use_vae = True
     else:
         use_vae = False
 
     # set up EMA
     if args.train.use_ema:
-        ema_model = torch.optim.swa_utils.AveragedModel(model, multi_avg_fn=torch.optim.swa_utils.get_ema_multi_avg_fn(args.train.ema_decay))
-        saver.log_info('ModelEmaV2 is enable')
+        raise NotImplementedError(' [x] EMA is not supported now.')
+        #ema_model = torch.optim.swa_utils.AveragedModel(model, multi_avg_fn=torch.optim.swa_utils.get_ema_multi_avg_fn(args.train.ema_decay))
+        #saver.log_info('ModelEmaV2 is enable')
 
     # run
     num_batches = len(loader_train)
@@ -287,14 +305,34 @@ def train(args, initial_global_step, model, optimizer, scheduler, vocoder, loade
     else:
         raise ValueError(' [x] Unknown amp_dtype: ' + args.train.amp_dtype)
     for epoch in range(start_epoch, args.train.epochs):
+        if ddp:
+            samper_train.set_epoch(epoch)
         for batch_idx, data in enumerate(loader_train):
             saver.global_step_increment()
             optimizer.zero_grad()
 
             # unpack data
+            duration_random_range = args.data.duration_random_range
+            if duration_random_range is None:
+                duration_random_range = 0.0
+            if float(duration_random_range) > 0.0:
+                random_dur = random.random() * duration_random_range
+                sli_frame = random_dur // args.data.sampling_rate
+                n_frame = int(data['units'].shape[1])
+                sli_frame = n_frame - sli_frame
+                sli_frame = random.randint(0, n_frame - sli_frame)
+            else:
+                sli_frame = None
             for k in data.keys():
                 if not k.startswith('name'):
-                    data[k] = data[k].to(args.device)
+                    data[k] = data[k].to(device)
+                    if sli_frame is not None:
+                        if k in ['units','f0','volume','mel']:
+                            _shape_len = len(data[k].shape)
+                            if _shape_len == 3:
+                                data[k] = data[k][:, sli_frame:, :]
+                            elif _shape_len == 4:
+                                data[k] = data[k][:, sli_frame:, :, :]
 
             # forward
             if (args.model.type == 'ReFlow') or (args.model.type == 'ReFlow1Step'):
@@ -305,7 +343,7 @@ def train(args, initial_global_step, model, optimizer, scheduler, vocoder, loade
                                       t_start=args.model.t_start,
                                       spk_emb=data['spk_emb'], use_vae=use_vae)
                 else:
-                    with autocast(device_type=args.device, dtype=dtype):
+                    with autocast(device_type=device, dtype=dtype):
                         loss_dict = model(data['units'], data['f0'], data['volume'], data['spk_id'],
                                           aug_shift=data['aug_shift'], gt_spec=data['mel'], infer=False,
                                           t_start=args.model.t_start,
@@ -318,7 +356,7 @@ def train(args, initial_global_step, model, optimizer, scheduler, vocoder, loade
                                       k_step=args.model.k_step_max,
                                       spk_emb=data['spk_emb'], use_vae=use_vae)
                 else:
-                    with autocast(device_type=args.device, dtype=dtype):
+                    with autocast(device_type=device, dtype=dtype):
                         loss_dict = model(data['units'], data['f0'], data['volume'], data['spk_id'],
                                           aug_shift=data['aug_shift'], gt_spec=data['mel'], infer=False,
                                           k_step=args.model.k_step_max,
@@ -357,74 +395,82 @@ def train(args, initial_global_step, model, optimizer, scheduler, vocoder, loade
                     scaler.update()
                 
                 if args.train.use_ema:
-                    ema_model.update_parameters(model)
+                    raise NotImplementedError(' [x] EMA is not supported now.')
+                    #ema_model.update_parameters(model)
                 
                 scheduler.step()
 
             # log loss
-            if saver.global_step % args.train.interval_log == 0:
-                current_lr = optimizer.param_groups[0]['lr']
-                saver.log_info(
-                    'epoch: {} | {:3d}/{:3d} | {} | batch/s: {:.2f} | lr: {:.6} | loss: {:.3f} | time: {} | step: {}'.format(
-                        epoch,
-                        batch_idx,
-                        num_batches,
-                        args.env.expdir,
-                        args.train.interval_log / saver.get_interval_time(),
-                        current_lr,
-                        loss.item(),
-                        saver.get_total_time(),
-                        saver.global_step
+            if rank == 0:
+                if saver.global_step % args.train.interval_log == 0:
+                    current_lr = optimizer.param_groups[0]['lr']
+                    saver.log_info(
+                        'epoch: {} | {:3d}/{:3d} | {} | batch/s: {:.2f} | lr: {:.6} | loss: {:.3f} | time: {} | step: {}'.format(
+                            epoch,
+                            batch_idx,
+                            num_batches,
+                            args.env.expdir,
+                            args.train.interval_log / saver.get_interval_time(),
+                            current_lr,
+                            loss.item(),
+                            saver.get_total_time(),
+                            saver.global_step
+                        )
                     )
-                )
 
-                saver.log_value({
-                    'train/loss': loss.item()
-                })
-
-                for k in loss_float_dict.keys():
                     saver.log_value({
-                        'train/' + k: loss_float_dict[k]
+                        'train/loss': loss.item()
                     })
 
-                saver.log_value({
-                    'train/lr': current_lr
-                })
+                    for k in loss_float_dict.keys():
+                        saver.log_value({
+                            'train/' + k: loss_float_dict[k]
+                        })
+
+                    saver.log_value({
+                        'train/lr': current_lr
+                    })
 
             # validation
-            if saver.global_step % args.train.interval_val == 0:
-                optimizer_save = optimizer if args.train.save_opt else None
+            if rank == 0:
+                if saver.global_step % args.train.interval_val == 0:
+                    optimizer_save = optimizer if args.train.save_opt else None
 
-                # save latest
-                if args.train.use_ema:
-                    saver.save_model(ema_model.module, optimizer_save, postfix=f'{saver.global_step}')
-                else:
-                    saver.save_model(model, optimizer_save, postfix=f'{saver.global_step}')
-                
-                last_val_step = saver.global_step - args.train.interval_val
-                if last_val_step % args.train.interval_force_save != 0:
-                    saver.delete_model(postfix=f'{last_val_step}')
+                    # save latest
+                    if args.train.use_ema:
+                        raise NotImplementedError(' [x] EMA is not supported now.')
+                        #saver.save_model(ema_model.module, optimizer_save, postfix=f'{saver.global_step}')
+                    else:
+                        if ddp:
+                            saver.save_model(model.module, optimizer_save, postfix=f'{saver.global_step}')
+                        else:
+                            saver.save_model(model, optimizer_save, postfix=f'{saver.global_step}')
 
-                # run testing set
-                if args.train.use_ema:
-                    test_loss_dict, test_loss = test(args, ema_model, vocoder, loader_test, saver)
-                else:
-                    test_loss_dict, test_loss = test(args, model, vocoder, loader_test, saver)
+                    last_val_step = saver.global_step - args.train.interval_val
+                    if last_val_step % args.train.interval_force_save != 0:
+                        saver.delete_model(postfix=f'{last_val_step}')
 
-                # log loss
-                saver.log_info(
-                    ' --- <validation> --- \nloss: {:.3f}. '.format(
-                        test_loss,
+                    # run testing set
+                    if args.train.use_ema:
+                        raise NotImplementedError(' [x] EMA is not supported now.')
+                        #test_loss_dict, test_loss = test(args, ema_model, vocoder, loader_test, saver)
+                    else:
+                        test_loss_dict, test_loss = test(args, model, vocoder, loader_test, saver, device)
+
+                    # log loss
+                    saver.log_info(
+                        ' --- <validation> --- \nloss: {:.3f}. '.format(
+                            test_loss,
+                        )
                     )
-                )
 
-                saver.log_value({
-                    'validation/loss': test_loss
-                })
-
-                for k in test_loss_dict.keys():
                     saver.log_value({
-                        'validation/' + k: test_loss_dict[k]
+                        'validation/loss': test_loss
                     })
 
-                model.train()
+                    for k in test_loss_dict.keys():
+                        saver.log_value({
+                            'validation/' + k: test_loss_dict[k]
+                        })
+
+                    model.train()

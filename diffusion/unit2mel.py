@@ -100,6 +100,7 @@ def get_network_from_dot(netdot, out_dims, cond_dims):
         no_t_emb = netdot.no_t_emb if (netdot.no_t_emb is not None) else False
         conv_model_activation = netdot.conv_model_activation if (netdot.conv_model_activation is not None) else 'SiLU'
         GLU_type = netdot.GLU_type if (netdot.GLU_type is not None) else 'GLU'
+        fix_free_norm = netdot.fix_free_norm if (netdot.fix_free_norm is not None) else False
         # init convnext denoiser
         denoiser = NaiveV2Diff(
             mel_channels=out_dims,
@@ -118,7 +119,8 @@ def get_network_from_dot(netdot, out_dims, cond_dims):
             atten_dropout=atten_dropout,
             no_t_emb=no_t_emb,
             conv_model_activation=conv_model_activation,
-            GLU_type=GLU_type
+            GLU_type=GLU_type,
+            fix_free_norm=fix_free_norm
         )
 
     else:
@@ -127,7 +129,7 @@ def get_network_from_dot(netdot, out_dims, cond_dims):
     return denoiser
 
 
-def get_z(stack_tensor, mean_only=False):
+def get_z(stack_tensor, mean_only=False, clip_min=None, clip_max=None):
     # stack_tensor: [B x N x D x 2]
     # sample z, or mean only
     m = stack_tensor.transpose(-1, 0)[:1].transpose(-1, 0).squeeze(-1)
@@ -136,6 +138,10 @@ def get_z(stack_tensor, mean_only=False):
         z = m  # mean only
     else:
         z = m + torch.randn_like(m) * torch.exp(logs)  # sample z
+    if (clip_min is not None) or (clip_max is not None):
+        assert clip_min is not None
+        assert clip_max is not None
+        z = z.clamp(min=clip_min, max=clip_max)
     return z  # [B x N x D]
 
 
@@ -158,7 +164,7 @@ def load_model_vocoder(
     model = load_svc_model(args=args, vocoder_dimension=vocoder.dimension)
 
     print(' [Loading] ' + model_path)
-    ckpt = torch.load(model_path, map_location=torch.device(device))
+    ckpt = torch.load(model_path, map_location=torch.device(device), weights_only=True)
     model.to(device)
     model.load_state_dict(ckpt['model'])
     model.eval()
@@ -166,7 +172,7 @@ def load_model_vocoder(
 
 
 def load_model_vocoder_from_combo(combo_model_path, device='cpu', loaded_vocoder=None):
-    read_dict = torch.load(combo_model_path, map_location=torch.device(device))
+    read_dict = torch.load(combo_model_path, map_location=torch.device(device), weights_only=True)
     # 检查是否有键名“_version_”
     if '_version_' in read_dict.keys():
         raise ValueError(" [X] 这是新版本的模型, 请在新仓库中使用")
@@ -268,7 +274,10 @@ def load_svc_model(args, vocoder_dimension):
             naive_fn=args.model.naive_fn,
             naive_fn_grad_not_by_reflow=args.model.naive_fn_grad_not_by_reflow,
             naive_out_mel_cond_reflow=args.model.naive_out_mel_cond_reflow,
-            loss_type=args.model.loss_type,)
+            loss_type=args.model.loss_type,
+            consistency=args.model.consistency,
+            consistency_only=args.model.consistency_only,
+        )
 
     elif args.model.type == 'ReFlow1Step':
         model = Unit2MelV2ReFlow1Step(
@@ -526,7 +535,7 @@ class Unit2MelV2(nn.Module):
 
         # sample z or mean only
         if use_vae and (gt_spec is not None):
-            gt_spec = get_z(gt_spec, mean_only=self.mean_only)
+            gt_spec = get_z(gt_spec, mean_only=self.mean_only, clip_min=self.spec_min, clip_max=self.spec_max)
             if (self.z_rate is not None) and (self.z_rate != 0):
                 gt_spec = gt_spec * self.z_rate  # scale z
 
@@ -615,7 +624,10 @@ class Unit2MelV2ReFlow(Unit2MelV2):
             out_dims=out_dims,
             spec_min=self.spec_min,
             spec_max=self.spec_max,
-            loss_type=self.loss_type)
+            loss_type=self.loss_type,
+            consistency=self.consistency,
+            consistency_only=self.consistency_only,
+        )
         return decoder
 
     def __init__(
@@ -637,9 +649,13 @@ class Unit2MelV2ReFlow(Unit2MelV2):
             naive_fn=None,
             naive_fn_grad_not_by_reflow=False,
             naive_out_mel_cond_reflow=True,
-            loss_type='l2'
+            loss_type='l2',
+            consistency=False,
+            consistency_only=True
     ):
         self.loss_type = loss_type if (loss_type is not None) else 'l2'
+        self.consistency = consistency if (consistency is not None) else False
+        self.consistency_only = consistency_only if (consistency_only is not None) else True
         super().__init__(
             input_channel,
             n_spk,
@@ -678,7 +694,7 @@ class Unit2MelV2ReFlow(Unit2MelV2):
 
         # sample z or mean only
         if use_vae and (gt_spec is not None):
-            gt_spec = get_z(gt_spec, mean_only=self.mean_only)
+            gt_spec = get_z(gt_spec, mean_only=self.mean_only, clip_min=self.spec_min, clip_max=self.spec_max)
             if (self.z_rate is not None) and (self.z_rate != 0):
                 gt_spec = gt_spec * self.z_rate  # scale z
 
