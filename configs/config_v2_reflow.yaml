@@ -39,7 +39,18 @@ model:
     wn_tf_n_layers: 2
     wn_tf_n_head: 4
   loss_type: 'l2_lognorm' # 'l1', 'l2' or 'l2_lognorm'
-device: cuda
+  consistency: false
+  consistency_only: true
+device: 'cuda'
+ddp:
+  use_ddp: false #   if true, ddp_device will cover device and gpu id
+  port: '13348'
+  ddp_cache_gpu: false
+  ddp_device:
+    - 'cuda:1'
+    - 'cuda:2'
+    - 'cuda:3'
+    - 'cuda:4'
 vocoder:
   type: 'nsf-hifigan'
   ckpt: 'pretrain/nsf_hifigan/model'
