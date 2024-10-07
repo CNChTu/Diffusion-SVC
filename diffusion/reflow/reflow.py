@@ -55,7 +55,7 @@ class RectifiedFlow(nn.Module):
         x_t_a = x_0 + t_a[:, None, None, None] * (x_1 - x_0)
         x_t_b = x_0 + t_b[:, None, None, None] * (x_1 - x_0)
         v_pred_a = self.velocity_fn(x_t_a, 1000 * t_a, cond)
-        v_pred_b = self.velocity_fn(x_t_b, 1000 * t_b, cond)
+        v_pred_b = self.velocity_fn(x_t_b, 1000 * t_b, cond).detach()
 
         if loss_type is None:
             loss_type = self.loss_type
