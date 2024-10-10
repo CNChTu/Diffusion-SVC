@@ -41,6 +41,9 @@ model:
   loss_type: 'l2_lognorm' # 'l1', 'l2' or 'l2_lognorm'
   consistency: false
   consistency_only: true
+  consistency_delta_t: 0.1
+  consistency_lambda_f: 1.0
+  consistency_lambda_v: 1.0 
 device: 'cuda'
 ddp:
   use_ddp: false #   if true, ddp_device will cover device and gpu id

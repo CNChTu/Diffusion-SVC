@@ -277,6 +277,9 @@ def load_svc_model(args, vocoder_dimension):
             loss_type=args.model.loss_type,
             consistency=args.model.consistency,
             consistency_only=args.model.consistency_only,
+            consistency_delta_t=args.model.consistency_delta_t,
+            consistency_lambda_f=args.model.consistency_lambda_f,
+            consistency_lambda_v=args.model.consistency_lambda_v,
         )
 
     elif args.model.type == 'ReFlow1Step':
@@ -627,6 +630,9 @@ class Unit2MelV2ReFlow(Unit2MelV2):
             loss_type=self.loss_type,
             consistency=self.consistency,
             consistency_only=self.consistency_only,
+            consistency_delta_t=self.consistency_delta_t,
+            consistency_lambda_f=self.consistency_lambda_f,
+            consistency_lambda_v=self.consistency_lambda_v,
         )
         return decoder
 
@@ -651,11 +657,17 @@ class Unit2MelV2ReFlow(Unit2MelV2):
             naive_out_mel_cond_reflow=True,
             loss_type='l2',
             consistency=False,
-            consistency_only=True
+            consistency_only=True,
+            consistency_delta_t=0.1,
+            consistency_lambda_f=1.0,
+            consistency_lambda_v=1.0,
     ):
         self.loss_type = loss_type if (loss_type is not None) else 'l2'
         self.consistency = consistency if (consistency is not None) else False
         self.consistency_only = consistency_only if (consistency_only is not None) else True
+        self.consistency_delta_t = consistency_delta_t if (consistency_delta_t is not None) else 0.1
+        self.consistency_lambda_f = consistency_lambda_f if (consistency_lambda_f is not None) else 1.0
+        self.consistency_lambda_v = consistency_lambda_v if (consistency_lambda_v is not None) else 1.0
         super().__init__(
             input_channel,
             n_spk,

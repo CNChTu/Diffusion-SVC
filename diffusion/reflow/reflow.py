@@ -17,6 +17,9 @@ class RectifiedFlow(nn.Module):
                  loss_type='l2',
                  consistency=False,
                  consistency_only=True,
+                 consistency_delta_t=0.1,
+                 consistency_lambda_f=1.0,
+                 consistency_lambda_v=1.0,
                  ):
         super().__init__()
         self.velocity_fn = velocity_fn
@@ -26,6 +29,9 @@ class RectifiedFlow(nn.Module):
         self.loss_type = loss_type
         self.consistency = consistency
         self.consistency_only = consistency_only
+        self.consistency_delta_t = consistency_delta_t
+        self.consistency_lambda_f = consistency_lambda_f
+        self.consistency_lambda_v = consistency_lambda_v
 
     def reflow_loss(self, x_1, t, cond, loss_type=None):
         x_0 = torch.randn_like(x_1)
@@ -56,19 +62,17 @@ class RectifiedFlow(nn.Module):
         x_t_b = x_0 + t_b[:, None, None, None] * (x_1 - x_0)
         v_pred_a = self.velocity_fn(x_t_a, 1000 * t_a, cond)
         v_pred_b = self.velocity_fn(x_t_b, 1000 * t_b, cond).detach()
-
+        f_pred_a = x_t_a + (1 - t_a[:, None, None, None]) * v_pred_a
+        f_pred_b = x_t_b + (1 - t_b[:, None, None, None]) * v_pred_b
         if loss_type is None:
             loss_type = self.loss_type
         else:
             loss_type = loss_type
 
-        if loss_type == 'l1':
-            loss = (v_pred_a - v_pred_b).abs().mean()
-        elif loss_type == 'l2':
-            loss = F.mse_loss(v_pred_a, v_pred_b)
-        elif loss_type == 'l2_lognorm':
-            weights = 0.398942 / t_a / (1 - t_a) * torch.exp(-0.5 * torch.log(t_a / ( 1 - t_a)) ** 2)
-            loss = torch.mean(weights[:, None, None, None] * F.mse_loss(v_pred_a, v_pred_b, reduction='none'))
+        if loss_type == 'l2':
+            loss_f = F.mse_loss(f_pred_a, f_pred_b) / self.consistency_delta_t ** 2
+            loss_v = F.mse_loss(v_pred_a, v_pred_b)
+            loss = self.consistency_lambda_f * loss_f + self.consistency_lambda_v * loss_v
         else:
             raise NotImplementedError()
 
@@ -196,10 +200,10 @@ class RectifiedFlow(nn.Module):
             if self.consistency:
                 x_1 = self.norm_spec(gt_spec)
                 x_1 = x_1.transpose(1, 2)[:, None, :, :]  # [B, 1, M, T]
-                t_a = t_start + (1.0 - t_start) * torch.rand(b, device=device)
-                t_b = t_start + (1.0 - t_start) * torch.rand(b, device=device)
-                t_a = torch.clip(t_a, 1e-7, 1 - 1e-7)
-                t_b = torch.clip(t_b, 1e-7, 1 - 1e-7)
+                t = t_start + (1.0 - t_start) * torch.rand(b, device=device)
+                dt = self.consistency_delta_t * torch.randn(b, device=device).abs()
+                t_a = torch.clip(t - 0.5 * dt, t_start, 1)
+                t_b = torch.clip(t + 0.5 * dt, t_start, 1)
                 consistency_loss = self.reflow_consistency_loss(x_1, t_a, t_b, cond=cond)
                 if self.consistency_only:
                     return consistency_loss
