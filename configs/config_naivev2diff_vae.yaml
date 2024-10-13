@@ -42,7 +42,16 @@ model:
     conv_dropout: 0.0
     atten_dropout: 0.1
   mask_cond_ratio: 'NOTUSE' # input 'NOTUSE' if not use
-device: cuda
+device: 'cuda'
+ddp:
+  use_ddp: false #   if true, ddp_device will cover device and gpu id
+  port: '13348'
+  ddp_cache_gpu: false
+  ddp_device:
+    - 'cuda:1'
+    - 'cuda:2'
+    - 'cuda:3'
+    - 'cuda:4'
 vocoder:
   type: 'hifivaegan'
   ckpt: 'pretrain/hifivaegan/G_224800.pth'

@@ -37,7 +37,16 @@ model:
     wn_tf_rf: false # only wn_tf_use is true and here is true will use RoFormer
     wn_tf_n_layers: 2
     wn_tf_n_head: 4
-device: cuda
+device: 'cuda'
+ddp:
+  use_ddp: false #   if true, ddp_device will cover device and gpu id
+  port: '13348'
+  ddp_cache_gpu: false
+  ddp_device:
+    - 'cuda:1'
+    - 'cuda:2'
+    - 'cuda:3'
+    - 'cuda:4'
 vocoder:
   type: 'hifivaegan'
   ckpt: 'pretrain/hifivaegan/G_224800.pth'

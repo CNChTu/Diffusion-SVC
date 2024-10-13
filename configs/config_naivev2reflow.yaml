@@ -45,7 +45,21 @@ model:
     GLU_type: 'GLU'
   mask_cond_ratio: 'NOTUSE' # input 'NOTUSE' if not use
   loss_type: 'l2' # 'l1', 'l2' or 'l2_lognorm'
-device: cuda
+  consistency: false
+  consistency_only: true
+  consistency_delta_t: 0.1
+  consistency_lambda_f: 1.0
+  consistency_lambda_v: 0.01 
+device: 'cuda'
+ddp:
+  use_ddp: false #   if true, ddp_device will cover device and gpu id
+  port: '13348'
+  ddp_cache_gpu: false
+  ddp_device:
+    - 'cuda:1'
+    - 'cuda:2'
+    - 'cuda:3'
+    - 'cuda:4'
 vocoder:
   type: 'nsf-hifigan'
   ckpt: 'pretrain/nsf_hifigan/model'

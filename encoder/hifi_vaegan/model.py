@@ -4,15 +4,15 @@ import json
 from torch import nn
 from torch.nn import Conv1d, ConvTranspose1d
 from torch.nn import functional as F
-from torch.nn.utils import remove_weight_norm
 _OLD_WEIGHT_NORM = False
 try:
     from torch.nn.utils.parametrizations import weight_norm
+    from torch.nn.utils.parametrize import remove_parametrizations as remove_weight_norm
 except ImportError:
     from torch.nn.utils import weight_norm
+    from torch.nn.utils import remove_weight_norm
     _OLD_WEIGHT_NORM = True
 import os
-from vector_quantize_pytorch import VectorQuantize
 
 LRELU_SLOPE = 0.1
 
@@ -69,6 +69,14 @@ class Encoder(nn.Module):
                 a_lay.remove_weight_norm()
             remove_weight_norm(self.conv_pre)
             remove_weight_norm(self.conv_post)
+        else:
+            for a_lay in self.ups:
+                remove_weight_norm(a_lay, 'weight')
+            for a_lay in self.resblocks:
+                a_lay.remove_weight_norm()
+            remove_weight_norm(self.conv_pre, 'weight')
+            remove_weight_norm(self.conv_post, 'weight')
+
 
     def forward(self, x):
         x = x[:, None, :]
@@ -148,6 +156,11 @@ class ResBlock1(torch.nn.Module):
                 remove_weight_norm(l)
             for l in self.convs2:
                 remove_weight_norm(l)
+        else:
+            for l in self.convs1:
+                remove_weight_norm(l, 'weight')
+            for l in self.convs2:
+                remove_weight_norm(l, 'weight')
 
 
 class ResBlock2(torch.nn.Module):
@@ -174,11 +187,15 @@ class ResBlock2(torch.nn.Module):
         if _OLD_WEIGHT_NORM:
             for l in self.convs:
                 remove_weight_norm(l)
+        else:
+            for l in self.convs:
+                remove_weight_norm(l, 'weight')
 
 
 class Generator(torch.nn.Module):
     def __init__(self, h):
         super(Generator, self).__init__()
+        from vector_quantize_pytorch import VectorQuantize
         self.h = h
 
         self.num_kernels = len(h["resblock_kernel_sizes"])
@@ -243,6 +260,13 @@ class Generator(torch.nn.Module):
                 a_lay.remove_weight_norm()
             remove_weight_norm(self.conv_pre)
             remove_weight_norm(self.conv_post)
+        else:
+            for a_lay in self.ups:
+                remove_weight_norm(a_lay, 'weight')
+            for a_lay in self.resblocks:
+                a_lay.remove_weight_norm()
+            remove_weight_norm(self.conv_pre, 'weight')
+            remove_weight_norm(self.conv_post, 'weight')
 
 
 def feature_loss(fmap_r, fmap_g):
@@ -435,7 +459,7 @@ class InferModel:
     @torch.no_grad()
     def load(self, model_type):
         assert os.path.isfile(self.model_path)
-        model_dict = torch.load(self.model_path, map_location='cpu')["model"]
+        model_dict = torch.load(self.model_path, map_location='cpu', weights_only=True)["model"]
         load_dict = {}
         for k, v in model_dict.items():
             if k[:len(model_type)] == model_type:

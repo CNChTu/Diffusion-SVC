@@ -197,7 +197,11 @@ if __name__ == '__main__':
         use_pitch_aug = True
     if args.vocoder.type == 'hifivaegan':
         use_pitch_aug = False
+    if args.vocoder.type == 'hifivaegan2':
+        use_pitch_aug = False
     if str(args.vocoder.type)[:3] == 'dct':
+        use_pitch_aug = False
+    if str(args.vocoder.type)[:4] == 'wavs':
         use_pitch_aug = False
 
     # initialize units encoder

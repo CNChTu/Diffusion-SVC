@@ -49,11 +49,15 @@ def traverse_dir(
     return file_list
 
 
-def get_data_loaders(args, whole_audio=False):
+def get_data_loaders(args, whole_audio=False, ddp=False, rank=0, ddp_cache_gpu=False, ddp_device_list=None):
     if args.data.volume_noise == 0:
         volume_noise = None
     else:
         volume_noise = args.data.volume_noise
+    _ddp_device = 'cpu'
+    if ddp:
+        if ddp_cache_gpu:
+            _ddp_device = ddp_device_list[rank]
     data_train = AudioDataset(
         args.data.train_path,
         waveform_sec=args.data.duration,
@@ -63,42 +67,62 @@ def get_data_loaders(args, whole_audio=False):
         whole_audio=whole_audio,
         extensions=args.data.extensions,
         n_spk=args.model.n_spk,
-        device=args.train.cache_device,
+        device=args.train.cache_device if not ddp else _ddp_device,
         fp16=args.train.cache_fp16,
         use_aug=True,
         use_spk_encoder=args.model.use_speaker_encoder,
         spk_encoder_mode=args.data.speaker_encoder_mode,
-        volume_noise=volume_noise
+        volume_noise=volume_noise,
+        tqdm_rank=rank,
+        load_nothing_data=args.train.load_nothing_data
     )
-    loader_train = torch.utils.data.DataLoader(
-        data_train,
-        batch_size=args.train.batch_size if not whole_audio else 1,
-        shuffle=True,
-        num_workers=args.train.num_workers if args.train.cache_device == 'cpu' else 0,
-        persistent_workers=(args.train.num_workers > 0) if args.train.cache_device == 'cpu' else False,
-        pin_memory=True if args.train.cache_device == 'cpu' else False
-    )
-    data_valid = AudioDataset(
-        args.data.valid_path,
-        waveform_sec=args.data.duration,
-        hop_size=args.data.block_size,
-        sample_rate=args.data.sampling_rate,
-        load_all_data=args.train.cache_all_data,
-        whole_audio=True,
-        extensions=args.data.extensions,
-        n_spk=args.model.n_spk,
-        use_spk_encoder=args.model.use_speaker_encoder,
-        spk_encoder_mode=args.data.speaker_encoder_mode,
-        volume_noise=volume_noise
-    )
-    loader_valid = torch.utils.data.DataLoader(
-        data_valid,
-        batch_size=1,
-        shuffle=False,
-        num_workers=0,
-        pin_memory=True
-    )
-    return loader_train, loader_valid
+    if not ddp:
+        samper_train = None
+        loader_train = torch.utils.data.DataLoader(
+            data_train,
+            batch_size=args.train.batch_size if not whole_audio else 1,
+            shuffle=True,
+            num_workers=args.train.num_workers if args.train.cache_device == 'cpu' else 0,
+            persistent_workers=(args.train.num_workers > 0) if args.train.cache_device == 'cpu' else False,
+            pin_memory=True if args.train.cache_device == 'cpu' else False
+        )
+    else:
+        samper_train = torch.utils.data.distributed.DistributedSampler(data_train)
+        loader_train = torch.utils.data.DataLoader(
+            data_train,
+            batch_size=args.train.batch_size if not whole_audio else 1,
+            shuffle=False,
+            sampler=samper_train,
+            num_workers=args.train.num_workers if (_ddp_device == 'cpu') else 0,
+            persistent_workers=(args.train.num_workers > 0) if (_ddp_device == 'cpu') else False,
+            pin_memory=True if (_ddp_device == 'cpu') else False,
+            drop_last=True
+        )
+    if ddp and (rank != 0):
+        loader_valid = None
+    else:
+        data_valid = AudioDataset(
+            args.data.valid_path,
+            waveform_sec=args.data.duration,
+            hop_size=args.data.block_size,
+            sample_rate=args.data.sampling_rate,
+            load_all_data=args.train.cache_all_data,
+            whole_audio=True,
+            extensions=args.data.extensions,
+            n_spk=args.model.n_spk,
+            use_spk_encoder=args.model.use_speaker_encoder,
+            spk_encoder_mode=args.data.speaker_encoder_mode,
+            volume_noise=volume_noise,
+            tqdm_rank=rank
+        )
+        loader_valid = torch.utils.data.DataLoader(
+            data_valid,
+            batch_size=1,
+            shuffle=False,
+            num_workers=0,
+            pin_memory=True
+        )
+    return loader_train, loader_valid, samper_train
 
 
 class AudioDataset(Dataset):
@@ -117,10 +141,17 @@ class AudioDataset(Dataset):
             use_aug=False,
             use_spk_encoder=False,
             spk_encoder_mode='each_spk',
-            volume_noise=None
+            volume_noise=None,
+            tqdm_rank=0,
+            load_nothing_data=False
     ):
         super().__init__()
+        if load_all_data:
+            load_nothing_data = False
+        self.load_nothing_data = load_nothing_data
 
+        self.device = device
+        self.volume_noise = volume_noise
         self.waveform_sec = waveform_sec
         self.sample_rate = sample_rate
         self.hop_size = hop_size
@@ -142,28 +173,29 @@ class AudioDataset(Dataset):
             print('Load all the data from :', path_root)
         else:
             print('Load the f0, volume data from :', path_root)
-        for name_ext in tqdm(self.paths, total=len(self.paths)):
+        for name_ext in tqdm(self.paths, total=len(self.paths), position=tqdm_rank):
             name = os.path.splitext(name_ext)[0]
             path_audio = os.path.join(self.path_root, 'audio', name_ext)
             duration = librosa.get_duration(filename=path_audio, sr=self.sample_rate)
 
-            path_f0 = os.path.join(self.path_root, 'f0', name_ext) + '.npy'
-            f0 = np.load(path_f0)
-            f0 = torch.from_numpy(f0).float().unsqueeze(-1).to(device)
+            if not load_nothing_data:
+                path_f0 = os.path.join(self.path_root, 'f0', name_ext) + '.npy'
+                f0 = np.load(path_f0)
+                f0 = torch.from_numpy(f0).float().unsqueeze(-1).to(device)
 
-            path_volume = os.path.join(self.path_root, 'volume', name_ext) + '.npy'
-            volume = np.load(path_volume)
-            volume = torch.from_numpy(volume).float().unsqueeze(-1).to(device)
-            if volume_noise is not None:
-                _noise = volume_noise * torch.rand(volume.shape,).to(device)
-                volume = volume + _noise * torch.sign(volume)
+                path_volume = os.path.join(self.path_root, 'volume', name_ext) + '.npy'
+                volume = np.load(path_volume)
+                volume = torch.from_numpy(volume).float().unsqueeze(-1).to(device)
+                if volume_noise is not None:
+                    _noise = volume_noise * torch.rand(volume.shape,).to(device)
+                    volume = volume + _noise * torch.sign(volume)
 
-            path_augvol = os.path.join(self.path_root, 'aug_vol', name_ext) + '.npy'
-            aug_vol = np.load(path_augvol)
-            aug_vol = torch.from_numpy(aug_vol).float().unsqueeze(-1).to(device)
-            if volume_noise is not None:
-                _noise = volume_noise * torch.rand(aug_vol.shape,).to(device)
-                aug_vol = aug_vol + _noise * torch.sign(aug_vol)
+                path_augvol = os.path.join(self.path_root, 'aug_vol', name_ext) + '.npy'
+                aug_vol = np.load(path_augvol)
+                aug_vol = torch.from_numpy(aug_vol).float().unsqueeze(-1).to(device)
+                if volume_noise is not None:
+                    _noise = volume_noise * torch.rand(aug_vol.shape,).to(device)
+                    aug_vol = aug_vol + _noise * torch.sign(aug_vol)
 
             if n_spk is not None and n_spk > 1:
                 dirname_split = re.split(r"_|\-", os.path.dirname(name_ext), 2)[0]
@@ -228,14 +260,21 @@ class AudioDataset(Dataset):
                     'spk_emb': spk_emb
                 }
             else:
-                self.data_buffer[name_ext] = {
-                    'duration': duration,
-                    'f0': f0,
-                    'volume': volume,
-                    'aug_vol': aug_vol,
-                    'spk_id': spk_id,
-                    't_spk_id': t_spk_id
-                }
+                if not load_nothing_data:
+                    self.data_buffer[name_ext] = {
+                        'duration': duration,
+                        'f0': f0,
+                        'volume': volume,
+                        'aug_vol': aug_vol,
+                        'spk_id': spk_id,
+                        't_spk_id': t_spk_id
+                    }
+                else:
+                    self.data_buffer[name_ext] = {
+                        'duration': duration,
+                        'spk_id': spk_id,
+                        't_spk_id': t_spk_id
+                    }
 
     def __getitem__(self, file_idx):
         name_ext = self.paths[file_idx]
@@ -322,15 +361,29 @@ class AudioDataset(Dataset):
             spk_emb = torch.rand(1, 1)
 
         # load f0
-        f0 = data_buffer.get('f0')
+        if self.load_nothing_data:
+            path_f0 = os.path.join(self.path_root, 'f0', name_ext) + '.npy'
+            f0 = np.load(path_f0)
+            f0 = torch.from_numpy(f0).float().unsqueeze(-1).to(self.device)
+        else:
+            f0 = data_buffer.get('f0')
         aug_shift = 0
         if aug_flag:
             aug_shift = self.pitch_aug_dict[name_ext]
         f0_frames = 2 ** (aug_shift / 12) * f0[start_frame: start_frame + units_frame_len]
 
         # load volume
-        vol_key = 'aug_vol' if aug_flag else 'volume'
-        volume = data_buffer.get(vol_key)
+        if self.load_nothing_data:
+            vol_key = 'aug_vol' if aug_flag else 'volume'
+            path_volume = os.path.join(self.path_root, vol_key, name_ext) + '.npy'
+            volume = np.load(path_volume)
+            volume = torch.from_numpy(volume).float().unsqueeze(-1).to(self.device)
+            if self.volume_noise is not None:
+                _noise = self.volume_noise * torch.rand(volume.shape, ).to(self.device)
+                volume = volume + _noise * torch.sign(volume)
+        else:
+            vol_key = 'aug_vol' if aug_flag else 'volume'
+            volume = data_buffer.get(vol_key)
         volume_frames = volume[start_frame: start_frame + units_frame_len]
 
         # load spk_id

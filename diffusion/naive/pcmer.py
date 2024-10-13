@@ -5,7 +5,6 @@ import math
 from functools import partial
 from einops import rearrange, repeat
 
-from local_attention import LocalAttention
 import torch.nn.functional as F
 #import fast_transformers.causal_product.causal_product_cuda
 
@@ -315,6 +314,7 @@ class FastAttention(nn.Module):
 class SelfAttention(nn.Module):
     def __init__(self, dim, causal = False, heads = 8, dim_head = 64, local_heads = 0, local_window_size = 256, nb_features = None, feature_redraw_interval = 1000, generalized_attention = False, kernel_fn = nn.ReLU(), qr_uniform_q = False, dropout = 0., no_projection = False):
         super().__init__()
+        from local_attention import LocalAttention
         assert dim % heads == 0, 'dimension must be divisible by number of heads'
         dim_head = default(dim_head, dim // heads)
         inner_dim = dim_head * heads

@@ -14,13 +14,24 @@ class RectifiedFlow(nn.Module):
                  out_dims=128,
                  spec_min=-12,
                  spec_max=2,
-                 loss_type='l2'):
+                 loss_type='l2',
+                 consistency=False,
+                 consistency_only=True,
+                 consistency_delta_t=0.1,
+                 consistency_lambda_f=1.0,
+                 consistency_lambda_v=1.0,
+                 ):
         super().__init__()
         self.velocity_fn = velocity_fn
         self.out_dims = out_dims
         self.spec_min = spec_min
         self.spec_max = spec_max
         self.loss_type = loss_type
+        self.consistency = consistency
+        self.consistency_only = consistency_only
+        self.consistency_delta_t = consistency_delta_t
+        self.consistency_lambda_f = consistency_lambda_f
+        self.consistency_lambda_v = consistency_lambda_v
 
     def reflow_loss(self, x_1, t, cond, loss_type=None):
         x_0 = torch.randn_like(x_1)
@@ -43,6 +54,30 @@ class RectifiedFlow(nn.Module):
             raise NotImplementedError()
 
         return loss
+
+    # 一致性损失
+    def reflow_consistency_loss(self, x_1, t_a, t_b, cond, loss_type=None):
+        x_0 = torch.randn_like(x_1)
+        x_t_a = x_0 + t_a[:, None, None, None] * (x_1 - x_0)
+        x_t_b = x_0 + t_b[:, None, None, None] * (x_1 - x_0)
+        v_pred_a = self.velocity_fn(x_t_a, 1000 * t_a, cond)
+        v_pred_b = self.velocity_fn(x_t_b, 1000 * t_b, cond).detach()
+        f_pred_a = x_t_a + (1 - t_a[:, None, None, None]) * v_pred_a
+        f_pred_b = x_t_b + (1 - t_b[:, None, None, None]) * v_pred_b
+        if loss_type is None:
+            loss_type = self.loss_type
+        else:
+            loss_type = loss_type
+
+        if loss_type == 'l2':
+            loss_f = F.mse_loss(f_pred_a, f_pred_b) / self.consistency_delta_t ** 2
+            loss_v = F.mse_loss(v_pred_a, v_pred_b)
+            loss = self.consistency_lambda_f * loss_f + self.consistency_lambda_v * loss_v
+        else:
+            raise NotImplementedError()
+
+        return loss
+
 
     def sample_euler(self, x, t, dt, cond):
         x += self.velocity_fn(x, 1000 * t, cond) * dt
@@ -162,11 +197,25 @@ class RectifiedFlow(nn.Module):
         if t_start > 1.0:
             t_start = 1.0
         if not infer:
-            x_1 = self.norm_spec(gt_spec)
-            x_1 = x_1.transpose(1, 2)[:, None, :, :]  # [B, 1, M, T]
-            t = t_start + (1.0 - t_start) * torch.rand(b, device=device)
-            t = torch.clip(t, 1e-7, 1 - 1e-7)
-            return self.reflow_loss(x_1, t, cond=cond)
+            if self.consistency:
+                x_1 = self.norm_spec(gt_spec)
+                x_1 = x_1.transpose(1, 2)[:, None, :, :]  # [B, 1, M, T]
+                t = t_start + (1.0 - t_start) * torch.rand(b, device=device)
+                dt = self.consistency_delta_t * torch.randn(b, device=device).abs()
+                t_a = torch.clip(t - 0.5 * dt, t_start, 1)
+                t_b = torch.clip(t + 0.5 * dt, t_start, 1)
+                consistency_loss = self.reflow_consistency_loss(x_1, t_a, t_b, cond=cond)
+                if self.consistency_only:
+                    return consistency_loss
+                else:
+                    reflow_loss = self.reflow_loss(x_1, t_a, cond=cond)
+                    return reflow_loss + consistency_loss
+            else:
+                x_1 = self.norm_spec(gt_spec)
+                x_1 = x_1.transpose(1, 2)[:, None, :, :]  # [B, 1, M, T]
+                t = t_start + (1.0 - t_start) * torch.rand(b, device=device)
+                t = torch.clip(t, 1e-7, 1 - 1e-7)
+                return self.reflow_loss(x_1, t, cond=cond)
         else:
             shape = (cond.shape[0], 1, self.out_dims, cond.shape[2])  # [B, 1, M, T]
 

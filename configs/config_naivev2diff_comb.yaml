@@ -60,7 +60,16 @@ model:
     use_weight_norm: false
   naive_fn_grad_not_by_diffusion: false # dont change if dont understand; more info:diffusion/unit2mel.py
   naive_out_mel_cond_diff: false # mel condition diffusion is a test function, maybe can make the model learn faster but less quality and pitch range.
-device: cuda
+device: 'cuda'
+ddp:
+  use_ddp: false #   if true, ddp_device will cover device and gpu id
+  port: '13348'
+  ddp_cache_gpu: false
+  ddp_device:
+    - 'cuda:1'
+    - 'cuda:2'
+    - 'cuda:3'
+    - 'cuda:4'
 vocoder:
   type: 'nsf-hifigan'
   ckpt: 'pretrain/nsf_hifigan/model'

@@ -73,7 +73,7 @@ def load_config(path_config):
 
 
 def to_json(path_params, path_json):
-    params = torch.load(path_params, map_location=torch.device('cpu'))
+    params = torch.load(path_params, map_location=torch.device('cpu'), weights_only=True)
     raw_state_dict = {}
     for k, v in params.items():
         val = v.flatten().numpy().tolist()
@@ -99,7 +99,8 @@ def load_model(
         optimizer,
         name='model',
         postfix='',
-        device='cpu'):
+        device='cpu',
+        model_only=False):
     if postfix == '':
         postfix = '_' + postfix
     path = os.path.join(expdir, name + postfix)
@@ -113,9 +114,34 @@ def load_model(
         else:
             path_pt = path + 'best.pt'
         print(' [*] restoring model from', path_pt)
-        ckpt = torch.load(path_pt, map_location=torch.device(device))
+        ckpt = torch.load(path_pt, map_location=torch.device(device), weights_only=True)
         global_step = ckpt['global_step']
         model.load_state_dict(ckpt['model'], strict=False)
+        if not model_only:
+            if ckpt.get('optimizer') != None:
+                optimizer.load_state_dict(ckpt['optimizer'])
+    return global_step, model, optimizer
+
+
+def load_optimizer(
+        expdir,
+        optimizer,
+        name='model',
+        postfix='',
+        device='cpu'):
+    if postfix == '':
+        postfix = '_' + postfix
+    path = os.path.join(expdir, name + postfix)
+    path_pt = traverse_dir(expdir, ['pt'], is_ext=False)
+    if len(path_pt) > 0:
+        steps = [s[len(path):] for s in path_pt]
+        maxstep = max([int(s) if s.isdigit() else 0 for s in steps])
+        if maxstep >= 0:
+            path_pt = path + str(maxstep) + '.pt'
+        else:
+            path_pt = path + 'best.pt'
+        print(' [*] restoring model from', path_pt)
+        ckpt = torch.load(path_pt, map_location=torch.device(device), weights_only=True)
         if ckpt.get('optimizer') != None:
             optimizer.load_state_dict(ckpt['optimizer'])
-    return global_step, model, optimizer
+    return optimizer

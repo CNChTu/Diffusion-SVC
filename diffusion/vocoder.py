@@ -10,6 +10,8 @@ from encoder.fireflygan import FireflyBase
 from encoder.evagan import EVAGANBase as EVABase
 from encoder.evagan import EVAGANBig as EVABig
 from encoder.dct.dct import DCT, IDCT
+from encoder.wavs.wavs import WAVS, IWAVS
+from encoder.hifi_vaegan2.modules.models import Encoder, Generator
 
 
 def load_vocoder_for_save(vocoder_type, model_path, device='cpu'):
@@ -19,6 +21,8 @@ def load_vocoder_for_save(vocoder_type, model_path, device='cpu'):
         vocoder = NsfHifiGANLog10(model_path, device=device)
     elif vocoder_type == 'hifivaegan':
         vocoder = HiFiVAEGAN(model_path, device=device)
+    elif vocoder_type == 'hifivaegan2':
+        vocoder = HiFiVAEGAN2(model_path, device=device)
     elif vocoder_type == 'fireflygan-base':
         vocoder = FireFlyGANBase(model_path, device=device)
     elif vocoder_type == 'evagan-base':
@@ -29,6 +33,8 @@ def load_vocoder_for_save(vocoder_type, model_path, device='cpu'):
         vocoder = DCT512(model_path, device=device)
     elif vocoder_type == 'dct512log':
         vocoder = DCT512(model_path, device=device, l_norm=True)
+    elif vocoder_type == 'wavs512':
+        vocoder = WAVS512(model_path, device=device)
     else:
         raise ValueError(f" [x] Unknown vocoder: {vocoder_type}")
     out_dict = vocoder.load_model_for_combo(model_path=model_path)
@@ -53,6 +59,8 @@ class Vocoder:
             self.vocoder = NsfHifiGANLog10(vocoder_ckpt, device=device)
         elif vocoder_type == 'hifivaegan':
             self.vocoder = HiFiVAEGAN(vocoder_ckpt, device=device)
+        elif vocoder_type == 'hifivaegan2':
+            self.vocoder = HiFiVAEGAN2(vocoder_ckpt, device=device)
         elif vocoder_type == 'fireflygan-base':
             self.vocoder = FireFlyGANBase(vocoder_ckpt, device=device)
         elif vocoder_type == 'evagan-base':
@@ -63,6 +71,8 @@ class Vocoder:
             self.vocoder = DCT512(vocoder_ckpt, device=device)
         elif vocoder_type == 'dct512log':
             self.vocoder = DCT512(vocoder_ckpt, device=device, l_norm=True)
+        elif vocoder_type == 'wavs512':
+            self.vocoder = WAVS512(vocoder_ckpt, device=device)
         else:
             raise ValueError(f" [x] Unknown vocoder: {vocoder_type}")
 
@@ -91,6 +101,50 @@ class Vocoder:
         f0 = f0[:, :mel.size(1), 0]  # B, n_frames
         audio = self.vocoder(mel, f0)
         return audio
+
+
+class WAVS512(torch.nn.Module):
+    def __init__(self, model_path, device=None):
+        super().__init__()
+        if device is None:
+            device = 'cuda' if torch.cuda.is_available() else 'cpu'
+        self.device = device
+        self.h_sampling_rate = 44100
+        self.h_num_mels = 512
+        self.h_hop_size = 512
+        self.wavs = WAVS(self.h_hop_size)
+        self.iwavs = IWAVS(self.h_hop_size)
+
+    def sample_rate(self):
+        return self.h_sampling_rate
+
+    def hop_size(self):
+        return self.h_hop_size
+
+    def dimension(self):
+        return self.h_num_mels
+
+    def extract(self, audio, keyshift=0):
+        assert keyshift == 0
+        with torch.no_grad():
+            audio = audio.to(self.device)
+            mel = self.wavs(audio)  # B, n_frames, bins
+        return mel
+
+    def forward(self, mel, f0):  # mel: B, n_frames, bins; f0: B, n_frames
+        assert mel.shape[-1] == 512
+        with torch.no_grad():
+            audio = self.iwavs(mel)
+            return audio.unsqueeze(1)  # B, 1, T
+
+    def load_model_for_combo(self, model_path=None, device='cpu'):
+        config = {"sampling_rate": self.sampling_rate, "num_mels": self.num_mels, "hop_size": self.hop_size}
+        model = NothingFlag()
+        out_dict = {
+            "config": config,
+            "model": model
+        }
+        return out_dict
 
 
 class DCT512(torch.nn.Module):
@@ -238,6 +292,7 @@ class HiFiVAEGAN(torch.nn.Module):
         return self.model.inter_channels
 
     def extract(self, audio, keyshift=0, only_z=False):
+        assert keyshift == 0
         if audio.shape[-1] % self.model.hop_size == 0:
             audio = torch.cat((audio, torch.zeros_like(audio[:, :1])), dim=-1)
         if keyshift != 0:
@@ -260,10 +315,85 @@ class HiFiVAEGAN(torch.nn.Module):
             model_path = self.model_path
             assert self.config_path is not None
         config_path = os.path.join(os.path.split(model_path)[0], 'config.json')
-        with open(config_path, "r") as f:
+        with open(config_path, "r", encoding='utf-8') as f:
             data = f.read()
         config = json.loads(data)
-        model_state_dict = torch.load(model_path, map_location=torch.device(device))
+        model_state_dict = torch.load(model_path, map_location=torch.device(device), weights_only=True)
+        out_dict = {
+            "config": config,
+            "model": model_state_dict
+        }
+        return out_dict
+
+
+class HiFiVAEGAN2(torch.nn.Module):
+    def __init__(self, model_path, device=None):
+        super().__init__()
+        if device is None:
+            device = 'cuda' if torch.cuda.is_available() else 'cpu'
+        self.device = device
+
+        # 如果model_path是字典，说明传入的是config + model
+        if type(model_path) == dict:
+            self.config_path = None
+            self.model_path = None
+            self.config = model_path['config']
+            self.enc = Encoder(self.config['hps']).to(device)
+            self.dec = Generator(self.config['hps']).to(device)
+            self.enc.load_state_dict(model_path['model']['encoder'])
+            self.dec.load_state_dict(model_path['model']['decoder'])
+            self.enc.eval()
+            self.dec.eval()
+        else:
+            self.model_path = model_path
+            self.config_path = os.path.join(os.path.split(model_path)[0], 'config.json')
+            with open(self.config_path, "r", encoding='utf-8') as f:
+                self.config = json.load(f)
+            self.enc = Encoder(self.config['hps']).to(device)
+            self.dec = Generator(self.config['hps']).to(device)
+            model_state_dict = torch.load(model_path, map_location=torch.device(device), weights_only=True)
+            self.enc.load_state_dict(model_state_dict['encoder'])
+            self.dec.load_state_dict(model_state_dict['decoder'])
+            self.enc.eval()
+            self.dec.eval()
+
+    def sample_rate(self):
+        return self.config["hps"]["sampling_rate"]
+
+    def hop_size(self):
+        return self.config["hop_size"]
+
+    def dimension(self):
+        return self.config["hps"]["inter_channels"]
+
+    def extract(self, audio, keyshift=0, only_z=False):
+        assert keyshift == 0
+        if audio.shape[-1] % self.config["hop_size"] == 0:
+            audio = torch.cat((audio, torch.zeros_like(audio[:, :1])), dim=-1)
+        if keyshift != 0:
+            raise ValueError("HiFiVAEGAN could not use keyshift!")
+        with torch.no_grad():
+            z, m, logs = self.enc(audio)
+            if only_z:
+                return z.transpose(1, 2)
+            mel = torch.stack((m.transpose(-1, -2), logs.transpose(-1, -2)), dim=-1)
+        return mel
+
+    def forward(self, mel, f0):
+        with torch.no_grad():
+            z = mel.transpose(1, 2)
+            audio = self.dec(z)
+            return audio
+
+    def load_model_for_combo(self, model_path=None, device='cpu'):
+        if model_path is None:
+            model_path = self.model_path
+            assert self.config_path is not None
+        config_path = os.path.join(os.path.split(model_path)[0], 'config.json')
+        with open(config_path, "r", encoding='utf-8') as f:
+            data = f.read()
+        config = json.loads(data)
+        model_state_dict = torch.load(model_path, map_location=torch.device(device), weights_only=True)
         out_dict = {
             "config": config,
             "model": model_state_dict
@@ -340,7 +470,7 @@ class FireFlyGANBase(torch.nn.Module):
         config_path = os.path.join(os.path.split(model_path)[0], 'config.yaml')
         with open(config_path, "r") as config:
             config = yaml.safe_load(config)
-        model = torch.load(model_path, map_location=torch.device(device))
+        model = torch.load(model_path, map_location=torch.device(device), weights_only=True)
         out_dict = {
             "config": config,
             "model": model
@@ -417,7 +547,7 @@ class EVAGANBase(torch.nn.Module):
         config_path = os.path.join(os.path.split(model_path)[0], 'config.yaml')
         with open(config_path, "r") as config:
             config = yaml.safe_load(config)
-        model = torch.load(model_path, map_location=torch.device(device))
+        model = torch.load(model_path, map_location=torch.device(device), weights_only=True)
         out_dict = {
             "config": config,
             "model": model
@@ -494,7 +624,7 @@ class EVAGANBig(torch.nn.Module):
         config_path = os.path.join(os.path.split(model_path)[0], 'config.yaml')
         with open(config_path, "r") as config:
             config = yaml.safe_load(config)
-        model = torch.load(model_path, map_location=torch.device(device))
+        model = torch.load(model_path, map_location=torch.device(device), weights_only=True)
         out_dict = {
             "config": config,
             "model": model

@@ -40,6 +40,7 @@ class Unit2MelNaiveV2(nn.Module):
             self.atten_dropout = net_fn.atten_dropout if (net_fn.atten_dropout is not None) else 0.1
             self.conv_model_activation = net_fn.conv_model_activation if (net_fn.conv_model_activation is not None)\
                 else 'SiLU'
+            self.fix_free_norm = net_fn.fix_free_norm if (net_fn.fix_free_norm is not None) else False
 
             self.decoder = ConformerNaiveEncoder(
                 num_layers=self.n_layers,
@@ -52,7 +53,8 @@ class Unit2MelNaiveV2(nn.Module):
                 conv_dropout=self.conv_dropout,
                 atten_dropout=self.atten_dropout,
                 conv_model_type=self.conv_model_type,
-                conv_model_activation=self.conv_model_activation
+                conv_model_activation=self.conv_model_activation,
+                fix_free_norm=self.fix_free_norm,
             )
         else:
             raise ValueError(f'net_fn.type={net_fn.type} is not supported')
