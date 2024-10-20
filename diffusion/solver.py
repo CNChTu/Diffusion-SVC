@@ -277,6 +277,7 @@ def train(rank, args, initial_global_step, model, optimizer, scheduler, vocoder,
     params_count = utils.get_network_paras_amount({'model': model})
     saver.log_info('--- model size ---')
     saver.log_info(params_count)
+    last_decay_step = args.train.last_decay_step
     if args.vocoder.type == 'hifivaegan':
         use_vae = True
     elif args.vocoder.type == 'hifivaegan2':
@@ -397,8 +398,15 @@ def train(rank, args, initial_global_step, model, optimizer, scheduler, vocoder,
                 if args.train.use_ema:
                     raise NotImplementedError(' [x] EMA is not supported now.')
                     #ema_model.update_parameters(model)
-                
-                scheduler.step()
+
+                if last_decay_step is not None:
+                    # 如果在last_decay_step步数之后,则不再更新学习率
+                    if saver.global_step <= last_decay_step:
+                        pass
+                    else:
+                        scheduler.step()
+                else:
+                    scheduler.step()
 
             # log loss
             if rank == 0:
