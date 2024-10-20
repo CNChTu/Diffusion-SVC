@@ -112,13 +112,21 @@ def train_run(rank, config_path, print_model, pretrain, ddp=False, ddp_device_li
                 state[k] = v.to(device)
 
     # init scheduler
+    if args.train.last_decay_step is not None:
+        _lds = args.train.last_decay_step
+    else:
+        _lds = 99999999999
     for param_group in optimizer.param_groups:
         param_group['initial_lr'] = args.train.lr
         param_group['lr'] = args.train.lr * args.train.gamma ** max(
-            (initial_global_step - 2) // args.train.decay_step, 0)
+            min(_lds,(initial_global_step - 2)) // args.train.decay_step, 0)
         param_group['weight_decay'] = args.train.weight_decay
+    _last_epoch = initial_global_step
+    if args.train.last_decay_step is not None:
+        if initial_global_step > args.train.last_decay_step:
+            _last_epoch = args.train.last_decay_step
     scheduler = lr_scheduler.StepLR(optimizer, step_size=args.train.decay_step, gamma=args.train.gamma,
-                                    last_epoch=initial_global_step - 2)
+                                    last_epoch=_last_epoch - 2)
 
     # datas  run
     if ddp:
