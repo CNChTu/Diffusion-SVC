@@ -144,7 +144,7 @@ class NaiveV2Diff(nn.Module):
         self.mask_cond_ratio = None
 
         if channel_norm:
-            self.channel_norm = nn.LayerNorm(mel_channels)
+            self.channel_norm = nn.LayerNorm(dim)
         else:
             self.channel_norm = None
 
@@ -264,7 +264,9 @@ class NaiveV2Diff(nn.Module):
                 x = layer(x, condition, diffusion_step)
 
         if self.channel_norm is not None:
+            x = x.transpose(-1, -2)
             x = self.channel_norm(x)
+            x = x.transpose(-1, -2)
 
         # MLP and GLU
         x = self.output_projection(x)  # [B, 128, T]
