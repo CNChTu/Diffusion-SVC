@@ -209,7 +209,7 @@ class RectifiedFlow(nn.Module):
                     return consistency_loss
                 else:
                     reflow_loss = self.reflow_loss(x_1, t_a, cond=cond)
-                    return reflow_loss + consistency_loss
+                    return reflow_loss, consistency_loss
             else:
                 x_1 = self.norm_spec(gt_spec)
                 x_1 = x_1.transpose(1, 2)[:, None, :, :]  # [B, 1, M, T]

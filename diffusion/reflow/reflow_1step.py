@@ -14,20 +14,20 @@ class RectifiedFlow1Step(nn.Module):
                  out_dims=128,
                  spec_min=-12,
                  spec_max=2,
-                 loss_type='l2'):
+                 loss_type='l2',
+                 ):
         super().__init__()
         self.velocity_fn = velocity_fn
         self.out_dims = out_dims
         self.spec_min = spec_min
         self.spec_max = spec_max
         self.loss_type = loss_type
-        if loss_type != "l2":
-            raise ValueError("loss_type must be l2 when use ReFlow1Step")
 
-    def reflow_loss(self, x_1, t, cond, loss_type=None):
+    def reflow_loss(self, x_1, t, t0, cond, loss_type=None):
         x_0 = torch.randn_like(x_1)
         x_t = x_0 + t[:, None, None, None] * (x_1 - x_0)
         v_pred = self.velocity_fn(x_t, 1000 * t, cond)
+        v_pred_0 = self.velocity_fn(x_0, 1000 * t0, cond)
 
         if loss_type is None:
             loss_type = self.loss_type
@@ -35,16 +35,17 @@ class RectifiedFlow1Step(nn.Module):
             loss_type = loss_type
 
         if loss_type == 'l1':
-            loss = (x_1 - x_0 - v_pred).abs().mean()
+            xt_loss = (x_1 - x_0 - v_pred).abs().mean()
+            x0_loss = (x_0 - v_pred_0).abs().mean()
+            consistency_loss = (v_pred.detach() - v_pred_0).abs().mean()
         elif loss_type == 'l2':
-            loss = F.mse_loss(x_1 - x_0, v_pred)
-        elif loss_type == 'l2_lognorm':
-            weights = 0.398942 / t / (1 - t) * torch.exp(-0.5 * torch.log(t / ( 1 - t)) ** 2)
-            loss = torch.mean(weights[:, None, None, None] * F.mse_loss(x_1 - x_0, v_pred, reduction='none'))
+            xt_loss = F.mse_loss(x_1 - x_0, v_pred)
+            x0_loss = F.mse_loss(x_0, v_pred_0)
+            consistency_loss = F.mse_loss(v_pred.detach(), v_pred_0)
         else:
             raise NotImplementedError()
 
-        return loss
+        return xt_loss, x0_loss, consistency_loss
 
     def sample_euler(self, x, t, dt, cond):
         x += self.velocity_fn(x, 1000 * t, cond) * dt
@@ -146,22 +147,17 @@ class RectifiedFlow1Step(nn.Module):
         x += (k_3 + k_4) / 2 * dt
         t += dt
         return x, t
-    
+
     def forward(self,
                 condition,
                 gt_spec=None,
                 infer=True,
-                infer_step=1,
+                infer_step=10,
                 method='euler',
                 t_start=0.0,
                 use_tqdm=True):
         cond = condition.transpose(1, 2)  # [B, H, T]
         b, device = condition.shape[0], condition.device
-        if infer_step != 1:
-            raise ValueError("infer step must be 1 when use ReFlow1Step")
-        if method != "euler":
-            raise ValueError("euler must be euler when use ReFlow1Step")
-
         if t_start is None:
             t_start = 0.0
         if t_start < 0.0:
@@ -171,9 +167,12 @@ class RectifiedFlow1Step(nn.Module):
         if not infer:
             x_1 = self.norm_spec(gt_spec)
             x_1 = x_1.transpose(1, 2)[:, None, :, :]  # [B, 1, M, T]
-            t = torch.full((b,), t_start, device=device)
-            # t = torch.clip(t, 1e-7, 1 - 1e-7)
-            return self.reflow_loss(x_1, t, cond=cond)
+            t0 = t_start * torch.ones(b, device=device)
+            t0 = torch.clip(t0, 1e-7, 1 - 1e-7)
+            t = t_start + (1.0 - t_start) * torch.rand(b, device=device)
+            t = torch.clip(t, 1e-7, 1 - 1e-7)
+            xt_loss, x0_loss, consistency_loss = self.reflow_loss(x_1, t, t0, cond)
+            return xt_loss, x0_loss, consistency_loss
         else:
             shape = (cond.shape[0], 1, self.out_dims, cond.shape[2])  # [B, 1, M, T]
 
