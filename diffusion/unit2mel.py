@@ -303,7 +303,9 @@ def load_svc_model(args, vocoder_dimension):
             naive_fn=args.model.naive_fn,
             naive_fn_grad_not_by_reflow=args.model.naive_fn_grad_not_by_reflow,
             naive_out_mel_cond_reflow=args.model.naive_out_mel_cond_reflow,
-            loss_type=args.model.loss_type, )
+            loss_type=args.model.loss_type,
+            consistency=args.model.consistency,
+        )
 
     elif args.model.type == 'Naive':
         model = Unit2MelNaive(
@@ -787,6 +789,7 @@ class Unit2MelV2ReFlow1Step(Unit2MelV2ReFlow):
             spec_min=self.spec_min,
             spec_max=self.spec_max,
             loss_type=self.loss_type,
+            consistency=self.x0_xt_consistency
         )
         return decoder
     def __init__(
@@ -809,7 +812,9 @@ class Unit2MelV2ReFlow1Step(Unit2MelV2ReFlow):
             naive_fn_grad_not_by_reflow=False,
             naive_out_mel_cond_reflow=True,
             loss_type='l2',
+            consistency=True,
     ):
+        self.x0_xt_consistency = consistency if (consistency is not None) else True
         super().__init__(
             input_channel,
             n_spk,
