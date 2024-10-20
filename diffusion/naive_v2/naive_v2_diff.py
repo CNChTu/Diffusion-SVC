@@ -135,12 +135,18 @@ class NaiveV2Diff(nn.Module):
             no_t_emb=False,
             conv_model_activation='SiLU',
             GLU_type='GLU',
-            fix_free_norm=False
+            fix_free_norm=False,
+            channel_norm=False
     ):
         super(NaiveV2Diff, self).__init__()
         self.no_t_emb = no_t_emb if (no_t_emb is not None) else False
         self.wavenet_like = wavenet_like
         self.mask_cond_ratio = None
+
+        if channel_norm:
+            self.channel_norm = nn.LayerNorm(mel_channels)
+        else:
+            self.channel_norm = None
 
         self.input_projection = nn.Conv1d(mel_channels, dim, 1)
         if self.no_t_emb:
@@ -256,6 +262,9 @@ class NaiveV2Diff(nn.Module):
                     _conditioner = conditioner
                 # forward
                 x = layer(x, condition, diffusion_step)
+
+        if self.channel_norm is not None:
+            x = self.channel_norm(x)
 
         # MLP and GLU
         x = self.output_projection(x)  # [B, 128, T]
