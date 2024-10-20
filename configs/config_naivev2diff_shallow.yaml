@@ -42,6 +42,9 @@ model:
     conv_model_type: 'mode1'
     conv_dropout: 0.0
     atten_dropout: 0.1
+    conv_model_activation: 'SiLU'
+    GLU_type: 'GLU'
+    channel_norm: false
   mask_cond_ratio: 'NOTUSE' # input 'NOTUSE' if not use
 device: 'cuda'
 ddp:
