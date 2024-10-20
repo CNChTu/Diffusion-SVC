@@ -101,6 +101,7 @@ def get_network_from_dot(netdot, out_dims, cond_dims):
         conv_model_activation = netdot.conv_model_activation if (netdot.conv_model_activation is not None) else 'SiLU'
         GLU_type = netdot.GLU_type if (netdot.GLU_type is not None) else 'GLU'
         fix_free_norm = netdot.fix_free_norm if (netdot.fix_free_norm is not None) else False
+        channel_norm = netdot.channel_norm if (netdot.channel_norm is not None) else False
         # init convnext denoiser
         denoiser = NaiveV2Diff(
             mel_channels=out_dims,
@@ -120,7 +121,8 @@ def get_network_from_dot(netdot, out_dims, cond_dims):
             no_t_emb=no_t_emb,
             conv_model_activation=conv_model_activation,
             GLU_type=GLU_type,
-            fix_free_norm=fix_free_norm
+            fix_free_norm=fix_free_norm,
+            channel_norm=channel_norm
         )
 
     else:
@@ -441,6 +443,8 @@ class Unit2MelV2(nn.Module):
             mask_cond_ratio = float(mask_cond_ratio) if (str(mask_cond_ratio) != 'NOTUSE') else -99
             if mask_cond_ratio > 0:
                 self.mask_cond_ratio = mask_cond_ratio
+                # 未实现错误
+                raise NotImplementedError(" [X] mask_cond_ratio is not implemented.")
             else:
                 self.mask_cond_ratio = None
         else:
@@ -724,8 +728,9 @@ class Unit2MelV2ReFlow(Unit2MelV2):
         if infer:
             x = self.decoder(x, gt_spec=gt_spec, infer=True, infer_step=infer_step, method=method, t_start=t_start,
                              use_tqdm=use_tqdm)
+            _step_loss_dict = None
         else:
-            x = self.decoder(x, gt_spec=gt_spec, t_start=t_start, infer=False)
+            _step_loss_dict = self.step_train(x, gt_spec, t_start)
 
         # mask cond end
         self.mask_cond_train_end()
@@ -735,12 +740,43 @@ class Unit2MelV2ReFlow(Unit2MelV2):
                 x = x / self.z_rate  # scale z
 
         if not infer:
-            if self.combo_trained_model:
+            return self.make_loss_dict(_step_loss_dict, naive_loss)
+        else:
+            return x
+
+    def make_loss_dict(self, _step_loss_dict, naive_loss):
+        x = _step_loss_dict['x']
+        co_loss = _step_loss_dict['co_loss']
+        if self.combo_trained_model:
+            if self.consistency:
+                if self.consistency_only:
+                    return {'reflow_consistency_loss': x, 'naive_loss': naive_loss}
+                else:
+                    return {'consistency_loss': co_loss,
+                            'reflow_loss': x,
+                            'naive_loss': naive_loss}
+            else:
                 return {'reflow_loss': x, 'naive_loss': naive_loss}
+        else:
+            if self.consistency:
+                if self.consistency_only:
+                    return {'reflow_consistency_loss': (x + naive_loss)}
+                else:
+                    return {'consistency_loss': co_loss,
+                            'reflow_loss': (x + naive_loss)}
             else:
                 return {'reflow_loss': (x + naive_loss)}
 
-        return x
+    def step_train(self, x, gt_spec, t_start):
+        co_loss = None
+        if self.consistency:
+            if self.consistency_only:
+                x = self.decoder(x, gt_spec=gt_spec, t_start=t_start, infer=False)
+            else:
+                x, co_loss = self.decoder(x, gt_spec=gt_spec, t_start=t_start, infer=False)
+        else:
+            x = self.decoder(x, gt_spec=gt_spec, t_start=t_start, infer=False)
+        return {'x':x, 'co_loss':co_loss}
 
 
 class Unit2MelV2ReFlow1Step(Unit2MelV2ReFlow):
@@ -750,8 +786,69 @@ class Unit2MelV2ReFlow1Step(Unit2MelV2ReFlow):
             out_dims=out_dims,
             spec_min=self.spec_min,
             spec_max=self.spec_max,
-            loss_type=self.loss_type)
+            loss_type=self.loss_type,
+        )
         return decoder
+    def __init__(
+            self,
+            input_channel,
+            n_spk,
+            use_pitch_aug=False,
+            out_dims=128,
+            n_hidden=256,
+            use_speaker_encoder=False,
+            speaker_encoder_out_channels=256,
+            z_rate=None,
+            mean_only=False,
+            max_beta=0.02,  # 暂时废弃，但是极有可能未来会有用吧，所以先不删除, 可以为None
+            spec_min=-12,
+            spec_max=2,
+            velocity_fn=None,
+            mask_cond_ratio=None,
+            naive_fn=None,
+            naive_fn_grad_not_by_reflow=False,
+            naive_out_mel_cond_reflow=True,
+            loss_type='l2',
+    ):
+        super().__init__(
+            input_channel,
+            n_spk,
+            use_pitch_aug=use_pitch_aug,
+            out_dims=out_dims,
+            n_hidden=n_hidden,
+            use_speaker_encoder=use_speaker_encoder,
+            speaker_encoder_out_channels=speaker_encoder_out_channels,
+            z_rate=z_rate,
+            mean_only=mean_only,
+            max_beta=max_beta,
+            spec_min=spec_min,
+            spec_max=spec_max,
+            velocity_fn=velocity_fn,
+            mask_cond_ratio=mask_cond_ratio,
+            naive_fn=naive_fn,
+            naive_fn_grad_not_by_reflow=naive_fn_grad_not_by_reflow,
+            naive_out_mel_cond_reflow=naive_out_mel_cond_reflow,
+            loss_type=loss_type,
+            consistency=False,
+        )
+
+    def step_train(self, x, gt_spec, t_start):
+        xt_loss, x0_loss, consistency_loss = self.decoder(x, gt_spec=gt_spec, t_start=t_start, infer=False)
+        return {'x':xt_loss, 'x0_loss':x0_loss, 'consistency_loss':consistency_loss}
+
+    def make_loss_dict(self, _step_loss_dict, naive_loss):
+        x = _step_loss_dict['x']
+        x0_loss = _step_loss_dict['x0_loss']
+        consistency_loss = _step_loss_dict['consistency_loss']
+        if self.combo_trained_model:
+            return {'reflow_loss': x,
+                    'reflow_loss_x0':x0_loss,
+                    'consistency_loss': consistency_loss,
+                    'naive_loss': naive_loss}
+        else:
+            return {'reflow_loss': (x + naive_loss),
+                    'reflow_loss_x0': x0_loss,
+                    'consistency_loss': consistency_loss}
 
 
 class Unit2Mel(nn.Module):
