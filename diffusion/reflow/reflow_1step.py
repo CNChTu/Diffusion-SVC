@@ -15,6 +15,7 @@ class RectifiedFlow1Step(nn.Module):
                  spec_min=-12,
                  spec_max=2,
                  loss_type='l2',
+                 consistency=True
                  ):
         super().__init__()
         self.velocity_fn = velocity_fn
@@ -22,6 +23,7 @@ class RectifiedFlow1Step(nn.Module):
         self.spec_min = spec_min
         self.spec_max = spec_max
         self.loss_type = loss_type
+        self.consistency = consistency
 
     def reflow_loss(self, x_1, t, t0, cond, loss_type=None):
         x_0 = torch.randn_like(x_1)
@@ -34,14 +36,17 @@ class RectifiedFlow1Step(nn.Module):
         else:
             loss_type = loss_type
 
+        consistency_loss = 0
         if loss_type == 'l1':
             xt_loss = (x_1 - x_0 - v_pred).abs().mean()
             x0_loss = (x_0 - v_pred_0).abs().mean()
-            consistency_loss = (v_pred.detach() - v_pred_0).abs().mean()
+            if self.consistency:
+                consistency_loss = (v_pred.detach() - v_pred_0).abs().mean()
         elif loss_type == 'l2':
             xt_loss = F.mse_loss(x_1 - x_0, v_pred)
             x0_loss = F.mse_loss(x_0, v_pred_0)
-            consistency_loss = F.mse_loss(v_pred.detach(), v_pred_0)
+            if self.consistency:
+                consistency_loss = F.mse_loss(v_pred.detach(), v_pred_0)
         else:
             raise NotImplementedError()
 
@@ -168,10 +173,9 @@ class RectifiedFlow1Step(nn.Module):
             x_1 = self.norm_spec(gt_spec)
             x_1 = x_1.transpose(1, 2)[:, None, :, :]  # [B, 1, M, T]
             t0 = t_start * torch.ones(b, device=device)
-            t0 = torch.clip(t0, 1e-7, 1 - 1e-7)
             t = t_start + (1.0 - t_start) * torch.rand(b, device=device)
-            t = torch.clip(t, 1e-7, 1 - 1e-7)
             xt_loss, x0_loss, consistency_loss = self.reflow_loss(x_1, t, t0, cond)
+            xt_loss = 10 * xt_loss
             return xt_loss, x0_loss, consistency_loss
         else:
             shape = (cond.shape[0], 1, self.out_dims, cond.shape[2])  # [B, 1, M, T]
