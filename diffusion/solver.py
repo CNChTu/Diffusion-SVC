@@ -402,8 +402,6 @@ def train(rank, args, initial_global_step, model, optimizer, scheduler, vocoder,
                 if last_decay_step is not None:
                     # 如果在last_decay_step步数之后,则不再更新学习率
                     if saver.global_step <= last_decay_step:
-                        pass
-                    else:
                         scheduler.step()
                 else:
                     scheduler.step()
