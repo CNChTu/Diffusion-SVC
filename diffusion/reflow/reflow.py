@@ -152,7 +152,7 @@ class RectifiedFlow(nn.Module):
         t += dt
         return x, t
 
-    def sample_heun(self, x, t, dt, cond=None):
+    def sample_heun(self, x, t, dt, cond):
         # Predict
         k_1 = self.velocity_fn(x, 1000 * t, cond=cond)
         x_pred = x + k_1 * dt
@@ -163,7 +163,7 @@ class RectifiedFlow(nn.Module):
         t += dt
         return x, t
 
-    def sample_PECECE(self, x, t, dt, cond=None):
+    def sample_PECECE(self, x, t, dt, cond):
         # Predict1
         k_1 = self.velocity_fn(x, 1000 * t, cond=cond)
         x_pred1 = x + k_1 * dt
@@ -177,6 +177,15 @@ class RectifiedFlow(nn.Module):
         # Correct2
         k_4 = self.velocity_fn(x_pred2, 1000 * (t + 2*dt), cond=cond)
         x += (k_3 + k_4) / 2 * dt
+        t += dt
+        return x, t
+
+    def sample_rf_solver(self, x, t, dt, cond):
+        v_t = self.velocity_fn(x, 1000 * t, cond=cond)
+        x_half = x + v_t * dt / 2
+        v_half = self.velocity_fn(x_half, 1000 * (t + dt / 2), cond=cond)
+        v_prime = (v_half - v_t) / dt / 2
+        x += v_t * dt + v_prime / 2 * (dt ** 2)
         t += dt
         return x, t
     
@@ -310,6 +319,14 @@ class RectifiedFlow(nn.Module):
                 else:
                     for i in range(infer_step):
                         x, t = self.sample_PECECE(x, t, dt, cond)
+
+            elif method == 'RF-Solver':
+                if use_tqdm:
+                    for i in tqdm(range(infer_step), desc='sample time step', total=infer_step):
+                        x, t = self.sample_rf_solver(x, t, dt, cond)
+                else:
+                    for i in range(infer_step):
+                        x, t = self.sample_rf_solver(x, t, dt, cond)
                         
             else:
                 raise NotImplementedError(method)
