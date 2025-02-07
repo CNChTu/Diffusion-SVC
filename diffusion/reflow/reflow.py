@@ -184,7 +184,7 @@ class RectifiedFlow(nn.Module):
         v_t = self.velocity_fn(x, 1000 * t, cond=cond)
         x_half = x + v_t * dt / 2
         v_half = self.velocity_fn(x_half, 1000 * (t + dt / 2), cond=cond)
-        v_prime = (v_half - v_t) / dt / 2
+        v_prime = (v_half - v_t) / (dt / 2)
         x += v_t * dt + v_prime / 2 * (dt ** 2)
         t += dt
         return x, t
