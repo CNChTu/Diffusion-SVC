@@ -21,7 +21,7 @@ torchfcpe
 tqdm
 transformers
 wave
-pysimplegui
+FreeSimpleGUI
 sounddevice
 gradio
 faiss-cpu
