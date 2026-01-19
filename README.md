@@ -8,14 +8,6 @@ Language: [English](./README_en.md) **简体中文**
 
 此仓库是[DDSP-SVC](https://github.com/yxlllc/DDSP-SVC)仓库的扩散部分的单独存放。可单独训练和推理。
 ***
-
-~~**Diffusion SVC 2.0 即将到来，可在`v2.0_dev`分支提前体验：[前往分支](https://github.com/CNChTu/Diffusion-SVC/tree/v2.0_dev)**~~
-
-2.0因对1.0的兼容和众多实验的进行，代码非常混乱，故直接跳过，至全新的3.0。
-
-**Diffusion SVC 3.0 即将到来，可在`v3.0_dev`分支提前体验：[前往分支](https://github.com/CNChTu/Diffusion-SVC/tree/v3.0_dev)**
-
-***
 **最近更新：使用本仓库的naive模型和浅扩散模型搭配可以用极低训练成本达到比单纯扩散模型更好的效果，强力推荐。但是小网络的naive模型泛化能力较弱，在小数据集上可能会有音域问题，这个时候naive模型微调不能训练太多步数(这会让底模退化)，前级也可以考虑更换为无限音域的ddsp模型。**
 <br>效果和介绍见[[介绍视频(暂未完成)]]()
 **欢迎加群交流讨论：882426004**
@@ -58,9 +50,9 @@ pip install -r requirements.txt
 
 将所有的验证集数据 (.wav 格式音频切片) 放到 `data/val/audio`,也可以是配置文件中指定的文件夹如`aaaa/bbbb/audio`。
 
-#### 1.2 程序随机选择：
+#### ~~1.2 程序随机选择(未实装)：~~
 
-运行`python draw.py`,程序将帮助你挑选验证集数据（可以调整 `draw.py` 中的参数修改抽取文件的数量等参数）。
+~~运行`python draw.py`,程序将帮助你挑选验证集数据（可以调整 `draw.py` 中的参数修改抽取文件的数量等参数）~~。
 
 #### 1.3文件夹结构目录展示：
 **注意：说话人id必须从1开始，不能从0开始；如果只有一个说话人则该说话人id必须为1**

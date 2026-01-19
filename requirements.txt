@@ -20,8 +20,8 @@ torchcrepe
 torchfcpe
 tqdm
 transformers
-wave
 FreeSimpleGUI
 sounddevice
 gradio
 faiss-cpu
+vector-quantize-pytorch

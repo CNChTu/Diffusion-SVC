@@ -16,8 +16,25 @@ def parse_args(args=None, namespace=None):
         "-nmodel",
         "--naive_model",
         type=str,
-        required=True,
+        default=None,
+        required=False,
         help="path to the naive model checkpoint",
+    )
+    parser.add_argument(
+        "-votype",
+        "--vocoder_type",
+        type=str,
+        required=False,
+        default=None,
+        help="If not None, will combo designated vocoder to the combo model; else nothing to do | default: None",
+    )
+    parser.add_argument(
+        "-vopath",
+        "--vocoder_path",
+        type=str,
+        required=False,
+        default=None,
+        help="If use vocoder_type, please set vocoder_path; else nothing to do | default: None",
     )
     parser.add_argument(
         "-d",
@@ -46,5 +63,10 @@ def parse_args(args=None, namespace=None):
 if __name__ == '__main__':
     # parse commands
     cmd = parse_args()
-    combo_model = NaiveAndDiffModel(diff_model_path=cmd.model, naive_model_path=cmd.naive_model, device=cmd.device)
+    combo_model = NaiveAndDiffModel(
+        diff_model_path=cmd.model,
+        naive_model_path=cmd.naive_model,
+        vocoder_type=cmd.vocoder_type,
+        vocoder_path=cmd.vocoder_path,
+        device=cmd.device)
     combo_model.save_combo_model(save_path=cmd.exp, save_name=cmd.name)

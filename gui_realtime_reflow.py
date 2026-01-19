@@ -53,16 +53,16 @@ class Config:
         self.use_hubert_mask = False
 
     def save(self, path):
-        with open(path + '\\config.pkl', 'wb') as f:
+        with open(path + '\\config_reflow.pkl', 'wb') as f:
             pickle.dump(vars(self), f)
 
     def load(self, path) -> bool:
         try:
-            with open(path + '\\config.pkl', 'rb') as f:
+            with open(path + '\\config_reflow.pkl', 'rb') as f:
                 self.update(pickle.load(f))
             return True
         except:
-            print('config.pkl does not exist')
+            print('config_reflow.pkl does not exist')
             return False
 
     def update(self, data_dict):
@@ -85,7 +85,7 @@ class GUI:
         self.output_wav: np.ndarray = None  # 输出音频规范化后的保存地址
         self.sola_buffer: torch.Tensor = None  # 保存上一个output的crossfade
         self.f0_mode_list = ["parselmouth", "dio", "harvest", "crepe", "rmvpe", "fcpe"]  # F0预测器
-        self.diff_method_list = ["ddim", "pndm", "dpm-solver", "unipc"]  # 加速采样方法
+        self.diff_method_list = ["euler", "rk2", "rk4", "heun", "PECECE"]  # 加速采样方法
         self.f_safe_prefix_pad_length: float = 0.0
         self.resample_kernel = {}
         self.stream = None
@@ -156,18 +156,18 @@ class GUI:
                                     enable_events=True)]
                 ], title=i18n('切片设置')),
                 sg.Frame(layout=[
-                    [sg.Text(i18n("扩散深度")), sg.Input(key='k_step', default_text='100', size=18)],
-                    [sg.Text(i18n("扩散加速")), sg.Input(key='diff_acc', default_text='10', size=18)],
-                    [sg.Text(i18n("扩散算法")),
+                    [sg.Text(i18n("Reflow t_start")), sg.Input(key='k_step', default_text='100', size=18)],
+                    [sg.Text(i18n("Reflow 推理步数")), sg.Input(key='diff_acc', default_text='10', size=18)],
+                    [sg.Text(i18n("采样算法")),
                      sg.Combo(values=self.diff_method_list, key='diff_method', default_value=self.diff_method_list[0],
                               enable_events=True)],
                     [sg.Checkbox(text=i18n('不合成安全区(加速但损失效果)'), default=False, key='jump_silence',
                                  enable_events=True)],
                     [sg.Text(text=i18n('↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓'), key='ZHANWEI1')],
-                    [sg.Text(text=i18n('!强烈建议使用组合模型浅扩散!'), key='ZHANWEI1')],
-                    [sg.Text(text=i18n('!强烈建议使用组合模型浅扩散!'), key='ZHANWEI3')],
-                    [sg.Text(text=i18n('!强烈建议使用组合模型浅扩散!'), key='ZHANWEI4')]
-                ], title=i18n('扩散设置')),
+                    [sg.Text(text=i18n('!强烈建议使用组合模型!'), key='ZHANWEI1')],
+                    [sg.Text(text=i18n('!强烈建议使用组合模型!'), key='ZHANWEI3')],
+                    [sg.Text(text=i18n('!强烈建议使用组合模型!'), key='ZHANWEI4')]
+                ], title=i18n('Reflow设置')),
             ],
             [sg.Button(i18n("开始音频转换"), key="start_vc"), sg.Button(i18n("停止音频转换"), key="stop_vc"),
              sg.Text(i18n('推理所用时间(ms):')), sg.Text('0', key='infer_time')]
@@ -201,14 +201,14 @@ class GUI:
                 print("mix_mode:" + str(self.config.spk_mix_dict))
                 print('using_cuda:' + str(torch.cuda.is_available()))
                 self.start_vc()
-            elif event == 'k_step':
-                if 1 <= int(values['k_step']) <= 1000:
-                    self.config.k_step = int(values['k_step'])
+            elif event == 'k_step':  # mean reflow t_start
+                if 0.0 <= float(values['k_step']) < 1.0:
+                    self.config.k_step = float(values['k_step'])
                 else:
                     self.window['k_step'].update(1000)
-            elif event == 'diff_acc':
-                if self.config.k_step < int(values['diff_acc']):
-                    self.config.diff_acc = int(self.config.k_step / 4)
+            elif event == 'diff_acc':  # mean reflow inference steps
+                if int(values['diff_acc']) < 1:
+                    self.config.diff_acc = 1
                 else:
                     self.config.diff_acc = int(values['diff_acc'])
             elif event == 'jump_silence':
@@ -346,9 +346,9 @@ class GUI:
             spk_id=self.config.spk_id,
             spk_mix_dict=self.config.spk_mix_dict,
             aug_shift=0,
-            infer_speedup=self.config.diff_acc,
+            infer_step=int(self.config.diff_acc),
             method=self.config.diff_method,
-            k_step=self.config.k_step,
+            t_start=float(self.config.k_step) if (self.config.k_step != 0.) else None,
             use_tqdm=False,
             spk_emb=None,
             silence_front=self.f_safe_prefix_pad_length,
@@ -435,5 +435,5 @@ class GUI:
 
 
 if __name__ == "__main__":
-    i18n = I18nAuto(model='gui_realtime.py', language=None)
+    i18n = I18nAuto(model='gui_realtime_reflow.py', language=None)
     gui = GUI()
