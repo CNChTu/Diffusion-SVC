@@ -10,7 +10,9 @@ Language: [English](./README_en.md) **简体中文**
 ***
 
 ~~**Diffusion SVC 2.0 即将到来，可在`v2.0_dev`分支提前体验：[前往分支](https://github.com/CNChTu/Diffusion-SVC/tree/v2.0_dev)**~~
+
 2.0因对1.0的兼容和众多实验的进行，代码非常混乱，故直接跳过，至全新的3.0。
+
 **Diffusion SVC 3.0 即将到来，可在`v3.0_dev`分支提前体验：[前往分支](https://github.com/CNChTu/Diffusion-SVC/tree/v3.0_dev)**
 
 ***
