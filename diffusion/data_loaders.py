@@ -286,6 +286,10 @@ class AudioDataset(Dataset):
         else:
             mel = mel[start_frame: start_frame + units_frame_len]
 
+        if len(mel.shape) != 2:
+            if mel.max() > 10.0 or mel.min() < -10.0:
+                mel = torch.clamp(mel, -10.0, 10.0)
+
         # load units
         units = data_buffer.get('units')
         if units is None:

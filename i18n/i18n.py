@@ -12,6 +12,12 @@ LANGUAGE_AND_MODEL_PATH = {
         "path": "i18n/gui_realtime",  # 此目录下以语言名的json文件储存本地化信息
         "base_language": "zh_CN",  # base语言会和代码同步更新
         "language_list": ['zh_CN', 'en_US']  # 支持的语言需要在这里记录
+    },
+    "gui_realtime_reflow.py":{
+        "path": "i18n/gui_realtime_reflow",
+        "base_language": "zh_CN",
+        "language_list": ['zh_CN', 'en_US']
+
     }
 }
 

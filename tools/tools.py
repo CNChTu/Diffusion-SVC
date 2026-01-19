@@ -202,8 +202,10 @@ class F0_Extractor:
         self.hop_size = hop_size
         self.f0_min = f0_min
         self.f0_max = f0_max
-        self.fcpe = None
+        self.transformer_f0 = None
         self.rmvpe = None
+        self.pesto = None
+        self.pesto_data_processor = None
         if f0_extractor == 'crepe':
             key_str = str(sample_rate)
             if key_str not in CREPE_RESAMPLE_KERNEL:
@@ -239,10 +241,10 @@ class F0_Extractor:
             l_pad = int(np.ceil(1.5 / self.f0_min * self.sample_rate))
             r_pad = int(self.hop_size * ((len(audio) - 1) // self.hop_size + 1) - len(audio) + l_pad + 1)
             s = parselmouth.Sound(np.pad(audio, (l_pad, r_pad)), self.sample_rate).to_pitch_ac(
-                time_step = self.hop_size / self.sample_rate, 
-                voicing_threshold = 0.6,
-                pitch_floor = self.f0_min, 
-                pitch_ceiling = self.f0_max)
+                time_step=self.hop_size / self.sample_rate,
+                voicing_threshold=0.6,
+                pitch_floor=self.f0_min,
+                pitch_ceiling=self.f0_max)
             assert np.abs(s.t1 - 1.5 / self.f0_min) < 0.001
             f0 = np.pad(s.selected_array['frequency'], (start_frame, 0))
             if len(f0) < n_frames:
@@ -289,27 +291,32 @@ class F0_Extractor:
                 [f0[int(min(int(np.round(n * self.hop_size / self.sample_rate / 0.005)), len(f0) - 1))] for n in
                  range(n_frames - start_frame)])
             f0 = np.pad(f0, (start_frame, 0))
-        
-        # extract f0 using fcpe
+
         elif self.f0_extractor == "fcpe":
-            if self.fcpe is None:
+            if device is None:
+                device = 'cuda' if torch.cuda.is_available() else 'cpu'
+            _JUMP_SAFE_PAD = False
+            if self.transformer_f0 is None:
+                #from torchfcpe import spawn_infer_model_from_pt
+                #self.transformer_f0 = spawn_infer_model_from_pt(pt_path='E:/AUFSe04BPyProgram/AUFSd04BPyProgram/fcpe/20231001/FCPE/torchfcpe/exp/yx2_001ach/model_300000.pt', device=device)
                 from torchfcpe import spawn_bundled_infer_model
-                self.device_fcpe = 'cuda' if torch.cuda.is_available() else 'cpu'
-                self.fcpe = spawn_bundled_infer_model(device=self.device_fcpe)
-            _audio = torch.from_numpy(audio).to(self.device_fcpe).unsqueeze(0)
-            f0 = self.fcpe(_audio, sr=self.sample_rate, decoder_mode="local_argmax", threshold=0.006)
+                self.transformer_f0 = spawn_bundled_infer_model(device=device)
+            if _JUMP_SAFE_PAD:
+                raw_audio = audio
+            #f0 = self.transformer_f0(audio=raw_audio, sr=self.sample_rate)
+            _raw_audio = torch.from_numpy(raw_audio).float().unsqueeze(0).unsqueeze(-1).to(device)
+            f0 = self.transformer_f0(_raw_audio, self.sample_rate, threshold=0.005)
+            f0 = f0.transpose(1, 2)
+            if not _JUMP_SAFE_PAD:
+                f0 = torch.nn.functional.interpolate(f0, size=int(n_frames), mode='nearest')
+            f0 = f0.transpose(1, 2)
             f0 = f0.squeeze().cpu().numpy()
-            uv = f0 == 0
-            if len(f0[~uv]) > 0:
-                f0[uv] = np.interp(np.where(uv)[0], np.where(~uv)[0], f0[~uv])
-            origin_time = 0.01 * np.arange(len(f0))
-            target_time = self.hop_size / self.sample_rate * np.arange(n_frames - start_frame)
-            f0 = np.interp(target_time, origin_time, f0)
-            uv = np.interp(target_time, origin_time, uv.astype(float)) > 0.5
-            f0[uv] = 0
-            f0 = np.pad(f0, (start_frame, 0))
-        
-        # extract f0 using rmvpe        
+            if _JUMP_SAFE_PAD:
+                f0 = np.array(
+                    [f0[int(min(int(np.round(n * self.hop_size / self.sample_rate / 0.01)), len(f0) - 1))] for n in
+                     range(n_frames - start_frame)])
+                f0 = np.pad(f0.astype('float'), (start_frame, n_frames - len(f0) - start_frame))
+
         elif self.f0_extractor == "rmvpe":
             if self.rmvpe is None:
                 from encoder.rmvpe import RMVPE
@@ -324,6 +331,26 @@ class F0_Extractor:
             uv = np.interp(target_time, origin_time, uv.astype(float)) > 0.5
             f0[uv] = 0
             f0 = np.pad(f0, (start_frame, 0))
+
+        elif self.f0_extractor == "pesto":
+            if device is None:
+                device = 'cuda' if torch.cuda.is_available() else 'cpu'
+            from pesto import predict
+            from pesto.utils import load_model, load_dataprocessor
+            if self.pesto is None:
+                self.pesto = load_model("mir-1k", device=device)
+                self.pesto_data_processor = load_dataprocessor(step_size=0.01, device=device)
+            self.pesto_data_processor.sampling_rate = self.sample_rate
+            _raw_audio = torch.from_numpy(raw_audio).float().unsqueeze(0).unsqueeze(0).to(device)
+            _timesteps, _pitch, _confidence, _activations = predict(_raw_audio, self.sample_rate,
+                                                                    model=self.pesto, step_size=0.01,
+                                                                    data_preprocessor=self.pesto_data_processor,
+                                                                    convert_to_freq=True)
+            uv = _confidence < 0.75
+            f0 = _pitch * ( ~uv )
+            f0 = f0.unsqueeze(-2)
+            f0 = torch.nn.functional.interpolate(f0, size=int(n_frames), mode='nearest')
+            f0 = f0.squeeze().cpu().numpy()
         else:
             raise ValueError(f" [x] Unknown f0 extractor: {self.f0_extractor}")
 
@@ -422,6 +449,9 @@ class Units_Encoder:
             is_loaded_encoder = True
         if encoder == 'contentvec768l12':
             self.model = Audio2ContentVec768L12(encoder_ckpt, device=device)
+            is_loaded_encoder = True
+        if encoder == 'contentvec768l12tta2x':
+            self.model = Audio2ContentVec768L12TTA2X(encoder_ckpt, device=device)
             is_loaded_encoder = True
         if encoder == 'cnhubertsoftfish':
             self.model = CNHubertSoftFish(encoder_ckpt, device=device, gate_size=cnhubertsoft_gate)
@@ -602,6 +632,45 @@ class Audio2ContentVec768L12():
             logits = self.hubert.extract_features(**inputs)
             feats = logits[0]
         units = feats  # .transpose(2, 1)
+        return units
+
+
+class Audio2ContentVec768L12TTA2X():
+    def __init__(self, path, h_sample_rate=16000, h_hop_size=160, device='cpu'):
+        self.device = device
+        print(' [Encoder Model] Content Vec')
+        print(' [Loading] ' + path)
+        self.models, self.saved_cfg, self.task = checkpoint_utils.load_model_ensemble_and_task([path], suffix="", )
+        self.hubert = self.models[0]
+        self.hubert = self.hubert.to(self.device)
+        self.hubert.eval()
+
+    def __call__(self, audio, padding_mask=None):  # B, T
+        # wav_tensor = torch.from_numpy(audio).to(self.device)
+        wav_tensor = audio
+        feats = wav_tensor.view(1, -1)
+        if padding_mask is None:
+            padding_mask = torch.BoolTensor(feats.shape).fill_(False)
+        else:
+            padding_mask = padding_mask.bool()
+            padding_mask = ~padding_mask if torch.all(padding_mask) else padding_mask
+        inputs = {
+            "source": feats.to(wav_tensor.device),
+            "padding_mask": padding_mask.to(wav_tensor.device),
+            "output_layer": 12,  # layer 12
+        }
+        with torch.no_grad():
+            feats = self.hubert.extract_features(**inputs)[0]
+            inputs["source"] = F.pad(inputs["source"], (160, 0))
+            feats2 = self.hubert.extract_features(**inputs)[0]
+            n = feats2.shape[1] - feats.shape[1]
+            if n > 0:
+                feats = F.pad(feats, (0, 0, 0, 1))
+            feats_tta = torch.cat((feats2, feats), dim=2).reshape(feats.shape[0], -1, feats.shape[-1])
+            feats_tta = feats_tta[:, 1:, :]
+            if n > 0:
+                feats_tta = feats_tta[:, :-1, :]
+        units = feats_tta  # .transpose(2, 1)
         return units
 
 
